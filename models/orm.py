@@ -23,4 +23,13 @@ class SampleAnalysisResult(Base):
     # def __repr__(self):
     #     return user_to_dict(self)
 
+
+class Sample(Base):
+    __tablename__ = "t_samples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sample_name = Column(String(255))
+    sample_key = Column(String(255))
+    sample_group= Column(String(255))
+
 Base.metadata.create_all(bind=engine)

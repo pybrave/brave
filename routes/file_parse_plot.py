@@ -24,7 +24,7 @@ import pandas as pd
 from config.db import engine
 from models.core import samples
 import inspect
-
+from routes.analysis import get_db_value
 file_parse_plot = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -52,6 +52,11 @@ def get_sample(project):
         df = pd.DataFrame(result.fetchall(), columns=result.keys())
         return df
 
+def get_db_dict(db_field,request_param):
+    db_ids_dict = {key: request_param[key] for key in db_field if key in request_param}
+    with get_db_session() as session:
+        db_dict = { key:get_db_value(session,value) for key,value in  db_ids_dict.items()}
+    return db_dict
 
 def parse_result(request_param,module_name):
     module = importlib.import_module(f'file_parse_plot.{module_name}')
@@ -61,9 +66,23 @@ def parse_result(request_param,module_name):
     data = None
     if len(params) ==1:
         data = parse_data(request_param)
+    elif len(params) ==2:
+        if hasattr(module, "get_db_field"):
+            get_db_field = getattr(module, "get_db_field")
+            db_field = get_db_field()
+            db_dict = get_db_dict(db_field,request_param)
+            data = parse_data(request_param,db_dict)
+        else:
+            sample = get_sample(request_param['project'])
+            data = parse_data(request_param,sample)
     else:
+        get_db_field = getattr(module, "get_db_field")
+        db_field = get_db_field()
+        db_dict = get_db_dict(db_field,request_param)
         sample = get_sample(request_param['project'])
-        data = parse_data(request_param,sample)
+        data = parse_data(request_param,db_dict,sample)
+
+
     result = {}
     # if isinstance(data,list):
 
@@ -145,9 +164,17 @@ async def parse_result_restful(module_name,request_param: Dict[str, Any]):
     # file_path ="/ssd1/wy/workspace2/leipu/leipu_workspace2/output/prokka/OSP-3/OSP-3.txt"
     # module_name = "prokka_txt_plot"
     # data = await request.json()
-    str_uuid = str(uuid.uuid4())
+    file_path = None
+    if "id" in request_param:
+        with get_db_session() as db:
+            sampleAnalysisResult = db.query(SampleAnalysisResult) \
+                .filter(SampleAnalysisResult.id == request_param["id"]).first()
+        file_path =   sampleAnalysisResult.content
+    else:
+        str_uuid = str(uuid.uuid4())
+        file_path = f"/ssd1/wy/workspace2/nextflow-fastapi/analysis_result/{str_uuid}.json"
+
     result = parse_result(request_param,module_name)
-    file_path = f"/ssd1/wy/workspace2/nextflow-fastapi/analysis_result/{str_uuid}.json"
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=4)
     software = request_param['software']

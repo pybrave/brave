@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Table
 from sqlalchemy.sql.sqltypes import Integer, String
 from config.db import meta, engine
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 samples = Table(
     "t_samples",
@@ -14,6 +15,7 @@ samples = Table(
     Column("sample_composition", String(255)),
     Column("library_name", String(255)),
     Column("sample_group", String(255)),
+    
     Column("fastq1", String(255)),
     Column("fastq2", String(255)),
 )
@@ -29,8 +31,25 @@ analysis = Table(
     Column("work_dir", String(255)),
     Column("params_path", String(255)),
     Column("command_path", String(255)),
-    Column("request_param", String(255)),
+    Column("request_param", LONGTEXT),
+    Column("output_format", LONGTEXT),
     Column("output_dir", String(255))
 )
 
+analysis_result = Table(
+    "analysis_result",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("sample_name", String(255)),
+    Column("sample_key", String(255)),
+    Column("analysis_name", String(255)),
+    Column("analysis_key", String(255)),
+    Column("analysis_method", String(255)),
+    Column("software", String(255)),
+    Column("content", String(255)),
+    Column("analysis_version", String(255)),
+    Column("content_type", String(255)),
+    Column("project", String(255)),
+    Column("request_param", String(255))
+)
 meta.create_all(engine)

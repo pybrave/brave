@@ -8,15 +8,15 @@ from starlette.status import HTTP_204_NO_CONTENT
 from sqlalchemy import func, select
 from config.db import SessionLocal
 from cryptography.fernet import Fernet
-from models.orm import SampleAnalysisResult
+from models.orm import SampleAnalysisResult,Sample
 import glob
 import importlib
 import os
 import json
 from config.db import get_db_session
 from sqlalchemy import and_,or_
-from schemas.analysis_result import AnalysisResultQuery
-from models.core import samples
+from schemas.analysis_result import AnalysisResultQuery,AnalysisResult
+from models.core import samples,analysis_result
 from config.db import engine
 sample_result = APIRouter()
 # key = Fernet.generate_key()
@@ -47,6 +47,7 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
         if sampleAnalysisResult:
             sampleAnalysisResult.sample_name = sample_name
             sampleAnalysisResult.content = content
+            sampleAnalysisResult.sample_key=sample_name
             sampleAnalysisResult.content_type = content_type
             sampleAnalysisResult.analysis_name = analysis_name
             # sampleAnalysisResult.log_path = log_path
@@ -64,11 +65,35 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
                 # log_path=log_path, \
                 software=software, \
                 project=project, \
+                sample_key=sample_name, \
                 content=content \
                     )
             db.add(sampleAnalysisResult)
             db.commit()
             print(">>>>新增: ",sample_name, software, content_type)
+
+def parse_result_one(analysis_method,module,dir_path,project,verison):
+    parse = getattr(module, "parse")
+    res = parse(dir_path)
+    if hasattr(module,"get_analysis_method"):
+        get_analysis_method = getattr(module, "get_analysis_method")
+        analysis_method = get_analysis_method()
+        print(f">>>>>更改分析名称: {analysis_method}")
+    analysis_name = analysis_method
+    if hasattr(module,"get_analysis_name"):
+        get_analysis_name = getattr(module, "get_analysis_name")
+        analysis_name = get_analysis_name()
+        
+    with get_db_session() as db:
+        if len(res) >0:
+            # print(res[0])
+            if len(res[0]) == 4:
+                for analysis_key,software,content_type,content in res:
+                    update_or_save_result(analysis_key,analysis_key, software, content_type, content, db, project, verison, analysis_method,analysis_name)
+            elif len(res[0]) == 5:
+                for analysis_key,sample_name,software,content_type,content in res:
+                    update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name)
+            # print(sample_name)
 
 def parse_result(dir_path,project,verison):
     py_files = [f for f in os.listdir("sample_result_parse") if f.endswith('.py')]
@@ -76,32 +101,33 @@ def parse_result(dir_path,project,verison):
         module_name = py_file[:-3]  # 去掉 `.py` 后缀，获取模块名
         module = importlib.import_module(f'sample_result_parse.{module_name}')
         support_analysis_method = getattr(module, "support_analysis_method")
-        parse = getattr(module, "parse")
-        
-
         analysis_method = support_analysis_method()
+
+        
         if dir_path.endswith(analysis_method):
             print(f">>>>>找到分析名称 {analysis_method} 的分析结果")
-            res = parse(dir_path)
-            if hasattr(module,"get_analysis_method"):
-                get_analysis_method = getattr(module, "get_analysis_method")
-                analysis_method = get_analysis_method()
-                print(f">>>>>更改分析名称: {analysis_method}")
-            analysis_name = analysis_method
-            if hasattr(module,"get_analysis_name"):
-                get_analysis_name = getattr(module, "get_analysis_name")
-                analysis_name = get_analysis_name()
+            parse_result_one(analysis_method,module,dir_path,project,verison)
+            # parse = getattr(module, "parse")
+            # res = parse(dir_path)
+            # if hasattr(module,"get_analysis_method"):
+            #     get_analysis_method = getattr(module, "get_analysis_method")
+            #     analysis_method = get_analysis_method()
+            #     print(f">>>>>更改分析名称: {analysis_method}")
+            # analysis_name = analysis_method
+            # if hasattr(module,"get_analysis_name"):
+            #     get_analysis_name = getattr(module, "get_analysis_name")
+            #     analysis_name = get_analysis_name()
              
-            with get_db_session() as db:
-                if len(res) >0:
-                    # print(res[0])
-                    if len(res[0]) == 4:
-                        for analysis_key,software,content_type,content in res:
-                            update_or_save_result(analysis_key,analysis_key, software, content_type, content, db, project, verison, analysis_method,analysis_name)
-                    elif len(res[0]) == 5:
-                         for analysis_key,sample_name,software,content_type,content in res:
-                            update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name)
-                    # print(sample_name)
+            # with get_db_session() as db:
+            #     if len(res) >0:
+            #         # print(res[0])
+            #         if len(res[0]) == 4:
+            #             for analysis_key,software,content_type,content in res:
+            #                 update_or_save_result(analysis_key,analysis_key, software, content_type, content, db, project, verison, analysis_method,analysis_name)
+            #         elif len(res[0]) == 5:
+            #              for analysis_key,sample_name,software,content_type,content in res:
+            #                 update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name)
+            #         # print(sample_name)
 
 
 @sample_result.get("/sample-parse-result-test-hexiaoyan")
@@ -143,20 +169,40 @@ def parse_result_restful(base_path,verison,project):
     return {"msg":"success"}
 
 
-@sample_result.post("/fast-api/find-analyais-result-by-analysis-method")
+@sample_result.post(
+    "/fast-api/find-analyais-result-by-analysis-method",
+    response_model=List[AnalysisResult])
 def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisResultQuery):
-    with get_db_session() as session:
-        analysis_result =  session.query(SampleAnalysisResult) \
-            .filter(and_( \
-                SampleAnalysisResult.analysis_method.in_(analysisResultQuery.analysis_method), \
-                SampleAnalysisResult.project == analysisResultQuery.project \
-            )) \
-                .all()
-        for item in analysis_result:
+    # with get_db_session() as session:
+    #     analysis_result =  session.query(SampleAnalysisResult,Sample) \
+    #         .outerjoin(Sample, SampleAnalysisResult.sample_key == Sample.sample_key) \
+    #         .filter(and_( \
+    #             SampleAnalysisResult.analysis_method.in_(analysisResultQuery.analysis_method), \
+    #             SampleAnalysisResult.project == analysisResultQuery.project \
+    #         )) \
+    #             .all()
+
+    #     for item in analysis_result:
+    #         if item.content_type=="json":
+    #             item.content = json.loads(item.content)
+            # print()
+    with engine.begin() as conn:
+        stmt = analysis_result.select() 
+        if analysisResultQuery.querySample:
+            stmt =  select(analysis_result, samples).select_from(analysis_result.outerjoin(samples,samples.c.sample_key==analysis_result.c.sample_key))
+        stmt= stmt.where(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method))
+        result  = conn.execute(stmt)
+        # result = result.fetchall()
+        rows = result.mappings().all()
+        result_dict = [AnalysisResult(**row) for row in rows]
+        # result_dict = []
+        for item in result_dict:
             if item.content_type=="json":
                 item.content = json.loads(item.content)
-            # print()
-        return analysis_result
+        #     result.append(row)
+        # # rows = result.mappings().all()
+        # pass
+    return result_dict
     # return {"aa":"aa"}
 
 @sample_result.post("/fast-api/add-sample-analysis")

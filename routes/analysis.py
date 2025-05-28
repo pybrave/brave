@@ -25,7 +25,7 @@ import importlib
 import importlib.util
 import uuid
 import os
-
+from routes.sample_result import parse_result_one
 analysis_api = APIRouter()
 
 
@@ -67,7 +67,7 @@ def get_db_value(session, value):
                 .filter(SampleAnalysisResult.id.in_(ids)) \
                     .all()
     for item in analysis_result:
-        if item.content_type=="json":
+        if item.content_type=="json" and not isinstance(item.content, dict):
             item.content = json.loads(item.content)
 
     if len(analysis_result)!=len(ids):
@@ -101,6 +101,9 @@ def parse_analysis(request_param,params_path,command_path,work_dir,module_name):
         command = f"nextflow run {script} -resume  -params-file {params_path} -w {work_dir} -with-trace trace.txt | tee .workflow.log"
         with open(command_path, "w") as f:
             f.write(command)
+        get_output_format = getattr(module, "get_output_format")
+        output_format = get_output_format()
+        return json.dumps(output_format)
 
 # ,response_model=List[Sample]
 @analysis_api.post("/fast-api/save-analysis")
@@ -130,6 +133,7 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             params_path = result.params_path
             command_path = result.command_path
             parse_result = parse_analysis(request_param,params_path,command_path, work_dir,request_param['analysis_method'])
+            new_analysis['output_format'] = parse_result
             stmt = analysis.update().values(new_analysis).where(analysis.c.id==request_param['id'])
         else:
             str_uuid = str(uuid.uuid4())
@@ -148,6 +152,7 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             new_analysis['analysis_key'] = str_uuid
 
             parse_result = parse_analysis(request_param,params_path, command_path,work_dir,request_param['analysis_method'])
+            new_analysis['output_format'] = parse_result
 
             stmt = analysis.insert().values(new_analysis)
         conn.execute(stmt)
@@ -174,4 +179,18 @@ def get_analysis(analysis_method):
 def delete_user(id: int):
     with engine.begin() as conn:
         conn.execute(analysis.delete().where(analysis.c.id == id))
+    return {"message":"success"}
+
+
+@analysis_api.post("/fast-api/parse-analysis-result/{id}")
+def parse_analysis_result(id):
+    with engine.begin() as conn:
+        stmt = select(analysis).where(analysis.c.id == id)
+        result = conn.execute(stmt).fetchone()
+    output_format = json.loads(result.output_format)
+    for item in output_format:
+        dir_path = f"{result.output_dir}/output/{item['dir']}"
+        module = importlib.import_module(f"parse_analysis_result.{item['module']}")
+        parse_result_one(item['analysis_method'],module,dir_path,result.project,"V1.0")
+        
     return {"message":"success"}

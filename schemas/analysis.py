@@ -23,4 +23,5 @@ class Analysis(BaseModel):
     work_dir: Optional[str]
     output_dir: Optional[str]
     params_path: Optional[str]
+    output_format: Optional[str]
     command_path: Optional[str]

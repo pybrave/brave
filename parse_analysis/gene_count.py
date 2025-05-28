@@ -17,6 +17,18 @@ def get_db_field():
 def get_script():
     return "/ssd1/wy/workspace2/nextflow/single_genome_rna.nf"
 
+def get_output_format():
+    return [
+        {
+            "module":"bowtie2_align",
+            "dir":"bowtie2_RNA_mapping",
+            "analysis_method":"bowtie2_RNA_mapping"
+        },{
+            "module":"feature_counts",
+            "dir":"feature_counts",
+            "analysis_method":"feature_counts_RNA_mapping"
+        }
+    ]
 def parse_data(request_param,db_dict):
     analysis_result = db_dict['rna_seq']
     result = [get_data(item) for item in analysis_result]
@@ -36,7 +48,9 @@ def parse_data(request_param,db_dict):
         "genome_gff":{
             "analysis_key":genome_annotation.analysis_key,
             "gff":genome_annotation.content['gff']
-        }
+        },
+        "bowtie2_output":"bowtie2_RNA_mapping",
+        "fastp_output":"fastp_RNA"
     }
     return result
 
