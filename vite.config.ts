@@ -11,4 +11,18 @@ export default defineConfig({
     },
   },
   plugins: [react()],
+  server:{
+    proxy:{
+      '/api':{
+        target: `http://localhost:3000`,
+        ws: true
+      },'/jupyter':{
+        target: `http://localhost:10100`,
+        ws: true
+      },'/fast-api':{
+        target: `http://localhost:4000`,
+        ws: true
+      }
+    }
+  }
 })

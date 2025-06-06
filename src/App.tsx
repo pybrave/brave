@@ -1,6 +1,6 @@
-import { FC, Suspense } from "react"
+import { FC } from "react"
 import RenderRouter from './routes';
-import { Skeleton } from "antd";
+import { HashRouter } from "react-router";
 
 const App: FC<any> = () => {
 
@@ -8,8 +8,9 @@ const App: FC<any> = () => {
     {/* <Suspense fallback={<Skeleton active></Skeleton>}>
 
     </Suspense> */}
-    
-    <RenderRouter></RenderRouter>
+    <HashRouter>
+      <RenderRouter></RenderRouter>
+    </HashRouter>
 
   </>
 }

@@ -1,0 +1,9 @@
+{
+    "args":{
+        "column":["host_disease"],
+         "control":["SCZ"],
+         "treatment":["HC"],
+         "project":["project"],
+        "rnak":["SPECIES"]
+    }
+}
