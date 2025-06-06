@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 Base = declarative_base()
 
-engine = create_engine("mysql+pymysql://root:123456@192.168.3.60:53306/pipeline", echo=True)
+engine = create_engine("mysql+pymysql://root:123456@192.168.3.60:53306/pipeline", echo=False)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 meta = MetaData()

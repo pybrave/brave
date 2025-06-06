@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends
+from fastapi import APIRouter,Depends,HTTPException
 from sqlalchemy.orm import Session
 from config.db import conn
 from schemas.sample import Sample
@@ -25,6 +25,8 @@ import importlib
 import importlib.util
 import uuid
 import os
+from utils.get_db_utils import get_ids
+
 from routes.sample_result import parse_result_one
 analysis_api = APIRouter()
 
@@ -87,7 +89,7 @@ def parse_analysis(request_param,params_path,command_path,work_dir,module_name):
         get_db_field = getattr(module, "get_db_field")
         db_field = get_db_field()
 
-        db_ids_dict = {key: request_param[key] for key in db_field if key in request_param}
+        db_ids_dict = {key: get_ids(request_param[key]) for key in db_field if key in request_param}
         with get_db_session() as session:
             db_dict = { key:get_db_value(session,value) for key,value in  db_ids_dict.items()}
             parse_data = getattr(module, "parse_data")
@@ -170,9 +172,13 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
     "/fast-api/analysis",
     response_model=List[Analysis],
 )
-def get_analysis(analysis_method):
+def get_analysis(analysis_method,project):
     with engine.begin() as conn:
-        return conn.execute(analysis.select().where(analysis.c.analysis_method==analysis_method)).fetchall()
+        return conn.execute(analysis.select().where(
+            and_(analysis.c.analysis_method==analysis_method,
+            analysis.c.project==project,
+            )
+        )).fetchall()
 
 
 @analysis_api.delete("/fast-api/analysis/{id}",  status_code=HTTP_204_NO_CONTENT)
@@ -188,9 +194,11 @@ def parse_analysis_result(id):
         stmt = select(analysis).where(analysis.c.id == id)
         result = conn.execute(stmt).fetchone()
     output_format = json.loads(result.output_format)
+    if len(output_format)==0:
+        raise HTTPException(status_code=500, detail=f"分析{result.analysis_method}没有配置output_format!")
     for item in output_format:
         dir_path = f"{result.output_dir}/output/{item['dir']}"
         module = importlib.import_module(f"parse_analysis_result.{item['module']}")
-        parse_result_one(item['analysis_method'],module,dir_path,result.project,"V1.0")
+        parse_result_one(item['analysis_method'],module,dir_path,result.project,"V1.0",id)
         
     return {"message":"success"}

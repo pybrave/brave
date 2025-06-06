@@ -25,6 +25,7 @@ from config.db import engine
 from models.core import samples
 import inspect
 from routes.analysis import get_db_value
+from utils.get_db_utils import get_ids
 file_parse_plot = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -52,8 +53,9 @@ def get_sample(project):
         df = pd.DataFrame(result.fetchall(), columns=result.keys())
         return df
 
+     
 def get_db_dict(db_field,request_param):
-    db_ids_dict = {key: request_param[key] for key in db_field if key in request_param}
+    db_ids_dict = {key: get_ids(request_param[key]) for key in db_field if key in request_param}
     with get_db_session() as session:
         db_dict = { key:get_db_value(session,value) for key,value in  db_ids_dict.items()}
     return db_dict
@@ -87,10 +89,24 @@ def parse_result(request_param,module_name):
     # if isinstance(data,list):
 
     if isinstance(data,dict):
+        new_data = {}
         for key, value in data.items():
-            if isinstance(value, pd.DataFrame):
-                data[key] = value.to_dict(orient="records")
-        result= data
+            if key.startswith("in_"):
+                pass
+            elif isinstance(value, pd.DataFrame):
+                new_data[key] = value.to_dict(orient="records")
+            else:
+                new_data[key] = value
+        result= new_data
+    elif isinstance(data,tuple):
+        new_data = []
+        for item in data:
+            if not isinstance(item,tuple):
+                if isinstance(item, pd.DataFrame):
+                    new_data.append(item.to_dict(orient="records"))
+                else:
+                    new_data.append(item)
+        result = {"dataList":new_data}
     else:
         if isinstance(data, pd.DataFrame):
             # result = {"data":data.to_dict(orient="records")}
@@ -111,6 +127,17 @@ def parse_result(request_param,module_name):
                     buf.seek(0)
                     img_base64 = base64.b64encode(buf.read()).decode('utf-8')
                     result.update({key:"data:image/png;base64," + img_base64 })
+            elif isinstance(plt,list):
+                img_list = []
+                for value in plt:
+                    buf = BytesIO()
+                    value.savefig(buf, format='png', bbox_inches='tight')
+                    value.close()  # 关闭图像以释放内存
+                    buf.seek(0)
+                    img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+                    img_list.append("data:image/png;base64," + img_base64)
+                result.update({"img": img_list})
+                
             else:
                 buf = BytesIO()
                 plt.savefig(buf, format='png', bbox_inches='tight')
@@ -186,9 +213,9 @@ async def parse_result_restful(module_name,request_param: Dict[str, Any]):
         "software":software ,
         "content_type":"file",
         "content":file_path,
-         "project":project, 
-          "analysis_method":analysis_method,
-          "analysis_name":analysis_name
+        "project":project, 
+        "analysis_method":analysis_method,
+        "analysis_name":analysis_name
     }
     with get_db_session() as db:
         if "id" in request_param:

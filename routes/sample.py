@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 from config.db import conn
-from schemas.sample import Sample
+from schemas.sample import Sample,SampleGroup,SampleGroupQuery,ImportSample
 from typing import List
 from starlette.status import HTTP_204_NO_CONTENT
 from sqlalchemy import func, select
@@ -16,6 +16,7 @@ from sqlalchemy import and_,or_
 import pandas as pd
 from models.core import samples
 from config.db import engine
+from io import StringIO
 
 
 sample = APIRouter()
@@ -51,8 +52,24 @@ def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,ve
             print(">>>>新增: ",file_path,sample_name,file_type,log_path)
 
 
+@sample.post("/fast-api/import_sample_form_str",tags=["sample"],)
+def import_sample_form_str(sample:ImportSample):
+    csv_buffer = StringIO(sample.content)
+    df = pd.read_csv(csv_buffer)
+    # pass
+    # df = pd.read_csv(path)
+    with engine.begin() as conn:
+        df_dict = df.to_dict(orient="records")
+        stmt = samples.insert().values(df_dict)
+        conn.execute(stmt)
+        # print()
+        # return conn.execute(samples.select()).fetchall()
+        # print()
+        return {"msg":"success"}
+
 # ,response_model=List[Sample]
-@sample.get("/import-sample")
+# /ssd1/wy/workspace2/leipu/leipu_workspace2/sample/RNA.sample.csv
+@sample.get("/import-sample",tags=["sample"],)
 def import_sample(path):
     df = pd.read_csv(path)
     with engine.begin() as conn:
@@ -64,7 +81,7 @@ def import_sample(path):
         # print()
         return {"msg":"success"}
 
-@sample.get("/update-import-sample")
+@sample.get("/update-import-sample",tags=["sample"],description="更新样本")
 def import_sample(path):
     df = pd.read_csv(path)
     with engine.begin() as conn:
@@ -76,3 +93,20 @@ def import_sample(path):
         # return conn.execute(samples.select()).fetchall()
         # print()
         return {"msg":"success"}
+
+@sample.post(
+    "/fast-api/find-sample",
+    response_model=List[SampleGroup],
+    tags=["sample"],
+    description="查找样本"
+)
+def get_analysis(query:SampleGroupQuery):
+    with engine.begin() as conn:
+        return conn.execute(samples.select() \
+            .where(and_(samples.c.project==  query.project \
+                ,samples.c.sample_composition==  query.sample_composition \
+                ,samples.c.sequencing_target==  query.sequencing_target \
+                ,samples.c.sequencing_technique==  query.sequencing_technique \
+                )) \
+                ).fetchall()
+

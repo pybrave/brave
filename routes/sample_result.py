@@ -37,7 +37,7 @@ sample_result = APIRouter()
 #     finally:
 #         db.close()
 
-def update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name):
+def update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name,analysis_id):
         sampleAnalysisResult = db.query(SampleAnalysisResult) \
         .filter(and_(SampleAnalysisResult.analysis_method == analysis_method,\
                 SampleAnalysisResult.analysis_version == verison, \
@@ -50,6 +50,7 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
             sampleAnalysisResult.sample_key=sample_name
             sampleAnalysisResult.content_type = content_type
             sampleAnalysisResult.analysis_name = analysis_name
+            sampleAnalysisResult.analysis_id = analysis_id
             # sampleAnalysisResult.log_path = log_path
             sampleAnalysisResult.software = software
             db.commit()
@@ -62,6 +63,7 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
                 content_type=content_type, \
                 analysis_name=analysis_name, \
                 analysis_key=analysis_key, \
+                analysis_id=analysis_id, \
                 # log_path=log_path, \
                 software=software, \
                 project=project, \
@@ -72,7 +74,7 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
             db.commit()
             print(">>>>新增: ",sample_name, software, content_type)
 
-def parse_result_one(analysis_method,module,dir_path,project,verison):
+def parse_result_one(analysis_method,module,dir_path,project,verison,analysis_id=-1):
     parse = getattr(module, "parse")
     res = parse(dir_path)
     if hasattr(module,"get_analysis_method"):
@@ -89,10 +91,10 @@ def parse_result_one(analysis_method,module,dir_path,project,verison):
             # print(res[0])
             if len(res[0]) == 4:
                 for analysis_key,software,content_type,content in res:
-                    update_or_save_result(analysis_key,analysis_key, software, content_type, content, db, project, verison, analysis_method,analysis_name)
+                    update_or_save_result(analysis_key,analysis_key, software, content_type, content, db, project, verison, analysis_method,analysis_name,analysis_id)
             elif len(res[0]) == 5:
                 for analysis_key,sample_name,software,content_type,content in res:
-                    update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name)
+                    update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name,analysis_id)
             # print(sample_name)
 
 def parse_result(dir_path,project,verison):
@@ -130,7 +132,7 @@ def parse_result(dir_path,project,verison):
             #         # print(sample_name)
 
 
-@sample_result.get("/sample-parse-result-test-hexiaoyan")
+@sample_result.get("/sample-parse-result-test-hexiaoyan",tags=['analsyis_result'])
 def parse_result_restful():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
@@ -144,12 +146,26 @@ def parse_result_restful():
         parse_result(dir_path,project,verison)
     return {"msg":"success"}
 
-@sample_result.get("/sample-parse-result-test")
+@sample_result.get("/sample-parse-result-test",tags=['analsyis_result'])
 def parse_result_restful():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
     # project="test"
     base_path ="/ssd1/wy/workspace2/leipu/leipu_workspace2/output"
+    verison = "V1.0"
+    project="leipu"
+    
+    dir_list = glob.glob(f"{base_path}/*",recursive=True)
+    for dir_path in dir_list:
+        parse_result(dir_path,project,verison)
+    return {"msg":"success"}
+
+@sample_result.get("/sample-parse-result-test-leipu-meta",tags=['analsyis_result'])
+def parse_result_restful():
+    # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
+    # verison = "V1.0"
+    # project="test"
+    base_path ="/ssd1/wy/workspace2/leipu/leipu_workspace_meta/output"
     verison = "V1.0"
     project="leipu"
     
@@ -190,7 +206,9 @@ def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisResultQu
         stmt = analysis_result.select() 
         if analysisResultQuery.querySample:
             stmt =  select(analysis_result, samples).select_from(analysis_result.outerjoin(samples,samples.c.sample_key==analysis_result.c.sample_key))
-        stmt= stmt.where(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method))
+        stmt= stmt.where(and_(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method) \
+            ,analysis_result.c.project ==analysisResultQuery.project \
+            ))
         result  = conn.execute(stmt)
         # result = result.fetchall()
         rows = result.mappings().all()
@@ -205,7 +223,10 @@ def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisResultQu
     return result_dict
     # return {"aa":"aa"}
 
-@sample_result.post("/fast-api/add-sample-analysis")
+@sample_result.post(
+    "/fast-api/add-sample-analysis",
+    tags=['analsyis_result'],
+    description="根据项目名称导入样本")
 def add_sample_analysis(project):
     insert_sample_list = []
     with engine.begin() as conn:

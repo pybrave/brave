@@ -14,6 +14,7 @@ class SampleAnalysisResult(Base):
     analysis_method = Column(String(255))
     software = Column(String(255))
     content = Column(LONGTEXT)
+    analysis_id = Column(LONGTEXT)
     analysis_version = Column(String(255))
     content_type = Column(String(255))
     project = Column(String(255))

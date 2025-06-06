@@ -20,5 +20,6 @@ class AnalysisResult(BaseModel):
     content_type: Optional[str]
     project: Optional[str]
     request_param: Optional[str]
+    analysis_id: Optional[int]
     sample_group: Optional[str]
     

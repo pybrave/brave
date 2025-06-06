@@ -46,18 +46,19 @@ def parse_data(request_param,sample):
         bowtie2_df['alignment_reads'] = bowtie2_df.apply(lambda x:x['unpaired_aligned_one']+x['unpaired_aligned_multi'] ,axis=1)
         bowtie2_df['alignment_reads_num'] = bowtie2_df.apply(lambda x:   x['unpaired_aligned_one']+x['unpaired_aligned_multi']+x['unpaired_aligned_none'] , axis=1)
         bowtie2_df['alignment_rate'] =bowtie2_df.apply(lambda x: x['alignment_reads'] / x['alignment_reads_num'] ,axis=1)
+        bowtie2_df['unalignment_reads'] =bowtie2_df.apply(lambda x: x['alignment_reads_num'] - x['alignment_reads'] ,axis=1)  
+
     else:
         bowtie2_df['alignment_reads'] = bowtie2_df.apply(lambda x:(x['paired_aligned_one']+x['paired_aligned_multi']+x['paired_aligned_discord_one'])*2+x['paired_aligned_mate_one']+x['unpaired_aligned_multi'] ,axis=1)
         bowtie2_df['alignment_reads_num'] = bowtie2_df.apply(lambda x:   (x['paired_aligned_none']+x['paired_aligned_one']+x['paired_aligned_multi'])*2 , axis=1)
-        bowtie2_df['alignment_rate'] =bowtie2_df.apply(lambda x: x['alignment_reads'] / x['alignment_reads_num'] ,axis=1)    
+        bowtie2_df['alignment_rate'] =bowtie2_df.apply(lambda x: x['alignment_reads'] / x['alignment_reads_num'] ,axis=1)   
+        bowtie2_df['unalignment_reads'] =bowtie2_df.apply(lambda x: x['alignment_reads_num'] - x['alignment_reads'] ,axis=1)  
     
     df_merge = pd.merge(bowtie2_df,sample,on="sample_name",how="inner" )
     return df_merge
 
-def parse_plot(data ,request_param):
-    alignment_rate = data[['alignment_rate','sample_group']]
-    groups = alignment_rate.groupby('sample_group')
-
+def group_bar(alignment_rate,groups):
+    plt.figure()
     # 设置子图
     fig, axes = plt.subplots(1, len(groups), figsize=(12, 4), sharey=True)
 
@@ -67,21 +68,16 @@ def parse_plot(data ,request_param):
         ax.set_ylabel('Frequency')
 
     plt.tight_layout()
-    # alignment_rate.plot.hist(bins=4, edgecolor='black')
-    # plt.xlabel('Value')
-    # plt.ylabel('Frequency')
-    # plt.title('Frequency Histogram')
-    return {"img":plt}
-    # annotations = data
-    # pathway_stat = annotations.query("term.str.contains('map') ")['term'].value_counts()
-    # pathway_stat = pd.DataFrame(pathway_stat).query("count>20")['count']
-    # # pathway_stat
-    # ax = pathway_stat.plot(kind='bar', color='skyblue')
-    # for i, value in enumerate(pathway_stat):
-    #     ax.text(i, value + 0.1, str(value), ha='center', va='bottom')
-    # plt.ylabel("Number of gene")
-    # # plt.title("Non-NaN Values per Column")
-    # plt.xticks(rotation=80)
-    # plt.tight_layout()
-    # return {"img":plt}
-    # return plt
+    return plt
+
+def hist_plot(data):
+    plt.figure()
+    data.plot(kind='hist', bins=5, edgecolor='black')
+    plt.title(f"total: {data.sum():.2e}")
+    return plt
+def parse_plot(data ,request_param):
+    alignment_rate = data[['alignment_rate','sample_group']]
+    groups = alignment_rate.groupby('sample_group')
+    group_bar_plt = group_bar(alignment_rate,groups)
+    hist_plot_plt = hist_plot(data['unalignment_reads'])
+    return [group_bar_plt,hist_plot_plt]

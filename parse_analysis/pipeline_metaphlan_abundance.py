@@ -14,11 +14,11 @@ def get_script():
 
 def get_output_format():
     return [
-        # {
-        #     "module":"bowtie2_align",
-        #     "dir":"bowtie2_RNA_mapping",
-        #     "analysis_method":"bowtie2_RNA_mapping"
-        # }
+        {
+            "module":"metaphlan_abundance",
+            "dir":"metaphlan_sam",
+            "analysis_method":"metaphlan_sam_abundance"
+        }
     ]
 
 
@@ -61,7 +61,7 @@ def get_data(item):
     content = item.content #json.loads(item.content)
     return {
         "sample_key":item.sample_key,
-        "sam":content['sam'],
+        "bam":content['bam'],
         "nreads": get_nreads(content['log'] ) 
     }
 def parse_data(request_param,db_dict):
@@ -78,6 +78,7 @@ def parse_data(request_param,db_dict):
     
     result = {
         "samples":samples,
+        "stat_q":request_param['stat_q']
         # "genome_assembly":{
         #     "analysis_key":genome_assembly.analysis_key,
         #     "fasta":genome_assembly.content['scaffolds']
