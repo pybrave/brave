@@ -15,8 +15,11 @@ def parse_data(request_param):
 
 
 def parse_plot(data ,request_param):
+  # 创建一个新的绘图区域，设置图像大小（单位：英寸）
+    fig = plt.figure(figsize=(10, 12))  # 例如：宽10，高8
+    axes = fig.add_subplot(1, 1, 1)
     best_tree = request_param['best_tree']
     tree = Phylo.read(best_tree, "newick")
     # 绘图
-    Phylo.draw(tree)
+    Phylo.draw(tree, axes=axes)
     return plt

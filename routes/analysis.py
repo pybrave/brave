@@ -27,7 +27,7 @@ import uuid
 import os
 from utils.get_db_utils import get_ids
 
-from routes.sample_result import parse_result_one
+from routes.sample_result import parse_result_one,parse_result_oneV2
 analysis_api = APIRouter()
 
 
@@ -199,6 +199,6 @@ def parse_analysis_result(id):
     for item in output_format:
         dir_path = f"{result.output_dir}/output/{item['dir']}"
         module = importlib.import_module(f"parse_analysis_result.{item['module']}")
-        parse_result_one(item['analysis_method'],module,dir_path,result.project,"V1.0",id)
-        
+        # parse_result_one()
+        parse_result_oneV2(item['analysis_method'],result,module,dir_path,result.project,"V1.0",id)
     return {"message":"success"}

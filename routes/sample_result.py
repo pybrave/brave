@@ -18,6 +18,9 @@ from sqlalchemy import and_,or_
 from schemas.analysis_result import AnalysisResultQuery,AnalysisResult
 from models.core import samples,analysis_result
 from config.db import engine
+import inspect
+
+
 sample_result = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -73,6 +76,36 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
             db.add(sampleAnalysisResult)
             db.commit()
             print(">>>>新增: ",sample_name, software, content_type)
+
+def parse_result_oneV2(analysis_method,analsyisRecord,module,dir_path,project,verison,analysis_id=-1):
+    parse = getattr(module, "parse")
+    sig = inspect.signature(parse)
+    params = sig.parameters
+    res = None
+    if len(params)==1:
+        res = parse(dir_path)
+    elif len(params)==2:
+        res = parse(dir_path,analsyisRecord)
+
+    if hasattr(module,"get_analysis_method"):
+        get_analysis_method = getattr(module, "get_analysis_method")
+        analysis_method = get_analysis_method()
+        print(f">>>>>更改分析名称: {analysis_method}")
+    analysis_name = analysis_method
+    if hasattr(module,"get_analysis_name"):
+        get_analysis_name = getattr(module, "get_analysis_name")
+        analysis_name = get_analysis_name()
+        
+    with get_db_session() as db:
+        if len(res) >0:
+            # print(res[0])
+            if len(res[0]) == 4:
+                for analysis_key,software,content_type,content in res:
+                    update_or_save_result(analysis_key,analysis_key, software, content_type, content, db, project, verison, analysis_method,analysis_name,analysis_id)
+            elif len(res[0]) == 5:
+                for analysis_key,sample_name,software,content_type,content in res:
+                    update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name,analysis_id)
+
 
 def parse_result_one(analysis_method,module,dir_path,project,verison,analysis_id=-1):
     parse = getattr(module, "parse")

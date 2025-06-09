@@ -13,7 +13,7 @@ def get_data(item):
     }
 
 def get_db_field():
-    return ['remove_hosts_reads']
+    return ['remove_hosts_reads','clean_reads']
 
 def get_script():
     return "/ssd1/wy/workspace2/nextflow/pipeline_align_metaphlan_marker.nf"
@@ -27,12 +27,13 @@ def get_output_format():
         },
     ]
 def parse_data(request_param,db_dict):
-    reads = db_dict['remove_hosts_reads']
-    samples = [get_data(item) for item in reads]
-
+    remove_hosts_reads = db_dict['remove_hosts_reads']
+    remove_hosts_reads_samples = [get_data(item) for item in remove_hosts_reads]
+    clean_reads = db_dict['clean_reads']
+    clean_reads_samples = [get_data(item) for item in clean_reads]
     
     result = {
-        "samples":samples,
+        "samples":remove_hosts_reads_samples+clean_reads_samples,
         # "genome_index":request_param['genome_index']
     }
     return result
