@@ -9,12 +9,18 @@
             "name": "Python Debugger: FastAPI",
             "type": "debugpy",
             "request": "launch",
-            "module": "uvicorn",
+            "module": "mvp",
+            // "module": "uvicorn",
             "args": [
-                "main:app",
+                // "mvp.__main__:main"
+                // "mvp.main:create_app",
                 "--reload",
                 "--port",
-                "4000"
+                "4000",
+                "--base-dir",
+                "/ssd1/wy/workspace2/nextflow_workspace"
+                
+
             ],
             "jinja": true
         }

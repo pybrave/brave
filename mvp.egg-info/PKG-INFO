@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: mvp
+Version: 0.1.0
+Summary: Microbial Visualization Pipeline
+Author: WangYang
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+
+
+```
+sudo chmod -R u+w build/
+sudo chown -R $USER:$USER build/
+sudo rm -rf build/
+```
