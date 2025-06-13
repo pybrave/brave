@@ -2,3 +2,7 @@ analysis_result/
 __pycache__/
 databases/
 test/
+build/
+build/** 
+mvp.egg-info/
+mvp.egg-info/** 

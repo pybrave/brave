@@ -1,0 +1,161 @@
+{
+    "name": "基于Reads的丰度分析",
+    "tags": [
+        "metaphlan",
+        "bowtie2"
+    ],
+    "img":"pipeline.jpg",
+    "category": "metagenomics",
+    "items": [
+        {
+            "name": "比对到metaphlan marker库",
+            "analysisPipline": "pipeline_align_metaphlan_marker",
+            "inputAnalysisMethod": [
+                {
+                    "name": "remove_hosts_reads",
+                    "label": "remove_hosts_reads",
+                    "inputKey": [
+                        "samtools_remove_hosts"
+                    ],
+                    "mode": "multiple",
+                    "type": "GroupSelectSampleButton",
+                    "groupField": "sample_group",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ]
+                },
+                {
+                    "name": "clean_reads",
+                    "label": "clean_reads",
+                    "inputKey": [
+                        "fastp_clean_reads"
+                    ],
+                    "mode": "multiple",
+                    "type": "GroupSelectSampleButton",
+                    "groupField": "sample_group"
+                }
+            ],
+            "analysisMethod": [
+                {
+                    "name": "bowtie2_align_metaphlan",
+                    "label": "marker比对bam文件",
+                    "inputKey": [
+                        "bowtie2_align_metaphlan"
+                    ],
+                    "mode": "multiple"
+                }
+            ],
+            "downstreamAnalysis": [
+                {
+                    "name": "查看比对日志",
+                    "analysisType": "one",
+                    "sampleGroupJSON": false,
+                    "paramsFun": "record => ({ text: record.content.log })",
+                    "sampleGroupApI": false,
+                    "saveAnalysisMethod": "text",
+                    "moduleName": "text",
+                    "sampleSelectComp": false,
+                    "tableDesc": ""
+                },{
+                    "sampleGroupJSON":true,
+                    "sampleGroupApI": false,
+                    "sampleSelectComp": false,
+                    "formJson": [
+                        {
+                            "name": "group_field",
+                            "label": "分组列",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "GroupFieldSelect"
+                        }, {
+                            "name": "treatment",
+                            "label": "处理组",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "GroupSelectSampleButton",
+                            "group": "group_field"
+                        }, {
+                            "name": "control",
+                            "label": "对照组",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "GroupSelectSampleButton",
+                            "group": "group_field"
+                        },{
+                            "name": "rank",
+                            "label": "rank",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "RankSelect"
+                        }
+                    ],
+                    "saveAnalysisMethod": "metaphlan_abundance_alpha_diversity",
+                    "moduleName": "abundance_alpha_diversity",
+                    "tableDesc": "",
+                    "name": "alpha多样性"
+                }
+            ]
+        },{
+            "name": "丰度估计",
+            "analysisPipline":"pipeline_metaphlan_abundance",
+            "inputAnalysisMethod":[
+                {
+                    "name": "bowtie2_align_metaphlan",
+                    "label": "marker比对bam文件",
+                    "inputKey": ["bowtie2_align_metaphlan"],
+                    "mode": "multiple",
+                    "type": "GroupSelectSampleButton",
+                    "groupField": "sample_group",
+                    "rules": [{ "required": true, "message": "该字段不能为空!" }]
+                }
+            ],
+            "analysisMethod":[
+                {
+                    "name": "metaphlan_sam_abundance",
+                    "label": "metaphlan abundance",
+                    "inputKey": ["metaphlan_sam_abundance"],
+                    "mode": "multiple"
+                }
+            ],
+            "upstreamFormJson":[
+                {
+                    "name": "stat_q",
+                    "data": [
+                        {
+                            "label": "0.2",
+                            "value": 0.2
+                        }, {
+                            "label": "0",
+                            "value": 0
+                        }
+                    ],
+                    "initialValue": 0.2,
+                    "label": " Quantile value for the robust average(--stat_q)",
+                    "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                    "type": "BaseSelect"
+                }
+            ],"downstreamAnalysis":[
+                {
+                    "name": "丰度矩阵",
+                    "sampleGroupJSON":true,
+                    "saveAnalysisMethod": "metaphlan_sam_abundance_matrix",
+                    "moduleName": "abundance_matrix",
+                    "formJson": [
+                        {
+                            "name": "group_field",
+                            "label": "分组列",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "GroupFieldSelect"
+                        },{
+                            "name": "metaphlan_sam_abundance",
+                            "label": "丰度文件",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "GroupSelectSampleButton",
+                            "group": "group_field"
+                        }
+                    ],
+                    "tableDesc": ""
+                }
+            ]
+        }
+    ]
+}

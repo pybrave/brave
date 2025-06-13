@@ -17,6 +17,9 @@ def create_app() -> FastAPI:
     app = FastAPI()
     frontend_path = os.path.join(os.path.dirname(__file__), "frontend", "build")
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "assets")), name="assets")
+    pipelinie_path = os.path.join(os.path.dirname(__file__), "pipeline")
+
+    app.mount("/mvp-api/img", StaticFiles(directory=os.path.join(pipelinie_path, "img")), name="pipleine_img")
 
     app.include_router(sample_result,prefix="/mvp-api")
     app.include_router(file_parse_plot,prefix="/mvp-api")

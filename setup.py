@@ -22,7 +22,7 @@ setup(
     package_data={
         "mvp": [
             "frontend/build/**/*",  # 包含静态资源
-            "pipeline/*"
+            "pipeline/**/*"
         ]
     },
 )

@@ -1,2 +1,0 @@
-[console_scripts]
-mvp = mvp.__main__:app
