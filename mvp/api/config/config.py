@@ -12,7 +12,7 @@ class Settings:
         self.BASE_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using BASE_DIR: {self.BASE_DIR}")
 
-        work_dir = os.getenv("WORK_DIR",os.getcwd())
+        work_dir = os.getenv("WORK_DIR",base_dir)
         self.WORK_DIR = Path(work_dir).resolve()# / "data"
         self.WORK_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using WORK_DIR: {self.WORK_DIR}")
