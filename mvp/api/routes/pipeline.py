@@ -34,6 +34,8 @@ def get_pipeline_one(item):
     }
     return data
 
+
+
 @pipeline.get("/list-pipeline",tags=['pipeline'])
 async def get_pipeline():
     json_file = str(files("mvp.pipeline.config").joinpath("config.json"))
@@ -54,3 +56,11 @@ async def get_pipeline():
         "pipeline":pipeline_files,
         "config":config
     }
+
+
+def get_pipeline_file(filename):
+    filename = f"{filename}.nf"
+    pipeline_file = str(files("mvp.pipeline.nextflow").joinpath(filename))
+    if not os.path.exists(pipeline_file):
+        raise HTTPException(status_code=500, detail=f"{pipeline_file}不存在!")
+    return pipeline_file

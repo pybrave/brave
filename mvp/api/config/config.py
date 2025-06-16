@@ -12,8 +12,11 @@ class Settings:
         self.BASE_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using BASE_DIR: {self.BASE_DIR}")
 
-        
-        
+        work_dir = os.getenv("WORK_DIR",os.getcwd())
+        self.WORK_DIR = Path(work_dir).resolve()# / "data"
+        self.WORK_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Using WORK_DIR: {self.WORK_DIR}")
+
 
         # 读取数据库配置
         self.DB_TYPE = os.getenv("DB_TYPE", "mysql").lower()

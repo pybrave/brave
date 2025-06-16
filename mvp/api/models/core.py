@@ -35,7 +35,8 @@ analysis = Table(
     Column("command_path", String(255)),
     Column("request_param", Text),
     Column("output_format", Text),
-    Column("output_dir", String(255))
+    Column("output_dir", String(255)),
+    Column("pipeline_script", String(255))
 )
 
 analysis_result = Table(

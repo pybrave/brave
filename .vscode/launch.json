@@ -18,7 +18,9 @@
                 "--port",
                 "4000",
                 "--base-dir",
-                "/ssd1/wy/workspace2/nextflow_workspace"
+                "/ssd1/wy/workspace2/nextflow_workspace",
+                "--work-dir",
+                "/data/wangyang/nf_work"
                 
 
             ],

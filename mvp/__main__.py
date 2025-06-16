@@ -14,10 +14,12 @@ def main(
     port: int =  typer.Option(5000, help="Port to bind"),
     reload: bool =  typer.Option(False, help="reload"),
     base_dir: str =typer.Option(".", help="Base directory path"),
+    work_dir: str =typer.Option(".", help="work directory path"),
     db_type: str =typer.Option("mysql", help="d=Db type"),
     mysql_url: str =typer.Option("root:123456@192.168.3.60:53306/pipeline", help="Mysql url"),
     ):
     os.environ["MVP_BASE_DIR"] = base_dir
+    os.environ["WORK_DIR"] = work_dir
     os.environ["DB_TYPE"] = db_type
     os.environ["MYSQL_URL"] = mysql_url
 

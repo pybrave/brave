@@ -25,3 +25,4 @@ class Analysis(BaseModel):
     params_path: Optional[str]
     output_format: Optional[str]
     command_path: Optional[str]
+    pipeline_script: Optional[str]

@@ -25,7 +25,8 @@ import uuid
 import os
 from mvp.api.utils.get_db_utils import get_ids
 from mvp.api.config.config import get_settings
-
+from mvp.api.routes.pipeline import get_pipeline_file
+import textwrap
 
 from mvp.api.routes.sample_result import parse_result_one,parse_result_oneV2
 analysis_api = APIRouter()
@@ -98,11 +99,11 @@ def parse_analysis(request_param,params_path,command_path,work_dir,module_name):
             with open(params_path, "w") as f:
                 json.dump(result,f)
 
-        get_script = getattr(module, "get_script")
-        script = get_script()
-        command = f"nextflow run -offline {script} -resume  -params-file {params_path} -w {work_dir} -with-trace trace.txt | tee .workflow.log"
-        with open(command_path, "w") as f:
-            f.write(command)
+        # get_script = getattr(module, "get_script")
+        # script = get_script()
+        # command = f"nextflow run -offline {script} -resume  -params-file {params_path} -w {work_dir} -with-trace trace.txt | tee .workflow.log"
+        # with open(command_path, "w") as f:
+        #     f.write(command)
         get_output_format = getattr(module, "get_output_format")
         output_format = get_output_format()
         return json.dumps(output_format)
@@ -114,13 +115,13 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
     
 
     with get_engine().begin() as conn:
-        
+        analysis_pipline = request_param['analysis_pipline']
+
         new_analysis = {
             "project":request_param['project'],
             "analysis_name":request_param['analysis_name'],
-            "analysis_method":request_param['analysis_method'],
-            "request_param":json.dumps(request_param),
-            "input_file":"analysis_input_file",
+            "analysis_method":analysis_pipline,
+            "request_param":json.dumps(request_param)
         }
      
         output_dir=None
@@ -134,29 +135,49 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             work_dir = result.work_dir
             params_path = result.params_path
             command_path = result.command_path
-            parse_result = parse_analysis(request_param,params_path,command_path, work_dir,request_param['analysis_method'])
+            parse_result = parse_analysis(request_param,params_path,command_path, work_dir,request_param['parse_analysis_module'])
             new_analysis['output_format'] = parse_result
             stmt = analysis.update().values(new_analysis).where(analysis.c.id==request_param['id'])
         else:
             settings = get_settings()
+            base_dir = settings.BASE_DIR
+            work_dir = settings.WORK_DIR
             str_uuid = str(uuid.uuid4())
-            output_dir = f"/{request_param['project']}/{request_param['analysis_method']}/{str_uuid}"
-            work_dir = f"/data/wangyang/nf_work/{request_param['project']}/{request_param['analysis_method']}/{str_uuid}"
+            # /ssd1/wy/workspace2/nextflow_workspace
+            output_dir = f"{base_dir}/{request_param['project']}/{analysis_pipline}/{str_uuid}"
+            # /data/wangyang/nf_work/
+            work_dir = f"{work_dir}/{request_param['project']}/{analysis_pipline}/{str_uuid}"
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             if not os.path.exists(work_dir):
                 os.makedirs(work_dir)
+            # 写入脚本
+
+            script =  f"{get_pipeline_file(analysis_pipline)}"
+            new_analysis['pipeline_script'] = script
+
+            command =  textwrap.dedent(f"""
+            nextflow run -offline -resume  \\
+                {script} \\
+                -params-file {params_path} \\
+                -w {work_dir} \\
+                -with-trace trace.txt | tee .workflow.log
+            """)
+            with open(command_path, "w") as f:
+                f.write(command)
+            
+
             new_analysis['work_dir'] = work_dir
             new_analysis['output_dir'] = output_dir
             new_analysis['params_path'] = params_path
             new_analysis['command_path'] = command_path
             new_analysis['analysis_key'] = str_uuid
 
-            parse_result = parse_analysis(request_param,params_path, command_path,work_dir,request_param['analysis_method'])
+            parse_result = parse_analysis(request_param,params_path, command_path,work_dir,request_param['parse_analysis_module'])
             new_analysis['output_format'] = parse_result
-
+      
             stmt = analysis.insert().values(new_analysis)
         conn.execute(stmt)
         

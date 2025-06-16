@@ -12,10 +12,7 @@
         {
             "name": "去宿主的reads",
             "analysisPipline": "pipeline_alignment_free_k_mer_strategies",
-            "parseAnalysisModule":"",
-            "parseAnalysisResult":{
-                "module":""
-            },
+            "parseAnalysisModule":"remove_hosts_reads_clean_reads",
             "inputAnalysisMethod": [
                 {
                     "name": "remove_hosts_reads",
@@ -42,6 +39,20 @@
                     "mode": "multiple",
                     "type": "GroupSelectSampleButton",
                     "groupField": "sample_group"
+                }
+            ],"upstreamFormJson":[
+                {
+                    "name": "database",
+                    "data": [
+                        {
+                            "label": "pluspf",
+                            "value": "/data/databases/kraken/pluspf"
+                        }
+                    ],
+                    "initialValue":"/data/databases/kraken/pluspf",
+                    "label": "kraken数据库",
+                    "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                    "type": "BaseSelect"
                 }
             ]
         }
