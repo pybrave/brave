@@ -7,10 +7,13 @@ from functools import lru_cache
 class Settings:
     def __init__(self):
         # 读取 base_dir
-        base_dir = os.getenv("MVP_BASE_DIR")
+        base_dir = os.getenv("MVP_BASE_DIR",os.getcwd())
         self.BASE_DIR = Path(base_dir).resolve()# / "data"
         self.BASE_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using BASE_DIR: {self.BASE_DIR}")
+
+        
+        
 
         # 读取数据库配置
         self.DB_TYPE = os.getenv("DB_TYPE", "mysql").lower()

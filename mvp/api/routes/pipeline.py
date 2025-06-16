@@ -23,13 +23,17 @@ async def get_pipeline(name):
 def get_pipeline_one(item):
     with open(item,"r") as f:
         data = json.load(f)
-    return {
+    data = {
         "path":os.path.basename(item).replace(".json",""),
         "name":data['name'],
         "category":data['category'],
         "img":f"/mvp-api/img/{data['img']}",
-        "tags":data['tags']
+        "tags":data['tags'],
+        "description":data['description'],
+        "order":data['order']
     }
+    return data
+
 @pipeline.get("/list-pipeline",tags=['pipeline'])
 async def get_pipeline():
     json_file = str(files("mvp.pipeline.config").joinpath("config.json"))
@@ -38,6 +42,7 @@ async def get_pipeline():
 
     pipeline_files = files("mvp.pipeline.json")
     pipeline_files = [get_pipeline_one(str(item)) for item in pipeline_files.iterdir()]
+    pipeline_files = sorted(pipeline_files, key=lambda x: x["order"])
     # glob.glob("")
     # data  = [
     #     {

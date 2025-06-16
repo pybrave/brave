@@ -1,0 +1,49 @@
+{
+    "name": "基于k-mer的丰度分析",
+    "description":"使用reads基于marker gene的丰度分析",
+    "tags": [
+        "kraken",
+        "Alignment-free, k-mer-based strategies"
+    ],
+    "img":"pipeline.jpg",
+    "category": "metagenomics",
+    "order":2,
+    "items":[
+        {
+            "name": "去宿主的reads",
+            "analysisPipline": "pipeline_alignment_free_k_mer_strategies",
+            "parseAnalysisModule":"",
+            "parseAnalysisResult":{
+                "module":""
+            },
+            "inputAnalysisMethod": [
+                {
+                    "name": "remove_hosts_reads",
+                    "label": "remove_hosts_reads",
+                    "inputKey": [
+                        "samtools_remove_hosts"
+                    ],
+                    "mode": "multiple",
+                    "type": "GroupSelectSampleButton",
+                    "groupField": "sample_group",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ]
+                },
+                {
+                    "name": "clean_reads",
+                    "label": "clean_reads",
+                    "inputKey": [
+                        "fastp_clean_reads"
+                    ],
+                    "mode": "multiple",
+                    "type": "GroupSelectSampleButton",
+                    "groupField": "sample_group"
+                }
+            ]
+        }
+    ]
+}

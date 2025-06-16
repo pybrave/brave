@@ -21,8 +21,8 @@ def parse_data(request_param,db_dict):
     treatment_group = groups['treatment']
    
     df_merge = pd.merge(metadata,abundance,left_index=True, right_index=True).reset_index().set_index(['index'])
-    df_merge.to_pickle("test/abundabce.pkl")
-    metadata.to_pickle("test/metadata.pkl")
+    # df_merge.to_pickle("test/abundabce.pkl")
+    # metadata.to_pickle("test/metadata.pkl")
     df_control = df_merge[df_merge['group']==control_group]
     df_treatment = df_merge[df_merge['group']==treatment_group]
     results = []  
@@ -30,7 +30,7 @@ def parse_data(request_param,db_dict):
         control_data = df_control[column_].dropna()  
         treatment_data = df_treatment[column_].dropna()  
         stat, p_value = mannwhitneyu(control_data, treatment_data, alternative='two-sided')  
-        log2foldchange = np.mean(np.log2(treatment_data+0.000001)) - np.mean(np.log2(control_data+0.000001))
+        log2foldchange = np.mean(np.log2(treatment_data+1)) - np.mean(np.log2(control_data+1))
         results.append({'taxonomy': column_, 'Statistic': stat, 'P-value': p_value,"log2foldchange":log2foldchange})  
 
     # 输出结果  
@@ -121,7 +121,7 @@ def volcano(results_df,request_param,groups):
 
     # 设置阈值
     pvalue_thresh = 0.05
-    logfc_thresh = 1
+    logfc_thresh = 0.01
 
     # 标记显著基因
     results_df['color'] = 'gray'

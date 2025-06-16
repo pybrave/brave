@@ -37,7 +37,7 @@ def parse_data(request_param,db_dict):
     elif  "samples_abundance" in db_dict:
         samples_abundance = db_dict['samples_abundance']
         abundance = get_abundance(samples_abundance)
-        abundance = abundance[(abundance!=0).sum(axis=1)>9]
+        abundance = abundance[(abundance!=0).sum(axis=1)>3]
         abundance = abundance.reset_index(['clade_name','taxonomy','rank']).reset_index(drop=True).query("rank=='SGB'")[['clade_name']]
         abundance['SGB'] = abundance['clade_name'].apply(lambda x : get_last_num(x,1))
         abundance['species'] = abundance.apply(lambda x : get_last_num(x['clade_name'],2)+"_"+x['SGB'],axis=1)

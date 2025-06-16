@@ -98,7 +98,9 @@ def parse_result(request_param,module_name):
                 if isinstance(item, pd.DataFrame):
                     new_data.append(item.to_dict(orient="records"))
                 else:
-                    new_data.append(item)
+                    if item:
+                        new_data.append(item)
+        
         result = {"dataList":new_data}
     else:
         if isinstance(data, pd.DataFrame):

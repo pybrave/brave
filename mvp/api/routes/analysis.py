@@ -24,6 +24,8 @@ import importlib.util
 import uuid
 import os
 from mvp.api.utils.get_db_utils import get_ids
+from mvp.api.config.config import get_settings
+
 
 from mvp.api.routes.sample_result import parse_result_one,parse_result_oneV2
 analysis_api = APIRouter()
@@ -136,8 +138,9 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             new_analysis['output_format'] = parse_result
             stmt = analysis.update().values(new_analysis).where(analysis.c.id==request_param['id'])
         else:
+            settings = get_settings()
             str_uuid = str(uuid.uuid4())
-            output_dir = f"/ssd1/wy/workspace2/nextflow_workspace/{request_param['project']}/{request_param['analysis_method']}/{str_uuid}"
+            output_dir = f"/{request_param['project']}/{request_param['analysis_method']}/{str_uuid}"
             work_dir = f"/data/wangyang/nf_work/{request_param['project']}/{request_param['analysis_method']}/{str_uuid}"
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
