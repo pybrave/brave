@@ -4,18 +4,19 @@ import './index.css'
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router'
 import axios from 'axios';
+import store from './store'
+import { Provider } from 'react-redux'
 
 console.log(import.meta.env.MODE)
-if(import.meta.env.MODE!="development"){
-  axios.defaults.baseURL = '/pip7878-api';
-
-}
+axios.defaults.baseURL = '/mvp-api';
 
 
 createRoot(document.getElementById('root')!).render(
   // <StrictMode>
-  
+
   // </StrictMode>
+  <Provider store={store}>
     <App />
+  </Provider>
   ,
 )

@@ -19,10 +19,10 @@ export default defineConfig({
       },'/jupyter':{
         target: `http://localhost:10100`,
         ws: true
-      },'/fast-api':{
+      },'/mvp-api':{
         target: `http://localhost:4000`,
         ws: true
-      }
+      },
     }
   }
 })

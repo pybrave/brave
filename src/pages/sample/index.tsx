@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 
-export const getSamples: any = (project: any) => axios.get(`/api?project=${project}`)
+export const getSamples: any = (project: any) => axios.get(`/list-by-project?project=${project}`)
 const Sample: FC<any> = () => {
     const [sampleData, setSampleData] = useState([])
     const [data, setData] = useState([])
@@ -15,6 +15,7 @@ const Sample: FC<any> = () => {
     const { project } = useParams()
     const [open, setOpen] = useState<any>(false)
     const [form] = Form.useForm();
+    const [operatureUrl,setOperatureUrl] = useState<any>()
     const { Search } = Input;
     const loadSample = async () => {
         setLoading(true)
@@ -27,9 +28,19 @@ const Sample: FC<any> = () => {
     }
     const columns: TableProps<any>['columns'] = [
         {
+            title: '项目',
+            dataIndex: 'project',
+            key: 'project',
+            ellipsis: true,
+        }, {
             title: '样本名称',
             dataIndex: 'sample_name',
             key: 'sample_name',
+            ellipsis: true,
+        }, {
+            title: '样本个体',
+            dataIndex: 'sample_individual',
+            key: 'sample_individual',
             ellipsis: true,
         }, {
             title: '样本组成',
@@ -126,17 +137,18 @@ const Sample: FC<any> = () => {
         //     </>)
         // },
 
+        // {
+        //     title: '组织',
+        //     dataIndex: 'tissue',
+        //     key: 'tissue',
+        //     ellipsis: true,
+        // }, {
+        //     title: '备注',
+        //     dataIndex: 'remark',
+        //     key: 'remark',
+        //     ellipsis: true,
+        // }, 
         {
-            title: '组织',
-            dataIndex: 'tissue',
-            key: 'tissue',
-            ellipsis: true,
-        }, {
-            title: '备注',
-            dataIndex: 'remark',
-            key: 'remark',
-            ellipsis: true,
-        }, {
             title: 'fastq1',
             dataIndex: 'fastq1',
             key: 'fastq1',
@@ -188,8 +200,10 @@ test,R250506-21,OL-RNA-1,RNA,NGS,single_genome,/V350344603_L03_117_1.fq.gz,/V350
             }}
             style={{ width: 304 }}
         />
-        <Button onClick={loadSample}>刷新</Button>
-        <Button onClick={() => { setOpen(true) }}>导入样本</Button>
+        <Button onClick={loadSample} style={{ marginLeft: "1rem" }}>刷新</Button>
+        <Button onClick={() => { setOperatureUrl("import_sample_form_str");setOpen(true) }} style={{ marginLeft: "1rem" }}>导入样本</Button>
+        <Button onClick={() => { setOperatureUrl("update_sample_form_str");setOpen(true) }} style={{ marginLeft: "1rem" }}>更新样本</Button>
+
         <Table
             pagination={{ pageSize: 30 }}
             loading={loading}
@@ -199,13 +213,13 @@ test,R250506-21,OL-RNA-1,RNA,NGS,single_genome,/V350344603_L03_117_1.fq.gz,/V350
             dataSource={sampleData} />
         <Modal
             open={open}
-            title="导入样本"
+            title={`操作样本(${operatureUrl})`}
             width={"100%"}
             onCancel={() => setOpen(false)}
             onOk={async () => {
                 const values = await form.validateFields()
                 // console.log(values)
-                const resp: any = await axios.post(`/fast-api/import_sample_form_str`,values)
+                const resp: any = await axios.post(`/fast-api/${operatureUrl}`, values)
                 console.log(resp)
             }}
         >
@@ -214,7 +228,7 @@ test,R250506-21,OL-RNA-1,RNA,NGS,single_genome,/V350344603_L03_117_1.fq.gz,/V350
                     <TextArea rows={10}></TextArea>
                 </Form.Item>
             </Form>
-            <ReactMarkdown children={markdown}  remarkPlugins={[remarkGfm, remarkMath]}></ReactMarkdown>
+            <ReactMarkdown children={markdown} remarkPlugins={[remarkGfm, remarkMath]}></ReactMarkdown>
 
         </Modal>
     </>

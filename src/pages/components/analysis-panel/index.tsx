@@ -1,6 +1,6 @@
 import { FC, memo, useEffect, useMemo, useRef, useState } from "react"
 import axios from "axios"
-import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Typography, message, Empty, Collapse, Card } from "antd"
+import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Typography, message, Empty, Collapse, Card, Popover } from "antd"
 import { useParams } from "react-router"
 import ResultList from '@/pages/components/result-list'
 import AnalysisForm from "../analysis-form"
@@ -16,7 +16,7 @@ import FormJsonComp from "../form-components"
 import TextArea from "antd/es/input/TextArea"
 import Item from "antd/es/list/Item"
 import { GroupSelectSampleButton, BaseSelect } from '@/pages/components/form-components'
-const AnalysisPanel: FC<any> = ({ analysisPipline, inputAnalysisMethod, analysisMethod, appendSampleColumns, analysisType = "nonSample", children, cardExtra, upstreamFormJson, downstreamAnalysis }) => {
+const AnalysisPanel: FC<any> = ({ analysisPipline, parseAnalysisParams, inputAnalysisMethod, analysisMethod, appendSampleColumns, analysisType = "nonSample", children, cardExtra, upstreamFormJson, downstreamAnalysis }) => {
 
     const { project } = useParams()
     const [record, setRecord] = useState<any>()
@@ -46,7 +46,7 @@ const AnalysisPanel: FC<any> = ({ analysisPipline, inputAnalysisMethod, analysis
     return <>
 
         <Row>
-            <Col lg={20} sm={20} xs={20}>
+            <Col lg={20} sm={24} xs={24}>
                 {/* <AnalysisForm form={form}></AnalysisForm>                 */}
                 {/* <Button onClick={getCompareAbundance}>提交</Button> */}
                 {/* <Abundance /> */}
@@ -60,6 +60,7 @@ const AnalysisPanel: FC<any> = ({ analysisPipline, inputAnalysisMethod, analysis
                         analysisPipline={analysisPipline}
                         onClickItem={setRecord}
                         project={project}
+                        parseAnalysisParams={parseAnalysisParams}
                         analysisMethod={analysisMethod}
                         inputAnalysisMethod={inputAnalysisMethod}></UpstreamAnalysisInput>
                 </>}
@@ -75,7 +76,7 @@ const AnalysisPanel: FC<any> = ({ analysisPipline, inputAnalysisMethod, analysis
 
 
             </Col>
-            <Col lg={4} sm={4} xs={4} style={{ paddingLeft: "1rem" }}>
+            <Col lg={4} sm={24} xs={24} style={{ paddingLeft: "1rem" }}>
                 <Card title={`详细信息`}>
                     {record ? <>
                         <p>
@@ -96,7 +97,7 @@ const AnalysisPanel: FC<any> = ({ analysisPipline, inputAnalysisMethod, analysis
 export default AnalysisPanel
 
 
-export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
+export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
     const [upstreamForm] = Form.useForm();
     const [resultTableList, setResultTableList] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
@@ -112,7 +113,8 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, upstr
         const requestParams = {
             ...values,
             project: project,
-            analysis_method: currentAnalysisMethod
+            analysis_pipline: currentAnalysisMethod,
+            ...parseAnalysisParams
         }
         return requestParams
     }
@@ -197,11 +199,11 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, upstr
                                 </Form.Item>
                                 {/* {JSON.stringify(inputAnalysisMethod)} */}
                                 <FormJsonComp formJson={inputAnalysisMethod} dataMap={resultTableList}></FormJsonComp>
-                                {resultTableList && inputAnalysisMethod.map((it: any) => (<>
-                                    {/* <Form.Item key={it.key} label={it.name} name={it.key}>
+                                {/* {resultTableList && inputAnalysisMethod.map((it: any) => (<> */}
+                                {/* <Form.Item key={it.key} label={it.name} name={it.key}>
                                         <SelectComp it={it} resultTableList={resultTableList} ></SelectComp>
                                     </Form.Item> */}
-                                    {/* 
+                                {/* 
                                     {it.mode == "multiple" && <GroupSelectSampleButton
                                         key={it.key}
                                         label={it.name}
@@ -211,7 +213,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, upstr
                                         groupField={"sample_group"} ></GroupSelectSampleButton>} */}
 
 
-                                </>))}
+                                {/* </>))} */}
                                 {upstreamFormJson &&
                                     <FormJsonComp formJson={upstreamFormJson} dataMap={dataMap}></FormJsonComp>
                                 }
@@ -280,7 +282,7 @@ export const SelectComp: FC<any> = ({ it, resultTableList, value, onChange }) =>
         setSelectedItems(value)
     }
     const getOptions = () => {
-        return resultTableList[it.key] && resultTableList[it.key].map((it: any) => {
+        return resultTableList[it.name] && resultTableList[it.name].map((it: any) => {
             return {
                 label: `${it.sample_name}`,
                 value: `${it.id}`
@@ -333,9 +335,9 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 
     const [sampleGroupJSON, setSampleGroupJSON] = useState<any>()
     const [btnName, setBtnName] = useState<any>()
-
     const tableRef = useRef<any>(null)
     const formId = Form.useWatch((values) => values?.id, form);
+    const [tableType, setTableType] = useState<any>("xlsx")
 
     const getSampleGroup = async () => {
         try {
@@ -360,6 +362,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
         }
     }
 
+
     const runPlot = async ({ moduleName, params }: any) => {
         const values = await form.validateFields()
         console.log(values)
@@ -367,8 +370,10 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
         try {
             const resp: any = await axios.post(`/fast-api/file-parse-plot/${moduleName}`, {
                 ...params,
+                ...values,
                 project: project,
-                ...values
+                analysis_method: saveAnalysisMethod,
+                table_type: tableType
             })
             setFilePlot(resp.data)
 
@@ -390,6 +395,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
             project: project,
             software: analysisMethod.filter((it: any) => it.key == activeTabKey)[0].value[0],
             analysis_method: saveAnalysisMethod,
+            table_type: tableType
         }
         console.log(requestParams)
         setPlotLoading(true)
@@ -418,7 +424,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
     // const stableGroupField = useMemo(() => groupField, groupField);
 
 
-    const plot = async ({ name, url, moduleName, params, paramsFun, formDom, formJson, tableDesc, saveAnalysisMethod, sampleSelectComp = false, sampleGroupJSON, sampleGroupApI = false }: any) => {
+    const plot = async ({ name, url, moduleName, params, paramsFun, formDom, formJson, tableDesc, saveAnalysisMethod, sampleSelectComp = false, sampleGroupJSON = true, sampleGroupApI = false }: any) => {
         setCollapseActiveKey("1")
         setHtmlUrl(undefined)
         setTableDesc(tableDesc)
@@ -435,6 +441,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
         // debugger
         if (paramsFun) {
             params = paramsFun(record)
+            console.log(params)
             setParams(params)
         }
         if (sampleGroupJSON) {
@@ -443,20 +450,21 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 
             } else {
                 const resultTable = resultTableList[activeTabKey]
+                // console.log(resultTableList)
                 if (resultTable) {
-                    const result = resultTable.map((it: any) => {
-                        const { sample_key, id, sample_group, ...rest } = it
-                        return {
-                            label: it.sample_key,
-                            value: it.id,
-                            sample_group: it.sample_group,
-                            ...rest
-                        }
-                    })
+                    // const result = resultTable.map((it: any) => {
+                    //     const { sample_key, id, sample_group, ...rest } = it
+                    //     return {
+                    //         label: it.sample_key,
+                    //         value: it.id,
+                    //         sample_group: it.sample_group,
+                    //         ...rest
+                    //     }
+                    // })
 
 
                     // console.log(result)
-                    setSampleGroup(result)
+                    setSampleGroup(resultTable)
 
                 }
                 // console.log()
@@ -485,7 +493,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 
 
     }
-
+    // console.log(downstreamAnalysis)
     const setHtmlUrl = (url: any, tableDesc: any = undefined) => {
         setHtmlUrl_(url)
         setFormDom(undefined)
@@ -558,17 +566,22 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
         ></ResultList>
         <div style={{ marginBottom: "1rem" }}></div>
 
-        {downstreamAnalysis && downstreamAnalysis.map((item: any, index: any) => {
-            const { name, analysisType, ...rest } = item
-            return <div key={index}>
-                {(record && analysisType == 'one') && <>
-                    <Button style={{ marginRight: "0.5rem" }} type="primary" onClick={() => plot({ ...rest })}>{name}</Button>
-                </>}
-                {(analysisType == 'multiple') && <>
-                    <Button style={{ marginRight: "0.5rem" }} type="primary" onClick={() => plot({ ...rest })}>{name}</Button>
-                </>}
-            </div>
-        })}
+        <div style={{ marginBottom: "1rem" }}>
+            {downstreamAnalysis && downstreamAnalysis.map((item: any, index: any) => {
+                const { name, analysisType, ...rest } = item
+                return <span key={index}>
+                    {(record && analysisType == 'one') && <>
+                        <Button style={{ marginRight: "0.5rem" }} color="purple" variant="solid" onClick={() => plot({ ...rest })}>{name}({record.sample_name})</Button>
+                    </>}
+                    {(analysisType != 'one') && <>
+                        <Button style={{ marginRight: "0.5rem" }} type="primary" onClick={() => plot({ ...rest })}>{name}</Button>
+                    </>}
+
+                </span>
+            })}
+        </div>
+
+
         {children && React.cloneElement(children, {
             record: record,
             setHtmlUrl: setHtmlUrl,
@@ -596,12 +609,12 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
                         items={[
                             {
                                 key: '1', label: <>执行分析{btnName ? `(${btnName})` : ""}</>, children: <>
-                                    {sampleSelectComp && resultTableList && analysisMethod.map((it: any) => (<>
-                                        <Form.Item key={it.key} label={it.name} name={it.key}>
+                                    {sampleSelectComp && resultTableList && analysisMethod.map((it: any, index: any) => (<div key={index}>
+                                        {/* {JSON.stringify(resultTableList)} */}
+                                        <Form.Item key={it.name} label={it.label} name={it.name}>
                                             <SelectComp it={it} resultTableList={resultTableList} ></SelectComp>
                                         </Form.Item>
-
-                                    </>))}
+                                    </div>))}
                                     {/* {sampleGroupJSON && <>
                                         <Form.Item initialValue={"sample_group"} label="分组列" name={"group_field"} rules={[{ required: true, message: '该字段不能为空!' }]}>
                                             <Select options={[
@@ -676,9 +689,9 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
                                             analysisMethod={[
                                                 {
 
-                                                    key: saveAnalysisMethod,
                                                     name: saveAnalysisMethod,
-                                                    value: [saveAnalysisMethod],
+                                                    label: saveAnalysisMethod,
+                                                    inputKey: [saveAnalysisMethod],
                                                     mode: "multiple"
                                                 }
                                             ]}
@@ -719,7 +732,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 }
 
 
-const TableView: FC<any> = ({ data }) => {
+export const TableView: FC<any> = ({ data, url }) => {
     const { Search } = Input;
     const [tableData, setTableData] = useState<any>([])
     const getColumns = (data: any) => {
@@ -757,6 +770,10 @@ const TableView: FC<any> = ({ data }) => {
                         }}
                         style={{ width: 304 }}
                     />
+                    
+                    {url && <Popover title={`${window.location.origin}${url}`}><Button onClick={() => {
+                        window.open(url, "_blank")
+                    }} style={{ marginLeft: "1rem" }} type="primary">下载</Button></Popover>}
                 </>}
                 // showHeader={()=>{}}
                 scroll={{ x: 'max-content', y: 55 * 5 }}
@@ -772,7 +789,14 @@ const TableView: FC<any> = ({ data }) => {
 
 const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc }) => {
 
+    const componentMap: any = {
+        table: TableView
+    };
 
+    const ComponentsRender = ({ type, ...rest }: any) => {
+        const Component = componentMap[type] || (() => <div>未知类型 {type}</div>)
+        return <Component {...rest} />;
+    }
     return <>
         {htmlUrl && <>
             <iframe src={htmlUrl} width={"100%"} style={{ height: "80vh", border: "none" }}>
@@ -800,15 +824,17 @@ const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc
                     }
                 </div>}
                 {filePlot.dataList && Array.isArray(filePlot.dataList) && <>
-                    {filePlot.dataList.map((item: any, index: any) => (<div key={index}>
-                        {typeof item == 'string' ?
-                            <TextArea value={item} rows={10}></TextArea>
-                            :
-                            <TableView data={item}></TableView>
-                        }
-                        {/* {JSON.stringify(item)} */}
+                    {filePlot.dataList.map((item: any, index: any) => (
+                        <ComponentsRender key={index} {...item}></ComponentsRender>
+                        // <div key={index}>
+                        //     {typeof item == 'string' ?
+                        //         <TextArea value={item} rows={10}></TextArea>
+                        //         :
+                        //         <TableView data={item}></TableView>
+                        //     }
+                        // </div>
 
-                    </div>))}
+                    ))}
                 </>}
                 {filePlot.data && Array.isArray(filePlot.data) ? <>
                     <TableView data={filePlot.data}></TableView>

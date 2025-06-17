@@ -105,17 +105,21 @@ const ResultList = forwardRef<any, any>(({
                 acc[key] = [];
             }
             const { sample_key, id, sample_group, ...rest } = item
-
+            // debugger
             acc[key].push({
                 label: sample_key,
                 value: id,
-                sample_group: sample_group,
-                ...item
+                sample_group: sample_group?sample_group:"no_group",
+                sample_key:sample_key,
+                id:id,
+                // "aaa":"1111",
+                ...rest
             });
             return acc;
         }, {});
 
         if (setResultTableList) {
+            // console.log(groupedData)
             setResultTableList(groupedData)
         }
         setGroupedData(groupedData)
@@ -205,7 +209,19 @@ const ResultList = forwardRef<any, any>(({
                 key: 'sample_name',
                 ellipsis: true,
 
-            }, , {
+            }, {
+                title: '样本Key',
+                dataIndex: 'sample_key',
+                key: 'sample_key',
+                ellipsis: true,
+
+            } , {
+                title: '分析Key',
+                dataIndex: 'analysis_key',
+                key: 'analysis_key',
+                ellipsis: true,
+
+            }, {
                 title: '样本分组',
                 dataIndex: 'sample_group',
                 key: 'sample_group',

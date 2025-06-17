@@ -1,8 +1,9 @@
-import { Button, Tabs } from "antd"
-import { FC } from "react"
+import { Button, Skeleton, Tabs } from "antd"
+import { FC, useEffect, useState } from "react"
 import AnalysisPanel from '../../components/analysis-panel'
 import { Bowtie2 } from '../../software-components/bowtie2'
 import { Metaphlan } from './metaphlan'
+import axios from "axios"
 const ReadsBasedAbundanceAnalysis: FC<any> = () => {
 
     return <>
@@ -30,7 +31,7 @@ const ReadsBasedAbundanceAnalysis: FC<any> = () => {
                                 groupField: "sample_group",
                                 // rules: [{ required: true, message: '该字段不能为空!' }],
                             },
-                        
+
                         ]}
                         analysisPipline="pipeline_align_metaphlan_marker"
                         analysisMethod={[
@@ -40,7 +41,26 @@ const ReadsBasedAbundanceAnalysis: FC<any> = () => {
                                 inputKey: ["bowtie2_align_metaphlan"],
                                 mode: "multiple"
                             },
-                        ]} analysisType="sample" >
+                        ]}
+                        downstreamAnalysis={[
+                            {
+                                name: "查看比对日志",
+                                analysisType: "one", // multiple or one
+                                sampleGroupJSON: false,
+                                paramsFun: (record: any) => {
+                                    return {
+                                        "text": record.content.log,
+                                    }
+                                },
+                                sampleGroupApI: false,
+                                saveAnalysisMethod: "text",
+                                moduleName: "text",
+                                sampleSelectComp: false,
+                                tableDesc: ` `,
+
+                            }
+                        ]}
+                        analysisType="sample" >
                         <Bowtie2></Bowtie2>
                     </AnalysisPanel>
                 </>
@@ -124,12 +144,25 @@ const ReadsBasedAbundanceAnalysis: FC<any> = () => {
                 label: "strain_level_profiling",
                 children: <>
                     <AnalysisPanel
+                        appendSampleColumns={[
+                            {
+                                title: '参考基因组',
+                                dataIndex: 'reference',
+                                key: 'reference',
+
+                                ellipsis: true,
+                                render: (_: any, record: any) => <>
+                                    {record?.content?.reference}
+                                </>
+                            },
+                        ]}
                         upstreamFormJson={[
                             {
                                 name: "clade",
+                                labelInValue: true,
                                 label: "clade",
                                 mode: "multiple",
-                                rules: [{ required: true, message: '该字段不能为空!' }],
+                                // rules: [{ required: true, message: '该字段不能为空!' }],
                                 type: "MetaphlanCladeSelect",
                             }
                         ]}
@@ -147,7 +180,15 @@ const ReadsBasedAbundanceAnalysis: FC<any> = () => {
                                 label: "assembly_genome",
                                 inputKey: ["tgs_individual_assembly"],
                                 mode: "single",
+                                labelInValue: true,
                                 type: "BaseSelect",
+                            }, {
+                                name: "samples_abundance",
+                                label: "选择鉴定出SGB的样本",
+                                inputKey: ["metaphlan_sam_abundance"],
+                                mode: "multiple",
+                                type: "GroupSelectSampleButton",
+                                groupField: "sample_group",
                             }
                         ]}
                         analysisPipline="pipeline_strain_level_profiling"
@@ -176,23 +217,6 @@ const ReadsBasedAbundanceAnalysis: FC<any> = () => {
                                 //         label: "分组列",
                                 //         rules: [{ required: true, message: '该字段不能为空!' }],
                                 //         type: "GroupFieldSelect",
-                                //     }, {
-                                //         name: "treatment",
-                                //         label: "处理组",
-                                //         rules: [{ required: true, message: '该字段不能为空!' }],
-                                //         type: "GroupSelectSampleButton",
-                                //         group: "group_field",
-                                //     }, {
-                                //         name: "control",
-                                //         label: "对照组",
-                                //         rules: [{ required: true, message: '该字段不能为空!' }],
-                                //         type: "GroupSelectSampleButton",
-                                //         group: "group_field",
-                                //     }, {
-                                //         name: "rank",
-                                //         label: "rank",
-                                //         rules: [{ required: true, message: '该字段不能为空!' }],
-                                //         type: "RankSelect"
                                 //     }
                                 // ],
                                 // formDom: <AbundanceOtherForm></AbundanceOtherForm>,
@@ -216,6 +240,8 @@ const ReadsBasedAbundanceAnalysis: FC<any> = () => {
         </p>
     </>
 }
+
+
 
 export default ReadsBasedAbundanceAnalysis
 

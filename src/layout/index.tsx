@@ -1,9 +1,10 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { LaptopOutlined, NotificationOutlined, UserOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { Layout, Menu, Skeleton, theme } from 'antd';
+import { Breadcrumb, Layout, Menu, Skeleton, theme } from 'antd';
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { Header } from 'antd/es/layout/layout';
+import { useSelector } from 'react-redux';
 
 const { Content, Sider } = Layout;
 
@@ -41,6 +42,7 @@ const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [leftMenus, setLeftMenus] = useState<any>([])
+
     const onMenuClick = (key: string) => {
         console.log(key)
         navigate(key);
@@ -48,6 +50,7 @@ const App: React.FC = () => {
     const {
         token: { colorBgContainer, borderRadiusLG },
     } = theme.useToken();
+
     const menu0: MenuProps['items'] = [
         {
             key: `${project}`,
@@ -56,18 +59,21 @@ const App: React.FC = () => {
             key: `${project}/sample`,
             label: "检测样本"
         }, {
-            key: `${project}/sample-qc`,
-            label: "样本质控"
+            key: `${project}/pipeline-card`,
+            label: "流程管道"
         }
     ]
     const menu1: MenuProps['items'] = [
         {
+            key: `${project}/sample-qc`,
+            label: "样本质控"
+        }, {
             key: `${project}/meta_genome/remove-host`,
             label: "去宿主"
         }, {
             key: `${project}/meta_genome/reads-based-abundance-analysis`,
             label: "基于Reads的丰度分析"
-        },{
+        }, {
             key: `${project}/meta_genome/recovering-mag`,
             label: "重构MAG"
         }, {
@@ -113,6 +119,8 @@ const App: React.FC = () => {
     ]
     useEffect(() => {
         setLeftMenus(menu1)
+        // console.log("2222222222222222")
+        // console.log(menuItems)
     }, [])
     const items = [
         {
@@ -129,54 +137,46 @@ const App: React.FC = () => {
     return (
         <Layout>
             <Header style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ color: "#fff" }}>微生物数据分析交互式报告</div>
+                <div style={{ color: "#fff" }}>MVP</div>
                 {/* 单菌组装数据挖掘(lactobacillus murinus) */}
                 <Menu
                     theme="dark"
                     mode="horizontal"
                     defaultSelectedKeys={['1']}
 
-                    onSelect={(k) => {
-                        if (k.key == "menu0") {
-                            setLeftMenus(menu0)
-                            navigate(`${project}`);
-                        }
-                        if (k.key == "menu1") {
-                            setLeftMenus(menu1)
-                            navigate(`${project}/meta_genome/remove-host`);
-                        } else if (k.key == "menu2") {
-                            setLeftMenus(menu2)
-                            navigate(`${project}/single_genome/assembly`);
-                        }
-                        console.log(k.key)
-                    }}
-                    items={items}
+                    // onSelect={(k) => {
+                    //     if (k.key == "menu0") {
+                    //         setLeftMenus(menu0)
+                    //         navigate(`${project}`);
+                    //     }
+                    //     if (k.key == "menu1") {
+                    //         setLeftMenus(menu1)
+                    //         navigate(`${project}/meta_genome/remove-host`);
+                    //     } else if (k.key == "menu2") {
+                    //         setLeftMenus(menu2)
+                    //         navigate(`${project}/single_genome/assembly`);
+                    //     }
+                    //     console.log(k.key)
+                    // }}
+                    items={menu0}
+                    onSelect={k => onMenuClick(k.key)}
                     style={{ flex: 1, minWidth: 0 }}
                 />
             </Header>
             <Layout
                 style={{ padding: '24px 0', background: colorBgContainer, borderRadius: borderRadiusLG }}
             >
-                <Sider style={{ background: colorBgContainer }} width={120}>
+                {/* <Sider style={{ background: colorBgContainer }} width={120}>
                     <Menu
                         mode="inline"
                         onSelect={k => onMenuClick(k.key)}
-                        // defaultSelectedKeys={['/']}
-                        // defaultOpenKeys={['/']}
+           
                         style={{ height: '100%' }}
                         items={leftMenus}
                     />
-                    {/* <nav>
-                    <NavLink to="/" end>
-                        Home
-                    </NavLink>
-                    <NavLink to="/sample" end>
-                        sample
-                    </NavLink>
+                 
 
-                </nav> */}
-
-                </Sider>
+                </Sider> */}
 
                 <Content style={{ padding: '0 24px', minHeight: "100vh" }}>
                     <Suspense key={location.key} fallback={<Test></Test>}>

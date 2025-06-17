@@ -27,7 +27,7 @@ const ResultList = forwardRef<any, any>(({
         reload: loadData
     }))
     const [messageApi, contextHolder] = message.useMessage();
-
+    
     // const { project } = useParams()
     const [data, setData] = useState<any>([])
     // const [content,setContent] = useState<any>()
@@ -90,9 +90,14 @@ const ResultList = forwardRef<any, any>(({
             key: 'analysis_name',
             ellipsis: true,
         }, {
-            title: 'input_file',
-            dataIndex: 'input_file',
-            key: 'input_file',
+            title: 'params_path',
+            dataIndex: 'params_path',
+            key: 'params_path',
+            ellipsis: true,
+        }, {
+            title: 'pipeline_script',
+            dataIndex: 'pipeline_script',
+            key: 'pipeline_script',
             ellipsis: true,
         }, {
             title: 'work_dir',

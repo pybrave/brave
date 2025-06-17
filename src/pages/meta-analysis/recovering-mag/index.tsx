@@ -9,24 +9,73 @@ const RecoveringMag: FC<any> = () => {
     return <>
         <Tabs items={[
             {
-                key: "metawrap_individual_assembly",
-                label: "metawrap_individual_assembly",
+                key: "ngs_individual_assembly",
+                label: "二代测序宏基因组单独组装",
                 children: <>
                     <AnalysisPanel
-                        // analysisMethod={[
-                        //     {
-                        //         key: "metaphlan_sam_abundance",
-                        //         name: "metaphlan_sam_abundance",
-                        //         value: ["metaphlan_sam_abundance"],
-                        //         mode: "multiple"
-                        //     }
-                        // ]} 
-                        analysisPipline="pipeline_metaphlan_abundance"
+                        inputAnalysisMethod={[
+                            {
+                                name: "remove_hosts_reads",
+                                label: "remove_hosts_reads",
+                                inputKey: ["samtools_remove_hosts"],
+                                mode: "multiple",
+                                type: "GroupSelectSampleButton",
+                                groupField: "sample_group",
+                                rules: [{ required: true, message: '该字段不能为空!' }],
+                            }, {
+                                name: "clean_reads",
+                                label: "clean_reads",
+                                inputKey: ["fastp_clean_reads"],
+                                mode: "multiple",
+                                type: "GroupSelectSampleButton",
+                                groupField: "sample_group",
+                                // rules: [{ required: true, message: '该字段不能为空!' }],
+                            },
+
+                        ]}
+                        analysisPipline="pipeline_ngs_individual_metawrap_assembly"
                         analysisMethod={[
                             {
-                                key: "metawrap_assembly",
                                 name: "metawrap_assembly",
-                                value: ["metawrap_assembly"],
+                                label: "metawrap_assembly",
+                                inputKey: ["metawrap_assembly"],
+                                mode: "multiple"
+                            }
+                        ]} analysisType="sample" >
+                        <Metawrap></Metawrap>
+                    </AnalysisPanel>
+                </>
+            },{
+                key: "ngs_co_assembly",
+                label: "二代测序宏基因组共组装",
+                children: <>
+                    <AnalysisPanel
+                        inputAnalysisMethod={[
+                            {
+                                name: "remove_hosts_reads",
+                                label: "remove_hosts_reads",
+                                inputKey: ["samtools_remove_hosts"],
+                                mode: "multiple",
+                                type: "GroupSelectSampleButton",
+                                groupField: "sample_group",
+                                rules: [{ required: true, message: '该字段不能为空!' }],
+                            }, {
+                                name: "clean_reads",
+                                label: "clean_reads",
+                                inputKey: ["fastp_clean_reads"],
+                                mode: "multiple",
+                                type: "GroupSelectSampleButton",
+                                groupField: "sample_group",
+                                // rules: [{ required: true, message: '该字段不能为空!' }],
+                            },
+
+                        ]}
+                        analysisPipline="pipeline_ngs_individual_metawrap_assembly"
+                        analysisMethod={[
+                            {
+                                name: "metawrap_assembly",
+                                label: "metawrap_assembly",
+                                inputKey: ["metawrap_assembly"],
                                 mode: "multiple"
                             }
                         ]} analysisType="sample" >

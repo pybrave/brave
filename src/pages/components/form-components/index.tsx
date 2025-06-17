@@ -1,4 +1,4 @@
-import { Button, Form, Select } from "antd";
+import { Button, Form, Input, InputNumber, Select } from "antd";
 import axios from "axios";
 import { Component, FC, useEffect, useState, memo } from "react";
 import { data } from "react-router";
@@ -9,8 +9,14 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
             Component: BaseSelect,
             dataKey: "sample_group_list"
         },
+        GroupCompareSelect: {
+            Component: GroupCompareSelect,
+        },
         BaseSelect: {
             Component: BaseSelect,
+        },
+        BaseInputNumber: {
+            Component: BaseInputNumber,
         },
         RankSelect: {
             Component: BaseSelect,
@@ -33,6 +39,9 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
             dataKey: "sample_group_list"
         }, MetaphlanCladeSelect: {
             Component: MetaphlanCladeSelect,
+        },SelectAll:{
+            Component: SelectAll,
+            dataKey: "sample_group_list"
         }
     };
     const ComponentsRender = ({ type, dataMap, dataKey: dataKey_, data: data_, name, inputKey, ...rest }: any) => {
@@ -51,6 +60,7 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
                     data = dataMap[dataKey_]
                 }
             } else {
+                // 上游分析的key
                 if (inputKey) {
                     data = dataMap[name]
 
@@ -128,13 +138,14 @@ const BasicSelect: FC<any> = ({ options, clear, value, onChange, ...rest }) => {
     return <Select {...rest} options={options} value={value} onChange={selectChange}></Select>
 }
 
+
 export const MetaphlanCladeSelect: FC<any> = ({ label, name, data, initialValue, rules, ...rest }) => {
     const [options, setOptions] = useState<any>()
     const loadData = async () => {
         const resp: any = await axios.get(`/fast-api/get_metaphlan_clade`)
         let data: any = resp.data.map((it: any) => {
             return {
-                label: it.taxon,
+                label: `${it.taxon.replaceAll(" ", "_")}_${it.clade}`,
                 value: it.clade
             }
         })
@@ -155,16 +166,57 @@ export const MetaphlanCladeSelect: FC<any> = ({ label, name, data, initialValue,
     }, [])
     return <>
         <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
-            <Select  {...rest} options={options} showSearch filterOption={(input:any, option:any) =>
+            <Select   {...rest} options={options} showSearch filterOption={(input: any, option: any) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}></Select>
+        </Form.Item>
+        {/* <Form.Item name={`${name}_`} label={`${label}_`}>
+            <Input value={111}></Input>
+        </Form.Item> */}
+    </>
+}
+export const GroupCompareSelect: FC<any> = ({ label, name, data, initialValue, rules, ...rest }) => {
+    const form = Form.useFormInstance();
+    const treatment_group = Form.useWatch(["sites1", "group"], form);
+    const control_group = Form.useWatch(["sites2", "group"], form);
+    const [query, setQuery] = useState<any>()
+    useEffect(() => {
+        if (treatment_group && control_group) {
+            setQuery([
+                {
+                    label: `Prevalent in both sites`,
+                    value: `Prevalent in both sites`
+                }, {
+                    label: `Prevalent in ${control_group.join("-")}`,
+                    value: `Prevalent in ${control_group.join("-")}`
+                }, {
+                    label: `Prevalent in ${treatment_group.join("-")}`,
+                    value: `Prevalent in ${treatment_group.join("-")}`
+                }, {
+                    label: `Not prevalent in either sites`,
+                    value: `Not prevalent in either sites`
+                }
+            ])
+        }
+    }, [treatment_group, control_group])
+    return <>
+        <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
+            <Select showSearch filterOption={(input: any, option: any) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} {...rest} options={query}></Select>
         </Form.Item>
     </>
 }
 
+const BaseInputNumber: FC<any> = ({ label, name, data, initialValue, rules, ...rest }) => {
+    return <>
+        <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
+            <InputNumber {...rest} />
+        </Form.Item>
+    </>
+}
 export const BaseSelect: FC<any> = ({ label, name, data, initialValue, rules, ...rest }) => {
     return <>
         <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
-            <Select showSearch filterOption={(input:any, option:any) =>
+            <Select showSearch filterOption={(input: any, option: any) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} {...rest} options={data}></Select>
         </Form.Item>
     </>
@@ -226,6 +278,7 @@ export const GroupSelectSampleButton: FC<any> = ({ label, name, rules, data, fil
             // }
         }
         // console.log(data)
+        // console.log(data)
         if (data && groupField_) {
             // console.log(data)
             calculateGroup(data, groupField_)
@@ -253,6 +306,37 @@ export const GroupSelectSampleButton: FC<any> = ({ label, name, rules, data, fil
         </Form.Item>
     </>
 }
+export const SelectAll: FC<any> = ({ label, name, data, initialValue, rules, ...rest }) => {
+    return <>
+        <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
+            <SelectAllComp data={data} {...rest }></SelectAllComp>
+        </Form.Item>
+    </>
+}
+const SelectAllComp: FC<any> = ({ data, value, onChange,mode,...rest }) => {
+    const [selectedItems, setSelectedItems] = useState<any>(value);
+    // const [options, setOptions] = useState<any>([]);
+    const onChangeSelct = (value: any) => {
+        console.log(value)
+        onChange(value)
+        setSelectedItems(value)
+    }
+
+    // useEffect(() => {
+    //     setOptions(options)
+    // }, [resultTableList])
+    return <>
+
+        <Select {...rest } mode={mode} value={selectedItems} onChange={onChangeSelct}  allowClear options={data}></Select>
+        {mode  == "multiple" && <Button onClick={() => {
+            const values = data.map((it: any) => it.value)
+            // console.log(values)
+            setSelectedItems(values)
+            onChange(values)
+        }}>选择全部{selectedItems && <>({selectedItems.length})</>}</Button>}
+    </>
+}
+
 
 
 const GroupSelectSample: FC<any> = ({ value, onChange, sampleGroup, watch, sampleGrouped }) => {
@@ -322,8 +406,8 @@ const GroupSelectSample: FC<any> = ({ value, onChange, sampleGroup, watch, sampl
     }, [group])
     return <>
         {/* {watch}{group} */}
-        <Select showSearch filterOption={(input:any, option:any) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} mode={"multiple"} value={value} onChange={onChange} options={sampleGroup}></Select>
+        <Select showSearch filterOption={(input: any, option: any) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} mode={"multiple"} value={value} onChange={onChange} options={sampleGroup}></Select>
         {value && <>一共选择{value.length}个样本</>}
 
     </>
