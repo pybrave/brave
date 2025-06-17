@@ -11,5 +11,5 @@ def parse_data(request_param,db_dict):
     df = df.reset_index()
     # df.to_pickle("test/test.pkl")
 
-    return {"data":df}
+    return df
 

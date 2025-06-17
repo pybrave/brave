@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from importlib.resources import files
+from importlib.resources import files, as_file
 import json
 import os
 import glob
@@ -64,3 +64,4 @@ def get_pipeline_file(filename):
     if not os.path.exists(pipeline_file):
         raise HTTPException(status_code=500, detail=f"{pipeline_file}不存在!")
     return pipeline_file
+

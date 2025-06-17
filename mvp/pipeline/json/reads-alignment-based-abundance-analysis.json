@@ -374,6 +374,14 @@
         },{
             "name": "菌株水平分析",
             "analysisPipline":"pipeline_strain_level_profiling",
+            "parseAnalysisModule":"strain_level_profiling",
+            "parseAnalysisResultModule":[
+                {
+                    "module":"strain_level_profiling",
+                    "dir":"strainphlan",
+                    "analysisMethod":"strain_level_profiling"
+                }
+            ],
             "inputAnalysisMethod":[
                 {
                     "name": "consensus_marker",
@@ -425,6 +433,21 @@
                     "sampleSelectComp": false,
                     "tableDesc": ""
 
+                },{
+                    "name": "鉴定转移菌",
+                    "sampleGroupJSON": true,
+                    "formJson": [
+                        {
+                            "name": "strain",
+                            "label": "选择菌株",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "GroupSelectSampleButton",
+                           "groupField": "sample_group"
+                        }
+                    ],
+                    "saveAnalysisMethod": "strain_level_transmission",
+                    "moduleName": "strain_level_transmission",
+                    "tableDesc": ""
                 }
             ],"appendSampleColumns":[
                 {

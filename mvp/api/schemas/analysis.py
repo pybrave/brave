@@ -26,3 +26,4 @@ class Analysis(BaseModel):
     output_format: Optional[str]
     command_path: Optional[str]
     pipeline_script: Optional[str]
+    parse_analysis_module: Optional[str]

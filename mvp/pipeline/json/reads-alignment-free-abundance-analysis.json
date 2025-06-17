@@ -13,6 +13,19 @@
             "name": "去宿主的reads",
             "analysisPipline": "pipeline_alignment_free_k_mer_strategies",
             "parseAnalysisModule":"remove_hosts_reads_clean_reads",
+            "parseAnalysisResultModule":[
+                {
+                    "module":"dir_result_parse",
+                    "moduleArgs":{
+                        "software":"kraken",
+                        "suffix_list":{
+                            "C":".C.kraken.tsv"
+                        }
+                    },
+                    "dir":"bracken",
+                    "analysisMethod":"kraken_bracken_abundance"
+                }
+            ],
             "inputAnalysisMethod": [
                 {
                     "name": "remove_hosts_reads",
@@ -53,6 +66,15 @@
                     "label": "kraken数据库",
                     "rules": [{ "required": true, "message": "该字段不能为空!" }],
                     "type": "BaseSelect"
+                }
+            ],"analysisMethod": [
+                {
+                    "name": "kraken_bracken_abundance",
+                    "label": "kraken_bracken_abundance",
+                    "inputKey": [
+                        "kraken_bracken_abundance"
+                    ],
+                    "mode": "multiple"
                 }
             ]
         }

@@ -71,15 +71,24 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
             db.commit()
             print(">>>>新增: ",sample_name, software, content_type)
 
-def parse_result_oneV2(analysis_method,analsyisRecord,module,dir_path,project,verison,analysis_id=-1):
+def parse_result_oneV2(analysis_method,module_args,analsyisRecord,module,dir_path,project,verison,analysis_id=-1):
     parse = getattr(module, "parse")
     sig = inspect.signature(parse)
     params = sig.parameters
     res = None
-    if len(params)==1:
-        res = parse(dir_path)
-    elif len(params)==2:
-        res = parse(dir_path,analsyisRecord)
+
+    # if len(params)==1:
+    #     res = parse(dir_path)
+    # elif len(params)==2:
+    #     res = parse(dir_path,analsyisRecord)
+    # elif len(params) ==3:
+    
+    args = {
+        "dir_path":dir_path,
+        "analysis": analsyisRecord,
+        **module_args
+    }
+    res = parse(**args)
 
     if hasattr(module,"get_analysis_method"):
         get_analysis_method = getattr(module, "get_analysis_method")

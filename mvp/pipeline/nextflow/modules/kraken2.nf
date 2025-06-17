@@ -69,7 +69,7 @@ process kraken2V2 {
     """
 }
 process bracken {
-    publishDir "output/bracken/${meta.id}", mode: 'symlink', overwrite: true
+    publishDir "output/bracken/${meta.id}", mode: 'copy', overwrite: true
 
     input:
     tuple val(meta),path(report)
@@ -143,6 +143,27 @@ process bracken {
 }
 
 
+
+process kraken2_map {
+    publishDir "output/bracken/${meta.id}", mode: 'copy', overwrite: true
+
+    input:
+    tuple val(meta), path(report)
+    // path  db
+
+
+    output:
+    tuple val(meta), path('*kreport2mpa.txt') , emit: kreport2mpawy
+
+    script:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+
+    """
+    kreport2mpa.py -r '${report}'  --percentages --keep-spaces -o ${prefix}_kreport2mpa.txt 
+    """
+
+
+}
 
 process import_kraken_profile {
     input:

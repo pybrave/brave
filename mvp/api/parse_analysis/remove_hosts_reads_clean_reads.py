@@ -15,17 +15,17 @@ def get_data(item):
 def get_db_field():
     return ['remove_hosts_reads','clean_reads']
 
-def get_script():
-    return "/ssd1/wy/workspace2/nextflow/pipeline_align_metaphlan_marker.nf"
+# def get_script():
+#     return "/ssd1/wy/workspace2/nextflow/pipeline_align_metaphlan_marker.nf"
 
-def get_output_format():
-    return [
-        {
-            "module":"bowtie2_align",
-            "dir":"bowtie2_align_metaphlan",
-            "analysis_method":"bowtie2_align_metaphlan"
-        },
-    ]
+# def get_output_format():
+#     return [
+#         {
+#             "module":"bowtie2_align",
+#             "dir":"bowtie2_align_metaphlan",
+#             "analysis_method":"bowtie2_align_metaphlan"
+#         },
+#     ]
 def parse_data(request_param,db_dict):
     remove_hosts_reads = db_dict['remove_hosts_reads']
     remove_hosts_reads_samples = [get_data(item) for item in remove_hosts_reads]

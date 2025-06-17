@@ -46,5 +46,7 @@ class Sample(BaseModel):
     sample_source: Optional[str]
     host_disease: Optional[str]
     project: Optional[str]
+    sample_individual: Optional[str]
+    is_available: Optional[int]
     fastq1: Optional[str]
     fastq2: Optional[str]

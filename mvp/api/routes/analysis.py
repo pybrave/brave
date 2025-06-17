@@ -104,9 +104,9 @@ def parse_analysis(request_param,params_path,command_path,work_dir,module_name):
         # command = f"nextflow run -offline {script} -resume  -params-file {params_path} -w {work_dir} -with-trace trace.txt | tee .workflow.log"
         # with open(command_path, "w") as f:
         #     f.write(command)
-        get_output_format = getattr(module, "get_output_format")
-        output_format = get_output_format()
-        return json.dumps(output_format)
+        # get_output_format = getattr(module, "get_output_format")
+        # output_format = get_output_format()
+        # return json.dumps(output_format)
 
 # ,response_model=List[Sample]
 @analysis_api.post("/fast-api/save-analysis")
@@ -116,12 +116,14 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
 
     with get_engine().begin() as conn:
         analysis_pipline = request_param['analysis_pipline']
-
+        parse_analysis_module = request_param['parse_analysis_module']
+        parse_analysis_result_module = json.dumps(request_param['parse_analysis_result_module'])
         new_analysis = {
             "project":request_param['project'],
             "analysis_name":request_param['analysis_name'],
             "analysis_method":analysis_pipline,
-            "request_param":json.dumps(request_param)
+            "request_param":json.dumps(request_param),
+            "parse_analysis_module":parse_analysis_module
         }
      
         output_dir=None
@@ -135,8 +137,8 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             work_dir = result.work_dir
             params_path = result.params_path
             command_path = result.command_path
-            parse_result = parse_analysis(request_param,params_path,command_path, work_dir,request_param['parse_analysis_module'])
-            new_analysis['output_format'] = parse_result
+            parse_analysis(request_param,params_path,command_path, work_dir,parse_analysis_module)
+            new_analysis['output_format'] = parse_analysis_result_module
             stmt = analysis.update().values(new_analysis).where(analysis.c.id==request_param['id'])
         else:
             settings = get_settings()
@@ -175,8 +177,8 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             new_analysis['command_path'] = command_path
             new_analysis['analysis_key'] = str_uuid
 
-            parse_result = parse_analysis(request_param,params_path, command_path,work_dir,request_param['parse_analysis_module'])
-            new_analysis['output_format'] = parse_result
+            parse_analysis(request_param,params_path, command_path,work_dir,parse_analysis_module)
+            new_analysis['output_format'] = parse_analysis_result_module
       
             stmt = analysis.insert().values(new_analysis)
         conn.execute(stmt)
@@ -222,5 +224,8 @@ def parse_analysis_result(id):
         dir_path = f"{result.output_dir}/output/{item['dir']}"
         module = importlib.import_module(f"mvp.api.parse_analysis_result.{item['module']}")
         # parse_result_one()
-        parse_result_oneV2(item['analysis_method'],result,module,dir_path,result.project,"V1.0",id)
+        moduleArgs = {}
+        if "moduleArgs" in item:
+            moduleArgs = item['moduleArgs']
+        parse_result_oneV2(item['analysisMethod'],moduleArgs,result,module,dir_path,result.project,"V1.0",id)
     return {"message":"success"}

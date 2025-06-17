@@ -16,6 +16,7 @@ import pandas as pd
 from mvp.api.models.core import samples
 from mvp.api.config.db import get_engine
 from io import StringIO
+from fastapi import HTTPException
 
 
 sample = APIRouter()
@@ -65,6 +66,26 @@ def import_sample_form_str(sample:ImportSample):
         # return conn.execute(samples.select()).fetchall()
         # print()
         return {"msg":"success"}
+
+
+@sample.post("/fast-api/update_sample_form_str",tags=["sample"],)
+def import_sample_form_str(sample:ImportSample):
+    csv_buffer = StringIO(sample.content)
+    df = pd.read_csv(csv_buffer)
+    if not "project" in df.columns or not "sample_name" in df.columns:
+        raise HTTPException(status_code=500, detail=f"必须包含project和sample_name") 
+    with get_engine().begin() as conn:
+        df_dict = df.to_dict(orient="records")
+        for item in df_dict:
+            stmt = samples.update().values(item).where(and_(
+                samples.c.project==item['project'],
+                samples.c.sample_name==item['sample_name'],
+            ) )
+            conn.execute(stmt)
+        # print()
+        # return conn.execute(samples.select()).fetchall()
+        # print()
+    return {"msg":"success"}
 
 # ,response_model=List[Sample]
 # /ssd1/wy/workspace2/leipu/leipu_workspace2/sample/RNA.sample.csv

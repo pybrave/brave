@@ -26,6 +26,9 @@ import inspect
 from mvp.api.routes.analysis import get_db_value
 from mvp.api.utils.get_db_utils import get_ids
 file_parse_plot = APIRouter()
+from mvp.api.config.config import get_settings
+from pathlib import Path
+
 # key = Fernet.generate_key()
 # f = Fernet(key)
 
@@ -57,58 +60,75 @@ def parse_result(request_param,module_name):
     module = importlib.import_module(f'mvp.api.file_parse_plot.{module_name}')
     parse_data = getattr(module, "parse_data")
     sig = inspect.signature(parse_data)
-    params = sig.parameters
-    data = None
-    if len(params) ==1:
-        data = parse_data(request_param)
-    elif len(params) ==2:
-        if hasattr(module, "get_db_field"):
-            get_db_field = getattr(module, "get_db_field")
-            db_field = get_db_field()
-            db_dict = get_db_dict(db_field,request_param)
-            data = parse_data(request_param,db_dict)
-        else:
-            sample = get_sample(request_param['project'])
-            data = parse_data(request_param,sample)
-    else:
+    params = sig.parameters.keys()
+    args = {
+        "request_param":request_param,
+    }
+    if hasattr(module, "get_db_field"):
         get_db_field = getattr(module, "get_db_field")
         db_field = get_db_field()
         db_dict = get_db_dict(db_field,request_param)
+        if "db_dict" in params:
+            args.update({"db_dict":db_dict})
+        else:
+            args.update(db_dict)
+    
+    if "sample" in params:
         sample = get_sample(request_param['project'])
-        data = parse_data(request_param,db_dict,sample)
+        args.update({"sample":sample})
+    
+    # data = None
+    # if len(params) ==1:
+    #     data = parse_data(request_param)
+    # elif len(params) ==2:
+    #     if hasattr(module, "get_db_field"):
+    #         get_db_field = getattr(module, "get_db_field")
+    #         db_field = get_db_field()
+    #         db_dict = get_db_dict(db_field,request_param)
+    #         data = parse_data(request_param,db_dict)
+    #     else:
+    #         sample = get_sample(request_param['project'])
+    #         data = parse_data(request_param,sample)
+    # else:
+    #     get_db_field = getattr(module, "get_db_field")
+    #     db_field = get_db_field()
+    #     db_dict = get_db_dict(db_field,request_param)
+    #     sample = get_sample(request_param['project'])
+    #     data = parse_data(request_param,db_dict,sample)
 
-
+    data = parse_data(**args)
     result = {}
     # if isinstance(data,list):
 
     if isinstance(data,dict):
-        new_data = {}
+        new_data = []
         for key, value in data.items():
-            if key.startswith("in_"):
-                pass
-            elif isinstance(value, pd.DataFrame):
-                new_data[key] = value.to_dict(orient="records")
-            else:
-                new_data[key] = value
-        result= new_data
+            if not key.startswith("in_"):
+                value = format_output(value,request_param)
+                new_data.append(value)
+        result= {"dataList":new_data}
     elif isinstance(data,tuple):
         new_data = []
         for item in data:
             if not isinstance(item,tuple):
-                if isinstance(item, pd.DataFrame):
-                    new_data.append(item.to_dict(orient="records"))
-                else:
-                    if item:
-                        new_data.append(item)
+                if item is not None:
+                    item = format_output(item,request_param)
+                    new_data.append(item)
+                # if isinstance(item, pd.DataFrame):
+                #     new_data.append(item.to_dict(orient="records"))
+                # else:
+                #     if item:
+                #         new_data.append(item)
         
         result = {"dataList":new_data}
     else:
-        if isinstance(data, pd.DataFrame):
-            # result = {"data":data.to_dict(orient="records")}
-            result = {"data":json.loads(data.to_json(orient="records"))}
-            
-        else:
-            result = {"data":data}  
+        data = format_output(data,request_param)
+        result = {"dataList":[data]}
+        # if isinstance(data, pd.DataFrame):
+        #     # result = {"data":data.to_dict(orient="records")}
+        #     result = {"data":json.loads(data.to_json(orient="records"))}
+        # else:
+        #     result = {"data":data}  
              
     if hasattr(module, "parse_plot"):
         parse_plot = getattr(module, "parse_plot")
@@ -146,6 +166,32 @@ def parse_result(request_param,module_name):
             raise HTTPException(status_code=500, detail=json.dumps(e.args))
     
     return result
+
+
+def format_output(item,request_param):
+    settings = get_settings()
+    base_dir = settings.BASE_DIR
+    project,analysis_method,table_type = request_param['project'],request_param['analysis_method'],request_param['table_type']
+    str_uuid = str(uuid.uuid4())
+    downstream_analysis_result_dir  =   base_dir / project / "downstream_analysis_result" /analysis_method 
+    if not downstream_analysis_result_dir.exists():
+        downstream_analysis_result_dir.mkdir(parents=True,  exist_ok=True)
+    downstream_analysis_result = downstream_analysis_result_dir / f"{str_uuid}.{table_type}"
+    file_name = str(downstream_analysis_result).replace(str(base_dir),"")
+
+    if isinstance(item, pd.DataFrame):
+        if table_type=='tsv':
+            item.to_csv(downstream_analysis_result, sep="\t", index=False)
+        elif table_type=='xlsx':
+            item.to_excel(downstream_analysis_result,  index=False)
+        return  {
+            "data":item.to_dict(orient="records"),
+            "type":"table",
+            "url":f"/mvp-api/dir{file_name}"
+        }
+    else:
+        return item
+
 
 @file_parse_plot.get("/fast-api/file-parse-plot-test")
 def parse_result_restful():

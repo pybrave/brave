@@ -10,17 +10,17 @@ from mvp.api.utils.metaphlan_utils import get_abundance,get_last_num
 def get_db_field():
     return ['consensus_marker','assembly_genome','samples_abundance']
 
-def get_script():
-    return "/ssd1/wy/workspace2/nextflow/pipeline_strain_level_profiling.nf"
+# def get_script():
+#     return "/ssd1/wy/workspace2/nextflow/pipeline_strain_level_profiling.nf"
 
-def get_output_format():
-    return [
-        {
-            "module":"strain_level_profiling",
-            "dir":"strainphlan",
-            "analysis_method":"strain_level_profiling"
-        }
-    ]
+# def get_output_format():
+#     return [
+        # {
+        #     "module":"strain_level_profiling",
+        #     "dir":"strainphlan",
+        #     "analysis_method":"strain_level_profiling"
+        # }
+#     ]
 
 # def get_data(item):
 #     content = item.content #json.loads(item.content)

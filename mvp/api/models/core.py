@@ -18,6 +18,8 @@ samples = Table(
     Column("sample_group", String(255)),
     Column("sample_source", String(255)),
     Column("host_disease", String(255)),
+    Column("sample_individual", String(255)),
+    Column("is_available", Integer),
     Column("fastq1", String(255)),
     Column("fastq2", String(255)),
 )
@@ -36,7 +38,8 @@ analysis = Table(
     Column("request_param", Text),
     Column("output_format", Text),
     Column("output_dir", String(255)),
-    Column("pipeline_script", String(255))
+    Column("pipeline_script", String(255)),
+    Column("parse_analysis_module", String(255))
 )
 
 analysis_result = Table(

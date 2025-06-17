@@ -12,14 +12,17 @@ from mvp.api.routes.bio_database import bio_database
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+from mvp.api.config.config import get_settings
 
 def create_app() -> FastAPI:
     app = FastAPI()
     frontend_path = os.path.join(os.path.dirname(__file__), "frontend", "build")
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "assets")), name="assets")
     pipelinie_path = os.path.join(os.path.dirname(__file__), "pipeline")
-
     app.mount("/mvp-api/img", StaticFiles(directory=os.path.join(pipelinie_path, "img")), name="pipleine_img")
+
+    settings = get_settings()
+    app.mount("/mvp-api/dir", StaticFiles(directory=settings.BASE_DIR), name="base_dir")
 
     app.include_router(sample_result,prefix="/mvp-api")
     app.include_router(file_parse_plot,prefix="/mvp-api")
