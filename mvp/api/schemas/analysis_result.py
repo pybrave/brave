@@ -3,9 +3,12 @@ from pydantic import BaseModel
 
 class AnalysisResultQuery(BaseModel):
     # id: Optional[int]
-    analysis_method: list
-    project:str
+    analysis_method:Optional[list]=None
+    project:Optional[str]=None
     querySample:Optional[bool]=True
+    analysis_type:Optional[str]=None
+    ids:Optional[list]=None
+    
 
 class AnalysisResult(BaseModel):
     id: Optional[int]
@@ -22,4 +25,7 @@ class AnalysisResult(BaseModel):
     request_param: Optional[str]
     analysis_id: Optional[int]
     sample_group: Optional[str]
+    sample_group_name: Optional[str]
+    analysis_type: Optional[str]
+    create_date: Optional[str]
     

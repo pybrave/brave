@@ -125,6 +125,30 @@
                     ],
                     "tableDesc": ""
                 },{
+                    "name": "堆叠图",
+                    "moduleName": "abundance_stacked_diagram",
+                    "saveAnalysisMethod":"abundance_stacked_diagram",
+                    "formJson":[
+                        {
+                            "name": "group_field",
+                            "label": "分组列",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "GroupFieldSelect",
+                            "clear":["samples_group"]
+                        }, {
+                            "name": "samples",
+                            "label": "选择分组",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "GroupSelectSampleButton",
+                            "group": "group_field"
+                        },{
+                            "name": "rank",
+                            "label": "rank",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "RankSelect"
+                        }
+                    ]
+                },{
                     "name": "alpha多样性",
                     "formJson": [
                         {
@@ -441,8 +465,15 @@
                             "name": "strain",
                             "label": "选择菌株",
                             "rules": [{ "required": true, "message": "该字段不能为空!" }],
-                            "type": "GroupSelectSampleButton",
-                           "groupField": "sample_group"
+                            "type": "SelectAll",
+                            "mode":"multiple",
+                            "groupField": "sample_group"
+                        }, {
+                            "name": "phylogenetic_distances",
+                            "label": "最小系统发育距离",
+                            "rules": [{ "required": true, "message": "该字段不能为空!" }],
+                            "type": "BaseInputNumber",
+                            "initialValue":0.03
                         }
                     ],
                     "saveAnalysisMethod": "strain_level_transmission",

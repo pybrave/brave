@@ -18,6 +18,7 @@ from mvp.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult
 from mvp.api.models.core import samples,analysis_result
 from mvp.api.config.db import get_engine
 import inspect
+from fastapi import HTTPException
 
 
 sample_result = APIRouter()
@@ -48,6 +49,7 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
             sampleAnalysisResult.content_type = content_type
             sampleAnalysisResult.analysis_name = analysis_name
             sampleAnalysisResult.analysis_id = analysis_id
+            sampleAnalysisResult.analysis_type="upstream"
             # sampleAnalysisResult.log_path = log_path
             sampleAnalysisResult.software = software
             db.commit()
@@ -61,6 +63,7 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
                 analysis_name=analysis_name, \
                 analysis_key=analysis_key, \
                 analysis_id=analysis_id, \
+                analysis_type="upstream", \
                 # log_path=log_path, \
                 software=software, \
                 project=project, \
@@ -220,6 +223,30 @@ def parse_result_restful(base_path,verison,project):
         parse_result(dir_path,project,verison)
     return {"msg":"success"}
 
+def find_analyais_result_by_ids( value):
+    ids = value
+    if not isinstance(value,list):
+        ids = [value]
+    analysis_result = find_analyais_result(AnalysisResultQuery(ids=ids))
+
+    # analysis_result =  session.query(SampleAnalysisResult) \
+    #             .filter(SampleAnalysisResult.id.in_(ids)) \
+    #                 .all()
+                    
+    # for item in analysis_result:
+    #     if item.content_type=="json" and not isinstance(item.content, dict):
+    #         item.content = json.loads(item.content)
+
+    if len(analysis_result)!=len(ids):
+        raise HTTPException(status_code=500, detail="数据存在问题!")
+    if not isinstance(value,list) and len(analysis_result)==1:
+        return analysis_result[0]
+    else:
+        return analysis_result
+    
+
+def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
+    return find_analyais_result_by_analysis_method(analysisResultQuery)
 
 @sample_result.post(
     "/fast-api/find-analyais-result-by-analysis-method",
@@ -242,22 +269,40 @@ def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisResultQu
         stmt = analysis_result.select() 
         if analysisResultQuery.querySample:
             stmt =  select(analysis_result, samples).select_from(analysis_result.outerjoin(samples,samples.c.sample_key==analysis_result.c.sample_key))
-        stmt= stmt.where(and_(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method) \
-            ,analysis_result.c.project ==analysisResultQuery.project \
-            ))
+        
+        conditions = []
+        if analysisResultQuery.project is not None:
+            conditions.append(analysis_result.c.project == analysisResultQuery.project)
+        if analysisResultQuery.ids is not None:
+            conditions.append(analysis_result.c.id.in_(analysisResultQuery.ids))
+        if analysisResultQuery.analysis_method is not None:
+            conditions.append(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method))
+        if analysisResultQuery.analysis_type is not None:
+            conditions.append(analysis_result.c.analysis_type == analysisResultQuery.analysis_type)
+        stmt= stmt.where(and_( *conditions))
+        
         result  = conn.execute(stmt)
         # result = result.fetchall()
         rows = result.mappings().all()
         result_dict = [AnalysisResult(**row) for row in rows]
         # result_dict = []
         for item in result_dict:
-            if item.content_type=="json":
+            if item.content_type=="json" and not isinstance(item.content, dict):
                 item.content = json.loads(item.content)
         #     result.append(row)
         # # rows = result.mappings().all()
         # pass
     return result_dict
     # return {"aa":"aa"}
+
+
+@sample_result.delete("/analyais-result/delete-by-id/{id}",  status_code=HTTP_204_NO_CONTENT)
+def delete_analysis_result(id: int):
+    with get_engine().begin() as conn:
+        conn.execute(analysis_result.delete().where(analysis_result.c.id == id))
+    return {"message":"success"}
+
+
 
 @sample_result.post(
     "/fast-api/add-sample-analysis",

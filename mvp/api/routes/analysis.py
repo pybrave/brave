@@ -27,7 +27,7 @@ from mvp.api.utils.get_db_utils import get_ids
 from mvp.api.config.config import get_settings
 from mvp.api.routes.pipeline import get_pipeline_file
 import textwrap
-
+from mvp.api.routes.sample_result import find_analyais_result_by_ids
 from mvp.api.routes.sample_result import parse_result_one,parse_result_oneV2
 analysis_api = APIRouter()
 
@@ -62,23 +62,27 @@ def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,ve
             print(">>>>新增: ",file_path,sample_name,file_type,log_path)
 
 
-def get_db_value(session, value):
-    ids = value
-    if not isinstance(value,list):
-        ids = [value]
-    analysis_result =  session.query(SampleAnalysisResult) \
-                .filter(SampleAnalysisResult.id.in_(ids)) \
-                    .all()
-    for item in analysis_result:
-        if item.content_type=="json" and not isinstance(item.content, dict):
-            item.content = json.loads(item.content)
+# def get_db_value(session, value):
+#     ids = value
+#     if not isinstance(value,list):
+#         ids = [value]
+#     analysis_result =  session.query(SampleAnalysisResult) \
+#                 .filter(SampleAnalysisResult.id.in_(ids)) \
+#                     .all()
+                    
+#     for item in analysis_result:
+#         if item.content_type=="json" and not isinstance(item.content, dict):
+#             item.content = json.loads(item.content)
 
-    if len(analysis_result)!=len(ids):
-        raise HTTPException(status_code=500, detail="数据存在问题!")
-    if not isinstance(value,list) and len(analysis_result)==1:
-        return analysis_result[0]
-    else:
-        return analysis_result
+#     if len(analysis_result)!=len(ids):
+#         raise HTTPException(status_code=500, detail="数据存在问题!")
+#     if not isinstance(value,list) and len(analysis_result)==1:
+#         return analysis_result[0]
+#     else:
+#         return analysis_result
+    
+
+
 
 def parse_analysis(request_param,params_path,command_path,work_dir,module_name):
     
@@ -91,13 +95,14 @@ def parse_analysis(request_param,params_path,command_path,work_dir,module_name):
         db_field = get_db_field()
 
         db_ids_dict = {key: get_ids(request_param[key]) for key in db_field if key in request_param}
-        with get_db_session() as session:
-            db_dict = { key:get_db_value(session,value) for key,value in  db_ids_dict.items()}
-            parse_data = getattr(module, "parse_data")
+        # with get_db_session() as session:
+            # get_db_value
+        db_dict = { key:find_analyais_result_by_ids(value) for key,value in  db_ids_dict.items()}
+        parse_data = getattr(module, "parse_data")
 
-            result = parse_data(request_param,db_dict)
-            with open(params_path, "w") as f:
-                json.dump(result,f)
+        result = parse_data(request_param,db_dict)
+        with open(params_path, "w") as f:
+            json.dump(result,f)
 
         # get_script = getattr(module, "get_script")
         # script = get_script()

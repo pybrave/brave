@@ -23,11 +23,12 @@ import pandas as pd
 from mvp.api.config.db import get_engine
 from mvp.api.models.core import samples
 import inspect
-from mvp.api.routes.analysis import get_db_value
+# from mvp.api.routes.analysis import get_db_value
 from mvp.api.utils.get_db_utils import get_ids
 file_parse_plot = APIRouter()
 from mvp.api.config.config import get_settings
 from pathlib import Path
+from mvp.api.routes.sample_result import find_analyais_result_by_ids
 
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -52,8 +53,9 @@ def get_sample(project):
      
 def get_db_dict(db_field,request_param):
     db_ids_dict = {key: get_ids(request_param[key]) for key in db_field if key in request_param}
-    with get_db_session() as session:
-        db_dict = { key:get_db_value(session,value) for key,value in  db_ids_dict.items()}
+    # with get_db_session() as session:
+    # get_db_value
+    db_dict = { key:find_analyais_result_by_ids(value) for key,value in  db_ids_dict.items()}
     return db_dict
 
 def parse_result(request_param,module_name):
@@ -110,7 +112,7 @@ def parse_result(request_param,module_name):
     elif isinstance(data,tuple):
         new_data = []
         for item in data:
-            if not isinstance(item,tuple):
+            if not isinstance(item,tuple) and not isinstance(item,list):
                 if item is not None:
                     item = format_output(item,request_param)
                     new_data.append(item)
@@ -121,6 +123,8 @@ def parse_result(request_param,module_name):
                 #         new_data.append(item)
         
         result = {"dataList":new_data}
+    elif isinstance(data,list):
+        pass
     else:
         data = format_output(data,request_param)
         result = {"dataList":[data]}
@@ -168,18 +172,25 @@ def parse_result(request_param,module_name):
     return result
 
 
-def format_output(item,request_param):
+def get_downstream_analysis_result_dir(request_param,suffix):
     settings = get_settings()
     base_dir = settings.BASE_DIR
-    project,analysis_method,table_type = request_param['project'],request_param['analysis_method'],request_param['table_type']
-    str_uuid = str(uuid.uuid4())
+    project,analysis_method = request_param['project'],request_param['analysis_method']
+    
     downstream_analysis_result_dir  =   base_dir / project / "downstream_analysis_result" /analysis_method 
     if not downstream_analysis_result_dir.exists():
         downstream_analysis_result_dir.mkdir(parents=True,  exist_ok=True)
-    downstream_analysis_result = downstream_analysis_result_dir / f"{str_uuid}.{table_type}"
+    str_uuid = str(uuid.uuid4())
+    downstream_analysis_result = downstream_analysis_result_dir / f"{str_uuid}.{suffix}"
     file_name = str(downstream_analysis_result).replace(str(base_dir),"")
+    return downstream_analysis_result,file_name
 
+def format_output(item,request_param):
+    
+    table_type = request_param['table_type']
     if isinstance(item, pd.DataFrame):
+        downstream_analysis_result,file_name = get_downstream_analysis_result_dir(request_param,table_type)
+        
         if table_type=='tsv':
             item.to_csv(downstream_analysis_result, sep="\t", index=False)
         elif table_type=='xlsx':
@@ -221,17 +232,13 @@ async def parse_result_restful(module_name,request_param: Dict[str, Any]):
     # file_path ="/ssd1/wy/workspace2/leipu/leipu_workspace2/output/prokka/OSP-3/OSP-3.txt"
     # module_name = "prokka_txt_plot"
     # data = await request.json()
+    is_save_analysis_result = request_param['is_save_analysis_result']
     result = parse_result(request_param,module_name)
+    if is_save_analysis_result:
+        save_plot_result(result,request_param)
     return result
 
-@file_parse_plot.post("/fast-api/file-save-parse-plot/{module_name}")
-async def parse_result_restful(module_name,request_param: Dict[str, Any]):
-    # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
-    # verison = "V1.0"
-    # project="test"
-    # file_path ="/ssd1/wy/workspace2/leipu/leipu_workspace2/output/prokka/OSP-3/OSP-3.txt"
-    # module_name = "prokka_txt_plot"
-    # data = await request.json()
+def save_plot_result(result, request_param):
     file_path = None
     if "id" in request_param:
         with get_db_session() as db:
@@ -239,10 +246,11 @@ async def parse_result_restful(module_name,request_param: Dict[str, Any]):
                 .filter(SampleAnalysisResult.id == request_param["id"]).first()
         file_path =   sampleAnalysisResult.content
     else:
-        str_uuid = str(uuid.uuid4())
-        file_path = f"/ssd1/wy/workspace2/nextflow-fastapi/analysis_result/{str_uuid}.json"
+        file_path ,file_name= get_downstream_analysis_result_dir(request_param,"json")
+        # str_uuid = str(uuid.uuid4())
+        # file_path = f"/ssd1/wy/workspace2/nextflow-fastapi/analysis_result/{str_uuid}.json"
 
-    result = parse_result(request_param,module_name)
+    
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=4)
     software = request_param['software']
@@ -256,7 +264,8 @@ async def parse_result_restful(module_name,request_param: Dict[str, Any]):
         "content":file_path,
         "project":project, 
         "analysis_method":analysis_method,
-        "analysis_name":analysis_name
+        "analysis_name":analysis_name,
+        "analysis_type":"downstream"
     }
     with get_db_session() as db:
         if "id" in request_param:
@@ -267,7 +276,19 @@ async def parse_result_restful(module_name,request_param: Dict[str, Any]):
             analysisResult = SampleAnalysisResult(**new_analysis)
             db.add(analysisResult)
         db.commit()
-        
+    
+
+@file_parse_plot.post("/fast-api/file-save-parse-plot/{module_name}")
+async def parse_result_restful(module_name,request_param: Dict[str, Any]):
+    # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
+    # verison = "V1.0"
+    # project="test"
+    # file_path ="/ssd1/wy/workspace2/leipu/leipu_workspace2/output/prokka/OSP-3/OSP-3.txt"
+    # module_name = "prokka_txt_plot"
+    # data = await request.json()
+
+    result = parse_result(request_param,module_name)
+    save_plot_result(result)
     return result
 
 

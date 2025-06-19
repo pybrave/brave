@@ -16,6 +16,7 @@ samples = Table(
     Column("sample_composition", String(255)),
     Column("library_name", String(255)),
     Column("sample_group", String(255)),
+    Column("sample_group_name", String(255)),
     Column("sample_source", String(255)),
     Column("host_disease", String(255)),
     Column("sample_individual", String(255)),
@@ -57,6 +58,8 @@ analysis_result = Table(
     Column("content_type", String(255)),
     Column("analysis_id", Integer),
     Column("project", String(255)),
-    Column("request_param", String(255))
+    Column("request_param", String(255)),
+    Column("analysis_type", String(255)),
+    Column("create_date", String(255))
 )
 # meta.create_all(engine)

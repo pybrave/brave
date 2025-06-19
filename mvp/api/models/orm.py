@@ -19,6 +19,8 @@ class SampleAnalysisResult(Base):
     content_type = Column(String(255))
     project = Column(String(255))
     request_param = Column(Text)
+    analysis_type = Column(String(255))
+    create_date = Column(String(255))
 
 
     # def __repr__(self):

@@ -3,6 +3,8 @@ from importlib.resources import files, as_file
 import json
 import os
 import glob
+from mvp.api.config.config import get_settings
+
 pipeline = APIRouter()
 # BASE_DIR = os.path.dirname(__file__)
 
@@ -65,3 +67,25 @@ def get_pipeline_file(filename):
         raise HTTPException(status_code=500, detail=f"{pipeline_file}不存在!")
     return pipeline_file
 
+def get_downstream_analysis(item):
+    with open(item,"r") as f:
+        data = json.load(f)
+    file_list = [
+        item
+        for d in data['items']
+        if "downstreamAnalysis" in d
+        for item in d['downstreamAnalysis']
+    ]
+
+    return file_list
+
+@pipeline.get("/find_downstream_analysis/{analysis_method}",tags=['pipeline'])
+def get_downstream_analysis_list(analysis_method):
+    settings = get_settings()
+    pipeline_dir = settings.PIPELINE_DIR
+    json_file_list = glob.glob(f"{pipeline_dir}/json/*")
+    downstream_list = [get_downstream_analysis(item) for item in json_file_list]
+    downstream_list = [item for sublist in downstream_list for item in sublist]
+    downstream_dict = {item['saveAnalysisMethod']: item for item in downstream_list}
+    return downstream_dict[analysis_method]
+    

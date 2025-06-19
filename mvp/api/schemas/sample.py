@@ -43,6 +43,7 @@ class Sample(BaseModel):
     sequencing_technique: Optional[str]
     sample_composition: Optional[str]
     sample_group: Optional[str]
+    sample_group_name: Optional[str]
     sample_source: Optional[str]
     host_disease: Optional[str]
     project: Optional[str]
