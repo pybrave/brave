@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="mvp",
+    name="brave",
     version="0.1.0",
     packages=find_packages(),
     install_requires=[
@@ -11,7 +11,7 @@ setup(
         ],
     entry_points={
         "console_scripts": [
-            "mvp = mvp.__main__:app",  # 命令行入口
+            "brave = brave.__main__:app",  # 命令行入口
         ]
     },
     author="WangYang",
@@ -20,7 +20,7 @@ setup(
     long_description_content_type="text/markdown",
     python_requires=">=3.7",
     package_data={
-        "mvp": [
+        "brave": [
             "frontend/build/**/*",  # 包含静态资源
             "pipeline/**/*"
         ]

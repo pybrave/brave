@@ -4,5 +4,5 @@ databases/
 test/
 build/
 build/** 
-mvp.egg-info/
-mvp.egg-info/** 
+brave.egg-info/
+brave.egg-info/** 

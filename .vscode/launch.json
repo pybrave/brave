@@ -9,11 +9,11 @@
             "name": "Python Debugger: FastAPI",
             "type": "debugpy",
             "request": "launch",
-            "module": "mvp",
+            "module": "brave",
             // "module": "uvicorn",
             "args": [
-                // "mvp.__main__:main"
-                // "mvp.main:create_app",
+                // "brave.__main__:main"
+                // "brave.main:create_app",
                 "--reload",
                 "--port",
                 "4000",
