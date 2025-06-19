@@ -5,7 +5,7 @@ import { useParams } from "react-router"
 import ResultList from '@/pages/components/result-list'
 import { readHdfsAPi } from '@/pages/components/result-list'
 import AnalysisResultInput from '../../components/analysis-result-input'
-import {AnalysisForm2} from '../../components/analysis-form'
+import {AnalysisForm2} from '../../components/analysis-form-bak'
 
 const AbundanceOpterature: FC<any> = () => {
     const [loading, setLoading] = useState(false)

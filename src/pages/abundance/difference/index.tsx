@@ -4,7 +4,7 @@ import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form,
 import { useParams } from "react-router"
 import { Box } from '@ant-design/plots';
 import ResultList from '@/pages/components/result-list'
-import AnalysisForm from "../../components/analysis-form";
+import AnalysisForm from "../../components/analysis-form-bak";
 
 const AbundanceOpterature: FC<any> = () => {
     const [form] = Form.useForm();

@@ -23,7 +23,8 @@ const ResultList = forwardRef<any, any>(({
     columnsParamsALL,
     activeTabKey,
     setActiveTabKey,
-    cardExtra
+    cardExtra,
+    params
 }, ref) => {
     useImperativeHandle(ref, () => ({
         reload
@@ -58,7 +59,9 @@ const ResultList = forwardRef<any, any>(({
         if (analysisMethod && Array.isArray(analysisMethod)) {
             const analysisMethodList = analysisMethod.flatMap((it: any) => it.inputKey)
             // console.log(analysisMethodList)
-            loadData(analysisMethodList)
+            loadData({ analysisMethodValues: analysisMethodList })
+        } else {
+            loadData({ params: params })
         }
 
     }
@@ -70,7 +73,7 @@ const ResultList = forwardRef<any, any>(({
         reload()
 
         // initData(currentAnalysisMethod)
-    }, [])
+    }, [JSON.stringify(params)])
 
     const onTabChange = (key: any) => {
         setData(groupedData[key])
@@ -89,46 +92,52 @@ const ResultList = forwardRef<any, any>(({
         });
         return result
     }
-    const loadData = async (analysisMethodValues: any) => {
+    const loadData = async ({ analysisMethodValues, params }: any) => {
         setLoading(true)
         let resp: any = await axios.post(`/fast-api/find-analyais-result-by-analysis-method`, {
             project: project,
-            analysis_method: analysisMethodValues
+            analysis_method: analysisMethodValues,
+            ...params
         })
 
-        const keyMap = getKeyMap()
-        // console.log(keyMap)
-        const groupedData = resp.data.reduce((acc: any, item: any) => {
-            // const key = item.analysis_method;
-            const key = keyMap[item.analysis_method]
-            if (!acc[key]) {
-                acc[key] = [];
-            }
-            const { sample_key, id, sample_group, ...rest } = item
-            // debugger
-            acc[key].push({
-                label: sample_key,
-                value: id,
-                sample_group: sample_group?sample_group:"no_group",
-                sample_key:sample_key,
-                id:id,
-                // "aaa":"1111",
-                ...rest
-            });
-            return acc;
-        }, {});
+        if (analysisMethodValues) {
+            const keyMap = getKeyMap()
+            // console.log(keyMap)
+            const groupedData = resp.data.reduce((acc: any, item: any) => {
+                // const key = item.analysis_method;
+                const key = keyMap[item.analysis_method]
+                if (!acc[key]) {
+                    acc[key] = [];
+                }
+                const { sample_key, id, sample_group, ...rest } = item
+                // debugger
+                acc[key].push({
+                    label: sample_key,
+                    value: id,
+                    sample_group: sample_group ? sample_group : "no_group",
+                    sample_key: sample_key,
+                    id: id,
+                    // "aaa":"1111",
+                    ...rest
+                });
+                return acc;
+            }, {});
 
-        if (setResultTableList) {
-            // console.log(groupedData)
-            setResultTableList(groupedData)
-        }
-        setGroupedData(groupedData)
-        console.log("activeTabKey: ", activeTabKey)
-        if (activeTabKey) {
-            setData(groupedData[activeTabKey] ? groupedData[activeTabKey] : [])
+            if (setResultTableList) {
+                // console.log(groupedData)
+                setResultTableList(groupedData)
+            }
+            setGroupedData(groupedData)
+            // console.log("activeTabKey: ", activeTabKey)
+            if (activeTabKey) {
+                setData(groupedData[activeTabKey] ? groupedData[activeTabKey] : [])
+            } else {
+                setData(groupedData[analysisMethod[0].name] ? groupedData[analysisMethod[0].name] : [])
+            }
         } else {
-            setData(groupedData[analysisMethod[0].name] ? groupedData[analysisMethod[0].name] : [])
+            setData(resp.data)
         }
+
         setLoading(false)
     }
 
@@ -137,7 +146,7 @@ const ResultList = forwardRef<any, any>(({
 
     // }, [])
     const deleteById = async (id: any) => {
-        const resp: any = await axios.get(`/api/analysis-result-delete?id=${id}`)
+        const resp: any = await axios.delete(`/analyais-result/delete-by-id/${id}`)
         message.success("删除成功!")
         reload()
     }
@@ -215,7 +224,7 @@ const ResultList = forwardRef<any, any>(({
                 key: 'sample_key',
                 ellipsis: true,
 
-            } , {
+            }, {
                 title: '分析Key',
                 dataIndex: 'analysis_key',
                 key: 'analysis_key',
@@ -228,6 +237,11 @@ const ResultList = forwardRef<any, any>(({
                 ellipsis: true,
 
             }, {
+                title: '样本分组名称',
+                dataIndex: 'sample_group_name',
+                key: 'sample_group_name',
+                ellipsis: true,
+            },{
                 title: "软件",
                 dataIndex: 'software',
                 key: 'software',
@@ -310,22 +324,29 @@ const ResultList = forwardRef<any, any>(({
                 key: 'project',
                 ellipsis: true,
             }, {
-                title: 'control',
-                dataIndex: 'control',
-                key: 'control',
+                title: 'analysis_type',
+                dataIndex: 'analysis_type',
+                key: 'analysis_type',
                 ellipsis: true,
-            }, {
-                title: 'treatment',
-                dataIndex: 'treatment',
-                key: 'treatment',
-                ellipsis: true,
+            },
+            // {
+            //     title: 'control',
+            //     dataIndex: 'control',
+            //     key: 'control',
+            //     ellipsis: true,
+            // }, {
+            //     title: 'treatment',
+            //     dataIndex: 'treatment',
+            //     key: 'treatment',
+            //     ellipsis: true,
 
-            }, {
-                title: 'rank',
-                dataIndex: 'rank',
-                key: 'rank',
-                ellipsis: true,
-            }, {
+            // }, {
+            //     title: 'rank',
+            //     dataIndex: 'rank',
+            //     key: 'rank',
+            //     ellipsis: true,
+            // },
+            {
                 title: '创建时间',
                 dataIndex: 'create_date',
                 key: 'create_date',
@@ -343,14 +364,18 @@ const ResultList = forwardRef<any, any>(({
                         </>} >
                             <a onClick={() => {
                                 const param = JSON.parse(record.request_param)
-                                console.log(param)
-                                form.resetFields()
-                                form.setFieldsValue(param)
-                                if (record?.id) {
-                                    form.setFieldValue("id", record?.id)
+                                if (form) {
+                                    form.resetFields()
+                                    form.setFieldsValue(param)
+                                    if (record?.id) {
+                                        form.setFieldValue("id", record?.id)
+                                    }
                                 }
+
                                 readJOSN(record.content)
-                                setRecord(record)
+                                if(setRecord){
+                                    setRecord(record)
+                                }
                             }}>查看</a>
                         </Popover>
 
@@ -380,7 +405,8 @@ const ResultList = forwardRef<any, any>(({
             <Table
                 rowKey={(it: any) => it.id}
                 size="small"
-                pagination={{ pageSize: 100 }}
+                // pagination={undefined}
+                pagination={{ pageSize: 10 }}
                 loading={loading}
                 scroll={{ x: 'max-content', y: 55 * 5 }}
                 columns={columnsParamsALL ? columnsParamsALL : columns}

@@ -17,6 +17,7 @@
     "@types/node": "^22.14.1",
     "antd": "^5.24.8",
     "axios": "^1.8.4",
+    "ollama": "^0.5.16",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",

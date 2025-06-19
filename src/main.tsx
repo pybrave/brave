@@ -8,7 +8,7 @@ import store from './store'
 import { Provider } from 'react-redux'
 
 console.log(import.meta.env.MODE)
-axios.defaults.baseURL = '/mvp-api';
+axios.defaults.baseURL = '/brave-api';
 
 
 createRoot(document.getElementById('root')!).render(

@@ -3,19 +3,15 @@ import axios from "axios"
 import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Typography, message, Empty, Collapse, Card, Popover } from "antd"
 import { useParams } from "react-router"
 import ResultList from '@/pages/components/result-list'
-import AnalysisForm from "../analysis-form"
+// import AnalysisForm from "../analysis-form"
 import SampleAnalysisResult from '../sample-analysis-result'
 import React from "react"
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
-import AnalysisList from '../analysis-list'
-import 'katex/dist/katex.min.css'
+
 import FormJsonComp from "../form-components"
-import TextArea from "antd/es/input/TextArea"
-import Item from "antd/es/list/Item"
+import AnalysisList from '../analysis-list'
+import AnalysisResultView from '../analysis-result-view'
 import { GroupSelectSampleButton, BaseSelect } from '@/pages/components/form-components'
+import AnalysisForm from '../analysis-form'
 const AnalysisPanel: FC<any> = ({ analysisPipline, parseAnalysisParams, inputAnalysisMethod, analysisMethod, appendSampleColumns, analysisType = "nonSample", children, cardExtra, upstreamFormJson, downstreamAnalysis }) => {
 
     const { project } = useParams()
@@ -220,6 +216,23 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, parse
 
                                 <Button type="primary" onClick={saveUpstreamAnalysis}>{formId ? <>更新分析</> : <>保存分析</>}</Button>
                                 {formId && <Button onClick={() => upstreamForm.setFieldValue("id", undefined)}>取消更新</Button>}
+                                <hr />
+                                <AnalysisList
+                                    project={project}
+                                    ref={tableRef}
+                                    shouldTrigger={true}
+                                    analysisMethod={currentAnalysisMethod}
+                                    setRecord={(record: any) => {
+                                        const param = JSON.parse(record.request_param)
+                                        console.log(param)
+                                        upstreamForm.resetFields()
+                                        upstreamForm.setFieldsValue(param)
+                                        if (record?.id) {
+                                            upstreamForm.setFieldValue("id", record?.id)
+                                        }
+                                        onClickItem(record)
+                                    }}></AnalysisList>
+                                <hr />
                                 <Collapse ghost items={[
                                     {
                                         key: "1",
@@ -239,31 +252,18 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, parse
                             </Spin>
 
                         </>
-                    }, {
-                        key: "2",
-                        label: `分析记录 (${analysisPipline})`,
-                        children: <>
-                            <Spin spinning={loading}>
-                                {currentAnalysisMethod}
-                                <AnalysisList
-                                    project={project}
-                                    ref={tableRef}
-                                    shouldTrigger={true}
-                                    analysisMethod={currentAnalysisMethod}
-                                    setRecord={(record: any) => {
-                                        const param = JSON.parse(record.request_param)
-                                        console.log(param)
-                                        upstreamForm.resetFields()
-                                        upstreamForm.setFieldsValue(param)
-                                        if (record?.id) {
-                                            upstreamForm.setFieldValue("id", record?.id)
-                                        }
-                                        onClickItem(record)
-                                    }}></AnalysisList>
-                            </Spin>
+                    },
+                    // {
+                    //     key: "2",
+                    //     label: `分析记录 (${analysisPipline})`,
+                    //     children: <>
+                    //         <Spin spinning={loading}>
+                    //             {currentAnalysisMethod}
 
-                        </>
-                    }
+                    //         </Spin>
+
+                    //     </>
+                    // }
                 ]}
             >
             </Collapse>
@@ -331,93 +331,59 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
     const [saveAnalysisMethod, setSaveAnalysisMethod] = useState<any>()
     const [collapseActiveKey, setCollapseActiveKey] = useState<any>("1")
     const [activeTabKey, setActiveTabKey] = useState<any>()
-    const [sampleGroup, setSampleGroup] = useState<any>([])
 
     const [sampleGroupJSON, setSampleGroupJSON] = useState<any>()
     const [btnName, setBtnName] = useState<any>()
     const tableRef = useRef<any>(null)
-    const formId = Form.useWatch((values) => values?.id, form);
-    const [tableType, setTableType] = useState<any>("xlsx")
 
-    const getSampleGroup = async () => {
-        try {
-            const resp: any = await axios.post(`/fast-api/find-sample`, {
-                "project": "hexiaoyan",
-                "sequencing_target": "DNA",
-                "sequencing_technique": "NGS",
-                "sample_composition": "meta_genome"
-            })
-            const data = resp.data.map((it: any) => {
-                return {
-                    label: it.sample_key,
-                    value: it.sample_key,
-                    sample_group: it.sample_group,
-                    sample_source: it.sample_source,
-                    host_disease: it.host_disease,
-                }
-            })
-            setSampleGroup(data)
-        } catch (error: any) {
-            console.log(error)
-        }
+
+    const [sampleGroupApI, setSampleGroupApI] = useState<any>(false)
+
+
+
+    const getCurrentAnalysisMenthod = () => {
+        const analysisMethodDict: any = analysisMethod.reduce((acc: any, item: any) => {
+            acc[item.name] = item;
+            return acc;
+        }, {});
+        // const analysisMethodDict = analysisMethidtoDict(analysisMethod)
+        const currentAnalysisMenthod = analysisMethodDict[activeTabKey]
+        return currentAnalysisMenthod
     }
 
 
-    const runPlot = async ({ moduleName, params }: any) => {
-        const values = await form.validateFields()
-        console.log(values)
-        setPlotLoading(true)
-        try {
-            const resp: any = await axios.post(`/fast-api/file-parse-plot/${moduleName}`, {
-                ...params,
-                ...values,
-                project: project,
-                analysis_method: saveAnalysisMethod,
-                table_type: tableType
-            })
-            setFilePlot(resp.data)
+    // const savePlot = async ({ moduleName, params }: any) => {
+    //     const values = await form.validateFields()
+    //     const requestParams = {
+    //         ...params,
+    //         ...values,
+    //         project: project,
+    //         software: "python",
+    //         // software: analysisMethod.filter((it: any) => it.key == activeTabKey)[0].value[0],
+    //         analysis_method: saveAnalysisMethod,
+    //         table_type: tableType
+    //     }
+    //     console.log(requestParams)
+    //     setPlotLoading(true)
+    //     try {
+    //         const resp: any = await axios.post(`/fast-api/file-save-parse-plot/${moduleName}`, requestParams)
+    //         setFilePlot(resp.data)
+    //         if (tableRef.current) {
+    //             tableRef.current.reload()
 
-        } catch (error: any) {
-            console.log(error)
-            if (error.response?.data) {
-                messageApi.error(error.response.data.detail)
-            }
-        }
+    //         }
+    //         messageApi.success("执行成功!")
+    //     } catch (error: any) {
+    //         console.log(error)
+    //         if (error.response?.data) {
+    //             messageApi.error(error.response.data.detail)
+    //         }
 
-        setPlotLoading(false)
-        // console.log(resp.data);
-    }
-    const savePlot = async ({ moduleName, params }: any) => {
-        const values = await form.validateFields()
-        const requestParams = {
-            ...params,
-            ...values,
-            project: project,
-            software: analysisMethod.filter((it: any) => it.key == activeTabKey)[0].value[0],
-            analysis_method: saveAnalysisMethod,
-            table_type: tableType
-        }
-        console.log(requestParams)
-        setPlotLoading(true)
-        try {
-            const resp: any = await axios.post(`/fast-api/file-save-parse-plot/${moduleName}`, requestParams)
-            setFilePlot(resp.data)
-            if (tableRef.current) {
-                tableRef.current.reload()
+    //     }
 
-            }
-            messageApi.success("执行成功!")
-        } catch (error: any) {
-            console.log(error)
-            if (error.response?.data) {
-                messageApi.error(error.response.data.detail)
-            }
-
-        }
-
-        setPlotLoading(false)
-        // console.log(resp.data);
-    }
+    //     setPlotLoading(false)
+    //     // console.log(resp.data);
+    // }
     // const stableSampleGroup = useMemo(() => sampleGroup, [JSON.stringify(sampleGroup)]);
 
     // // 保证 groupField 稳定（通常是字符串，如果来源稳定可省略）
@@ -431,7 +397,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
         setFormDom(formDom)
         setModuleName(moduleName)
         setParams(params)
-
+        setSampleGroupApI(sampleGroupApI)
         setFilePlot(undefined)
         form.resetFields()
         setBtnName(name)
@@ -444,35 +410,17 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
             console.log(params)
             setParams(params)
         }
-        if (sampleGroupJSON) {
-            if (sampleGroupApI) {
-                getSampleGroup()
+        // if (sampleGroupJSON) {
+        //     if (sampleGroupApI) {
+        //         getSampleGroup()
 
-            } else {
-                const resultTable = resultTableList[activeTabKey]
-                // console.log(resultTableList)
-                if (resultTable) {
-                    // const result = resultTable.map((it: any) => {
-                    //     const { sample_key, id, sample_group, ...rest } = it
-                    //     return {
-                    //         label: it.sample_key,
-                    //         value: it.id,
-                    //         sample_group: it.sample_group,
-                    //         ...rest
-                    //     }
-                    // })
-
-
-                    // console.log(result)
-                    setSampleGroup(resultTable)
-
-                }
-                // console.log()
-                // setSampleGroup()
-            }
-
-
-        }
+        //     } else {
+        //         const resultTable = resultTableList[activeTabKey]
+        //         if (resultTable) {
+        //             setSampleGroup(resultTable)
+        //         }
+        //     }
+        // }
         if (saveAnalysisMethod) {
 
             setSaveAnalysisMethod(saveAnalysisMethod)
@@ -485,7 +433,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
             setHtmlUrl_(url)
         } else {
             if (!formDom && !sampleSelectComp && !sampleGroupJSON && !formJson) {
-                await runPlot({ moduleName: moduleName, params: params })
+                // await runPlot({ moduleName: moduleName, params: params })
             }
         }
 
@@ -505,47 +453,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
         setFilePlot(undefined)
         setHtmlUrl(undefined)
     }
-    const rank = [
-        {
-            label: "SGB",
-            value: "SGB"
-        }, {
-            label: "SPECIES",
-            value: "SPECIES"
-        }, {
-            label: "GENUS",
-            value: "GENUS"
-        }, {
-            label: "FAMILY",
-            value: "FAMILY"
-        }, {
-            label: "ORDER",
-            value: "ORDER"
-        }, {
-            label: "CLASS",
-            value: "CLASS"
-        }, {
-            label: "PHYLUM",
-            value: "PHYLUM"
-        },
-    ]
-    const group_field = [
-        {
-            label: "样本分组",
-            value: "sample_group"
-        }, {
-            label: "样本来源",
-            value: "sample_source"
-        }, {
-            label: "宿主疾病",
-            value: "host_disease"
-        }
-    ]
-    const dataMap = {
-        "sample_group_list": sampleGroup,
-        "rank": rank,
-        group_field: group_field
-    }
+
     return <>
         {contextHolder}
         <ResultList
@@ -571,10 +479,10 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
                 const { name, analysisType, ...rest } = item
                 return <span key={index}>
                     {(record && analysisType == 'one') && <>
-                        <Button style={{ marginRight: "0.5rem" }} color="purple" variant="solid" onClick={() => plot({ ...rest })}>{name}({record.sample_name})</Button>
+                        <Button style={{ marginRight: "0.5rem" }} color="purple" variant="solid" onClick={() => plot({ ...rest , name:name})}>{name}({record.sample_name})</Button>
                     </>}
                     {(analysisType != 'one') && <>
-                        <Button style={{ marginRight: "0.5rem" }} type="primary" onClick={() => plot({ ...rest })}>{name}</Button>
+                        <Button style={{ marginRight: "0.5rem" }} type="primary" onClick={() => plot({ ...rest, name:name})}>{name}</Button>
                     </>}
 
                 </span>
@@ -590,288 +498,130 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
             form: form,
             activeTabKey: activeTabKey,
             resultTableList: resultTableList,
-            sampleGroup: sampleGroup,
-            dataMap: dataMap
+            // sampleGroup: sampleGroup,
+            // dataMap: dataMap
 
         })}
         <div>
-            <Form form={form}   >
+
+
+            {/* <Form form={form}   >
                 <Form.Item name={"id"} style={{ display: "none" }}>
                     <Input></Input>
-                </Form.Item>
-                {saveAnalysisMethod && <>
+                </Form.Item> */}
 
-                    <Collapse
-                        // activeKey={collapseActiveKey}
-                        style={{ marginTop: "1rem" }}
-                        defaultActiveKey={['1']}
-                        size="small"
-                        items={[
-                            {
-                                key: '1', label: <>执行分析{btnName ? `(${btnName})` : ""}</>, children: <>
-                                    {sampleSelectComp && resultTableList && analysisMethod.map((it: any, index: any) => (<div key={index}>
-                                        {/* {JSON.stringify(resultTableList)} */}
-                                        <Form.Item key={it.name} label={it.label} name={it.name}>
-                                            <SelectComp it={it} resultTableList={resultTableList} ></SelectComp>
-                                        </Form.Item>
-                                    </div>))}
-                                    {/* {sampleGroupJSON && <>
-                                        <Form.Item initialValue={"sample_group"} label="分组列" name={"group_field"} rules={[{ required: true, message: '该字段不能为空!' }]}>
-                                            <Select options={[
-                                                {
-                                                    label: "样本分组",
-                                                    value: "sample_group"
-                                                }, {
-                                                    label: "样本来源",
-                                                    value: "sample_source"
-                                                }, {
-                                                    label: "宿主疾病",
-                                                    value: "host_disease"
-                                                }
-                                            ]} ></Select>
-                                        </Form.Item>
-                                      
-                                    </>
+            {saveAnalysisMethod && <>
+                <Collapse
+                    // activeKey={collapseActiveKey}
+                    style={{ marginTop: "1rem" }}
+                    defaultActiveKey={['1']}
+                    size="small"
+                    items={[
+                        {
+                            key: '1',
+                            label: <>执行分析{btnName ? `(${btnName})` : ""}</>,
+                            children: <>
 
-                                    } */}
+                                <AnalysisForm
+                                    form={form}
+                                    resultTableList={resultTableList}
+                                    formJson={formJson}
+                                    formDom={formDom}
+                                    activeTabKey={activeTabKey}
+                                    sampleGroupApI={sampleGroupApI}
+                                    moduleName={moduleName}
+                                    params={params}
+                                    name={btnName}
+                                    setPlotLoading={setPlotLoading}
+                                    currentAnalysisMenthod={getCurrentAnalysisMenthod()}
+                                    saveAnalysisMethod={saveAnalysisMethod}
+                                    project={project}
+                                    setFilePlot={setFilePlot}
+                                    plotReloadTable={()=>{
+                                        if (tableRef.current ) {
+                                            tableRef.current.reload()
+                                        }
+                                    }}
+                                // runPlot={runPlot}
+                                // sampleGroup={sampleGroup}
+                                // analysisMethod={analysisMethod} 
+                                ></AnalysisForm>
 
+                                <ResultList
+                                    title="下游分析历史记录"
+                                    ref={tableRef}
+                                    analysisType={"analysisResult"}
+                                    analysisMethod={[
+                                        {
+                                            name: saveAnalysisMethod,
+                                            label: saveAnalysisMethod,
+                                            inputKey: [saveAnalysisMethod],
+                                            mode: "multiple"
+                                        }
+                                    ]}
+                                    form={form}
+                                    setTableLoading={setPlotLoading}
+                                    // setRecord={(data: any) => {  onClickItem(data) }}
+                                    setTabletData={(data: any) => {
+                                        setFilePlot(data)
+                                    }}  ></ResultList>
 
-                                    {formJson &&
-                                        <FormJsonComp formJson={formJson} dataMap={dataMap}></FormJsonComp>
-                                    }
-
-                                    {formDom &&
-                                        <>
-                                            {formDom}
+                                <hr />
+                                <AnalysisResultView htmlUrl={htmlUrl}
+                                    plotLoading={plotLoading}
+                                    filePlot={filePlot}
+                                    tableDesc={tableDesc}></AnalysisResultView>
+                                <Collapse ghost items={[
+                                    {
+                                        key: "1",
+                                        label: "更多",
+                                        children: <>
+                                            <Form.Item noStyle shouldUpdate>
+                                                {() => (
+                                                    <Typography>
+                                                        <pre>{JSON.stringify(form.getFieldsValue(), null, 2)}</pre>
+                                                    </Typography>
+                                                )}
+                                            </Form.Item>
                                         </>
                                     }
+                                ]} />
+                            </>
 
-                                    {(sampleSelectComp || formDom || sampleGroup) && <>
-                                        <Button type="primary" onClick={() => {
-                                            runPlot({ moduleName: moduleName, params: params })
-                                        }}>执行</Button>
-
-                                        <hr />
-                                    </>
-                                    }
-
-
-
-
-                                    <AnalysisResultView htmlUrl={htmlUrl}
-                                        plotLoading={plotLoading}
-                                        filePlot={filePlot}
-                                        tableDesc={tableDesc}></AnalysisResultView>
-
-                                </>
-
-                            }, {
-                                key: '2', label: `保存分析结果(${saveAnalysisMethod})`, children: <>
-                                    <Spin spinning={plotLoading}>
-                                        {filePlot && <>
-                                            <hr />
-                                            <Form.Item label="分析名称" name={"analysis_name"} style={{ maxWidth: 600 }}>
-                                                <Input></Input>
-                                            </Form.Item>
-                                            <Button type="primary" onClick={() => {
-                                                savePlot({ moduleName: moduleName, params: params })
-                                            }}>{formId ? <>更新</> : <>保存</>}</Button>
-                                            {formId && <Button type="primary" onClick={() => form.setFieldValue("id", undefined)}>取消更新</Button>}
+                        },
+                        // {
+                        //     key: '2', label: `保存分析结果(${saveAnalysisMethod})`, children: <>
+                        //         <Spin spinning={plotLoading}>
+                        //             {filePlot && <>
+                        //                 <hr />
+                        // <Form.Item label="分析名称" name={"analysis_name"} style={{ maxWidth: 600 }}>
+                        //     <Input></Input>
+                        // </Form.Item>
+                        // <Button type="primary" onClick={() => {
+                        //     savePlot({ moduleName: moduleName, params: params })
+                        // }}>{formId ? <>更新</> : <>保存</>}</Button>
+                        // {formId && <Button type="primary" onClick={() => form.setFieldValue("id", undefined)}>取消更新</Button>}
 
 
 
-                                            <hr />
-                                        </>}
-
-                                        <ResultList
-                                            ref={tableRef}
-                                            analysisType={"analysisResult"}
-                                            analysisMethod={[
-                                                {
-
-                                                    name: saveAnalysisMethod,
-                                                    label: saveAnalysisMethod,
-                                                    inputKey: [saveAnalysisMethod],
-                                                    mode: "multiple"
-                                                }
-                                            ]}
-                                            form={form}
-                                            setTableLoading={setPlotLoading}
-                                            // setRecord={(data: any) => {  onClickItem(data) }}
-                                            setTabletData={(data: any) => {
-                                                setFilePlot(data)
-                                            }}  ></ResultList>
-
-                                        <Collapse ghost items={[
-                                            {
-                                                key: "1",
-                                                label: "更多",
-                                                children: <>
-                                                    <Form.Item noStyle shouldUpdate>
-                                                        {() => (
-                                                            <Typography>
-                                                                <pre>{JSON.stringify(form.getFieldsValue(), null, 2)}</pre>
-                                                            </Typography>
-                                                        )}
-                                                    </Form.Item>
-                                                </>
-                                            }
-                                        ]} />
-                                    </Spin>
-
-                                </>
-                            }]}
-                    />
-                </>}
+                        //                 <hr />
+                        //             </>}
 
 
-            </Form>
+
+
+                        //         </Spin>
+
+                        //     </>
+                        // }
+                    ]}
+                />
+            </>}
+
+
+            {/* </Form> */}
         </div>
 
     </>
 }
 
-
-export const TableView: FC<any> = ({ data, url }) => {
-    const { Search } = Input;
-    const [tableData, setTableData] = useState<any>([])
-    const getColumns = (data: any) => {
-        return Object.keys(data).map(it => {
-            return {
-                title: it,
-                dataIndex: it,
-                key: it,
-                ellipsis: true,
-                width: 150,
-            }
-        })
-    }
-    useEffect(() => {
-        // console.log()
-        if (data) {
-            console.log(data)
-            setTableData(data)
-        }
-
-    }, [data])
-    return <>
-        {Array.isArray(tableData) && <>
-            <Table
-                title={() => <>
-                    <Search
-                        placeholder="input search text"
-                        allowClear
-                        onSearch={(value: any) => {
-                            // console.log(data?.table)
-                            const filterData = data.filter((it: any) => Object.values(it).some(val =>
-                                typeof val === "string" && val.includes(value)
-                            ))
-                            setTableData(filterData)
-                        }}
-                        style={{ width: 304 }}
-                    />
-                    
-                    {url && <Popover title={`${window.location.origin}${url}`}><Button onClick={() => {
-                        window.open(url, "_blank")
-                    }} style={{ marginLeft: "1rem" }} type="primary">下载</Button></Popover>}
-                </>}
-                // showHeader={()=>{}}
-                scroll={{ x: 'max-content', y: 55 * 5 }}
-                dataSource={tableData}
-                columns={getColumns(data[0])}
-                footer={() => `一共${data.length}条记录`}
-            ></Table>
-
-        </>}
-
-    </>
-}
-
-const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc }) => {
-
-    const componentMap: any = {
-        table: TableView
-    };
-
-    const ComponentsRender = ({ type, ...rest }: any) => {
-        const Component = componentMap[type] || (() => <div>未知类型 {type}</div>)
-        return <Component {...rest} />;
-    }
-    return <>
-        {htmlUrl && <>
-            <iframe src={htmlUrl} width={"100%"} style={{ height: "80vh", border: "none" }}>
-            </iframe>
-            {/* {tableDesc && <>
-                            <ReactMarkdown children={tableDesc} remarkPlugins={[remarkGfm]}></ReactMarkdown>
-                        </>} */}
-        </>}
-        <Spin spinning={plotLoading} tip="请求中..." >
-            {filePlot ? <>
-                {/* {filePlot.img} */}
-
-
-                {filePlot.img && <div>
-                    {
-                        Array.isArray(filePlot.img) ? <>
-                            {filePlot.img.map((it: any) => (<>
-                                <Image src={it} style={{ maxWidth: "20rem", marginRight: "0.5rem" }}></Image>
-                            </>))}
-                        </> :
-                            <>
-                                <Image src={filePlot.img} style={{ maxWidth: "20rem" }}></Image>
-
-                            </>
-                    }
-                </div>}
-                {filePlot.dataList && Array.isArray(filePlot.dataList) && <>
-                    {filePlot.dataList.map((item: any, index: any) => (
-                        <ComponentsRender key={index} {...item}></ComponentsRender>
-                        // <div key={index}>
-                        //     {typeof item == 'string' ?
-                        //         <TextArea value={item} rows={10}></TextArea>
-                        //         :
-                        //         <TableView data={item}></TableView>
-                        //     }
-                        // </div>
-
-                    ))}
-                </>}
-                {filePlot.data && Array.isArray(filePlot.data) ? <>
-                    <TableView data={filePlot.data}></TableView>
-                    {/* <Typography >
-                                            <pre>{JSON.stringify(getColumns(filePlot.data), null, 2)}</pre>
-                                        </Typography> */}
-
-
-
-                    {/* <Typography >
-                                            <pre>{JSON.stringify(filePlot.data, null, 2)}</pre>
-                                        </Typography> */}
-
-                </> : <Typography >
-                    {typeof filePlot.data == 'string' ? <TextArea value={filePlot.data} rows={10}></TextArea>
-                        :
-                        <pre>{JSON.stringify(filePlot.data, null, 2)}</pre>
-                    }
-
-                </Typography>}
-
-
-            </> : <div style={{ height: "100px" }}></div>}
-        </Spin>
-
-        {tableDesc && <>
-            <Collapse ghost items={[
-                {
-                    key: "1",
-                    label: "说明",
-                    children: <>
-                        <ReactMarkdown children={tableDesc} rehypePlugins={[rehypeKatex]} remarkPlugins={[remarkGfm, remarkMath]}></ReactMarkdown>
-
-                    </>
-                }
-            ]} />
-        </>}
-
-    </>
-}

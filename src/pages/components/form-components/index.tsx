@@ -90,14 +90,18 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
         ))}
 
     </>
-}, (prevProps, nextProps) => {
+}, 
+(prevProps, nextProps) => {
     // console.log(prevProps)
     // console.log(nextProps)
     // // console.log("1111111111111111111"+(prevProps === nextProps))
     // // return prevProps === nextProps; // 自定义比较逻辑
-    console.log(JSON.stringify(prevProps.formJson) === JSON.stringify(nextProps.formJson))
-    return JSON.stringify(prevProps.formJson) === JSON.stringify(nextProps.formJson) // JSON.stringify(prevProps.formJson) === JSON.stringify(nextProps.formJson) 
-})
+    // console.log(prevProps)
+    // console.log(nextProps)
+    console.log(JSON.stringify(prevProps) === JSON.stringify(nextProps))
+    return JSON.stringify(prevProps) === JSON.stringify(nextProps) // JSON.stringify(prevProps.formJson) === JSON.stringify(nextProps.formJson) 
+}
+)
 
 export default FormJsonComp
 
@@ -135,7 +139,8 @@ const BasicSelect: FC<any> = ({ options, clear, value, onChange, ...rest }) => {
             form.resetFields(clear)
         }
     }
-    return <Select {...rest} options={options} value={value} onChange={selectChange}></Select>
+    return <Select showSearch filterOption={(input: any, option: any) =>
+        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} {...rest} options={options} value={value} onChange={selectChange}></Select>
 }
 
 
@@ -216,8 +221,9 @@ const BaseInputNumber: FC<any> = ({ label, name, data, initialValue, rules, ...r
 export const BaseSelect: FC<any> = ({ label, name, data, initialValue, rules, ...rest }) => {
     return <>
         <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
-            <Select showSearch filterOption={(input: any, option: any) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} {...rest} options={data}></Select>
+            <BasicSelect {...rest} options={data}></BasicSelect>
+            {/* <Select showSearch filterOption={(input: any, option: any) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} {...rest} options={data}></Select> */}
         </Form.Item>
     </>
 }

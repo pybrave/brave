@@ -61,6 +61,9 @@ const App: React.FC = () => {
         }, {
             key: `${project}/pipeline-card`,
             label: "流程管道"
+        }, {
+            key: `${project}/analysis-result`,
+            label: "分析结果"
         }
     ]
     const menu1: MenuProps['items'] = [
@@ -137,7 +140,7 @@ const App: React.FC = () => {
     return (
         <Layout>
             <Header style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ color: "#fff" }}>MVP</div>
+                <div style={{ color: "#fff",marginRight:"1rem" }} >BRAVE</div>
                 {/* 单菌组装数据挖掘(lactobacillus murinus) */}
                 <Menu
                     theme="dark"

@@ -46,6 +46,7 @@ const RecoveringMag = lazy(() => import('@/pages/meta-analysis/recovering-mag'))
 const SampleQC = lazy(() => import('@/pages/sample/sample-qc'));
 const FunctionAnalysis = lazy(() => import('@/pages/meta-analysis/function-analysis'));
 const PipelineCard = lazy(() => import('@/pages/pipeline-card'));
+const AnalysisResult = lazy(() => import('@/pages/analysis-result'));
 
 import Pipeline from '@/pages/components/pipeline'
 import axios from "axios";
@@ -66,8 +67,11 @@ const childern = [
     }, {
         path: "/:project/sample-qc",
         element: <SampleQC />
+    },{
+        path: "/:project/analysis-result",
+        element: <AnalysisResult />
     },
-
+    
     {
         path: "/:project/meta_genome/reads-based-abundance-analysis",
         element: <ReadsBasedAbundanceAnalysis />

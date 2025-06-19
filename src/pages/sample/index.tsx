@@ -62,7 +62,12 @@ const Sample: FC<any> = () => {
             dataIndex: 'sample_group',
             key: 'sample_group',
             ellipsis: true,
-        }, {
+        },  {
+            title: '样本分组名称',
+            dataIndex: 'sample_group_name',
+            key: 'sample_group_name',
+            ellipsis: true,
+        },{
             title: '样本来源',
             dataIndex: 'sample_source',
             key: 'sample_source',
