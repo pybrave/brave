@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from importlib.resources import files, as_file
-import pkg_resources
 
 import json
 import os

@@ -6,7 +6,11 @@ setup(
     packages=find_packages(),
     install_requires=[
         "fastapi", 
+        "sqlalchemy",
+        "pandas",
         "uvicorn[standard]",
+        "typer",
+        "pymysql",
         "click==8.1.8"
         ],
     entry_points={
