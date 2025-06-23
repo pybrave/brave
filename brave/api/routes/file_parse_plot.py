@@ -7,7 +7,6 @@ from brave.api.service.pipeline  import get_all_module
 from typing import List
 from starlette.status import HTTP_204_NO_CONTENT
 from sqlalchemy import func, select
-from cryptography.fernet import Fernet
 from brave.api.models.orm import SampleAnalysisResult
 import glob
 import importlib

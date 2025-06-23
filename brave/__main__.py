@@ -18,7 +18,7 @@ def main(
     work_dir: str =typer.Option(None, help="Work directory"),
     pipeline_dir: str =typer.Option(None, help="Pipeline directory"),
     literature_dir: str =typer.Option(None, help="Literature directory"),
-    db_type: str =typer.Option("mysql", help="Db type[ mysql, sqlite ]"),
+    db_type: str =typer.Option("sqlite", help="Db type[ mysql, sqlite ]"),
     mysql_url: str =typer.Option("root:123456@192.168.3.60:53306/pipeline", help="Mysql url")
     ):
     

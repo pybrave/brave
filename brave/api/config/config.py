@@ -64,7 +64,7 @@ class Settings:
 
 
         # 读取数据库配置
-        self.DB_TYPE = os.getenv("DB_TYPE", "mysql").lower()
+        self.DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
         if self.DB_TYPE == "mysql":
             MYSQL_URL = os.getenv("MYSQL_URL")
             self.DB_URL = f"mysql+pymysql://{MYSQL_URL}"
