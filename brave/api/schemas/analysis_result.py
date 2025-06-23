@@ -28,4 +28,6 @@ class AnalysisResult(BaseModel):
     sample_group_name: Optional[str]
     analysis_type: Optional[str]
     create_date: Optional[str]
+    sample_source: Optional[str]
+    host_disease: Optional[str]
     

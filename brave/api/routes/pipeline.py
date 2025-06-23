@@ -1,17 +1,22 @@
 from fastapi import APIRouter
 from importlib.resources import files, as_file
+import pkg_resources
+
 import json
 import os
 import glob
 from brave.api.config.config import get_settings
+from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
+from collections import defaultdict
 
 pipeline = APIRouter()
 # BASE_DIR = os.path.dirname(__file__)
 
 @pipeline.get("/get-pipeline/{name}",tags=['pipeline'])
 async def get_pipeline(name):
-    filename = f"{name}.json"
-    json_file = str(files("brave.pipeline.json").joinpath(filename))
+    pipeline_dir =  get_pipeline_dir()
+    # filename = f"{name}.json"
+    json_file = f"{pipeline_dir}/{name}/main.json"
     data = {
         "files":json_file,
         "exists":os.path.exists(json_file)
@@ -22,11 +27,21 @@ async def get_pipeline(name):
             data.update(json_data)
     return data
 
+
+def get_config():
+    pipeline_dir =  get_pipeline_dir()
+    config = f"{pipeline_dir}/config.json"
+    if os.path.exists(config):
+        with open(config,"r") as f:
+            return json.load(f)
+    else:
+        return {}
+    
 def get_pipeline_one(item):
     with open(item,"r") as f:
         data = json.load(f)
     data = {
-        "path":os.path.basename(item).replace(".json",""),
+        "path":os.path.basename(os.path.dirname(item)),
         "name":data['name'],
         "category":data['category'],
         "img":f"/brave-api/img/{data['img']}",
@@ -36,17 +51,40 @@ def get_pipeline_one(item):
     }
     return data
 
+def get_category(name,key):
+    config = get_config()
+    if "category" in config:
+        category = config['category']
+        if name in category:
+            return category[name][key]
+    return name
+
 
 
 @pipeline.get("/list-pipeline",tags=['pipeline'])
 async def get_pipeline():
-    json_file = str(files("brave.pipeline.config").joinpath("config.json"))
-    with open(json_file,"r") as f:
-        config = json.load(f)
-
-    pipeline_files = files("brave.pipeline.json")
-    pipeline_files = [get_pipeline_one(str(item)) for item in pipeline_files.iterdir()]
+    # json_file = str(files("brave.pipeline.config").joinpath("config.json"))
+    # with open(json_file,"r") as f:
+    #     config = json.load(f)
+    # pipeline_files = files("brave.pipeline")
+    pipeline_files = get_pipeline_list()
+    pipeline_files = [get_pipeline_one(str(item)) for item in pipeline_files]
     pipeline_files = sorted(pipeline_files, key=lambda x: x["order"])
+    grouped = defaultdict(list)
+    for item in pipeline_files:
+        grouped[item["category"]].append(item)
+
+    result = []
+
+
+    for category, items in grouped.items():
+        result.append({
+            "name": get_category(category,"name"),
+            # "chineseName": category_name_map.get(category, ""),
+            "items": items
+        })
+
+
     # glob.glob("")
     # data  = [
     #     {
@@ -54,18 +92,22 @@ async def get_pipeline():
             
     #     }
     # ]
-    return {
-        "pipeline":pipeline_files,
-        "config":config
-    }
+    return result
 
 
 def get_pipeline_file(filename):
-    filename = f"{filename}.nf"
-    pipeline_file = str(files("brave.pipeline.nextflow").joinpath(filename))
-    if not os.path.exists(pipeline_file):
-        raise HTTPException(status_code=500, detail=f"{pipeline_file}不存在!")
-    return pipeline_file
+    nextflow_dict = get_all_pipeline()
+    if filename not in nextflow_dict:
+        raise HTTPException(status_code=500, detail=f"{filename}不存在!")  
+    return nextflow_dict[filename]
+
+def get_all_pipeline():
+    pipeline_dir =  get_pipeline_dir()
+    nextflow_list = glob.glob(f"{pipeline_dir}/*/nextflow/*.nf")
+    nextflow_dict = {os.path.basename(item).replace(".nf",""):item for item in nextflow_list}
+    return nextflow_dict
+
+
 
 def get_downstream_analysis(item):
     with open(item,"r") as f:
@@ -81,10 +123,8 @@ def get_downstream_analysis(item):
 
 @pipeline.get("/find_downstream_analysis/{analysis_method}",tags=['pipeline'])
 def get_downstream_analysis_list(analysis_method):
-    settings = get_settings()
-    pipeline_dir = settings.PIPELINE_DIR
-    json_file_list = glob.glob(f"{pipeline_dir}/json/*")
-    downstream_list = [get_downstream_analysis(item) for item in json_file_list]
+    pipeline_files = get_pipeline_list()
+    downstream_list = [get_downstream_analysis(item) for item in pipeline_files]
     downstream_list = [item for sublist in downstream_list for item in sublist]
     downstream_dict = {item['saveAnalysisMethod']: item for item in downstream_list}
     return downstream_dict[analysis_method]

@@ -6,7 +6,6 @@ from brave.api.config.config import get_settings
 import threading
 
 
-# BASE_DIR = os.environ.get("MVP_BASE_DIR", os.getcwd())
 # BASE_DIR = os.path.join(BASE_DIR, 'data')
 # if not os.path.exists(BASE_DIR):
 #     os.makedirs(BASE_DIR)

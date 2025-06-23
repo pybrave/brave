@@ -20,7 +20,11 @@
                 "--base-dir",
                 "/ssd1/wy/workspace2/nextflow_workspace",
                 "--work-dir",
-                "/data/wangyang/nf_work"
+                "/data/wangyang/nf_work",
+                "--pipeline-dir",
+                "/ssd1/wy/workspace2/nextflow-fastapi/pipeline",
+                "--literature-dir",
+                "/ssd1/wy/workspace2/nextflow-fastapi/literature"
                 
 
             ],

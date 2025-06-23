@@ -29,6 +29,8 @@ from brave.api.routes.pipeline import get_pipeline_file
 import textwrap
 from brave.api.routes.sample_result import find_analyais_result_by_ids
 from brave.api.routes.sample_result import parse_result_one,parse_result_oneV2
+from brave.api.service.pipeline  import get_all_module
+
 analysis_api = APIRouter()
 
 
@@ -85,24 +87,27 @@ def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,ve
 
 
 def parse_analysis(request_param,params_path,command_path,work_dir,module_name):
-    
-    module_name = f'brave.api.parse_analysis.{module_name}'
-    if importlib.util.find_spec(module_name) is None:
-        print(f"{module_name}不存在!")
-    else:
-        module = importlib.import_module(module_name)
-        get_db_field = getattr(module, "get_db_field")
-        db_field = get_db_field()
+    all_module = get_all_module("py_parse_analysis")
+    if module_name not in all_module:
+        raise HTTPException(status_code=500, detail=f"py_parse_analysis: {module_name}没有找到!")
+    py_module = all_module[module_name]
+    # module_name = f'brave.api.parse_analysis.{module_name}'
+    # if importlib.util.find_spec(module) is None:
+    #     print(f"{module_name}不存在!")
+    # else:
+    module = importlib.import_module(py_module)
+    get_db_field = getattr(module, "get_db_field")
+    db_field = get_db_field()
 
-        db_ids_dict = {key: get_ids(request_param[key]) for key in db_field if key in request_param}
-        # with get_db_session() as session:
-            # get_db_value
-        db_dict = { key:find_analyais_result_by_ids(value) for key,value in  db_ids_dict.items()}
-        parse_data = getattr(module, "parse_data")
+    db_ids_dict = {key: get_ids(request_param[key]) for key in db_field if key in request_param}
+    # with get_db_session() as session:
+        # get_db_value
+    db_dict = { key:find_analyais_result_by_ids(value) for key,value in  db_ids_dict.items()}
+    parse_data = getattr(module, "parse_data")
 
-        result = parse_data(request_param,db_dict)
-        with open(params_path, "w") as f:
-            json.dump(result,f)
+    result = parse_data(request_param,db_dict)
+    with open(params_path, "w") as f:
+        json.dump(result,f)
 
         # get_script = getattr(module, "get_script")
         # script = get_script()
@@ -227,7 +232,11 @@ def parse_analysis_result(id):
         raise HTTPException(status_code=500, detail=f"分析{result.analysis_method}没有配置output_format!")
     for item in output_format:
         dir_path = f"{result.output_dir}/output/{item['dir']}"
-        module = importlib.import_module(f"brave.api.parse_analysis_result.{item['module']}")
+        all_module = get_all_module("py_parse_analysis_result")
+        if item['module'] not in all_module:
+            raise HTTPException(status_code=500, detail=f"py_parse_analysis_result: {module_name}没有找到!")
+        py_module = all_module[item['module']]
+        module = importlib.import_module(py_module)
         # parse_result_one()
         moduleArgs = {}
         if "moduleArgs" in item:

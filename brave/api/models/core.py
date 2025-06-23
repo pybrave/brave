@@ -62,4 +62,32 @@ analysis_result = Table(
     Column("analysis_type", String(255)),
     Column("create_date", String(255))
 )
+
+literature = Table(
+    "literature",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("literature_key", String(255)),
+    Column("literature_type", String(255)),
+    Column("title", String(255)),
+    Column("url", String(255)),
+    Column("content", Text),
+    Column("translate", Text),
+    Column("interpretation", Text),
+    Column("img", Text),
+    Column("journal", String(255)),
+    Column("publish_date", String(255)),
+    Column("keywords", String(255))
+
+)
+
+
+relation_literature = Table(
+    "relation_literature",
+    meta,
+    Column("relation_id", Integer, primary_key=True),
+    Column("literature_key", String(255)),
+    Column("obj_key", String(255)),
+    Column("obj_type", String(255))
+)
 # meta.create_all(engine)

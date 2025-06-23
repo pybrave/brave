@@ -19,6 +19,7 @@ from brave.api.models.core import samples,analysis_result
 from brave.api.config.db import get_engine
 import inspect
 from fastapi import HTTPException
+from brave.api.service.pipeline  import get_all_module,get_pipeline_dir
 
 
 sample_result = APIRouter()
@@ -137,10 +138,18 @@ def parse_result_one(analysis_method,module,dir_path,project,verison,analysis_id
             # print(sample_name)
 
 def parse_result(dir_path,project,verison):
-    py_files = [f for f in os.listdir("sample_result_parse") if f.endswith('.py')]
-    for py_file in py_files:
-        module_name = py_file[:-3]  # 去掉 `.py` 后缀，获取模块名
-        module = importlib.import_module(f'brave.api.sample_result_parse.{module_name}')
+    # pipeline_dir = get_pipeline_dir()
+    # py_files = [f for f in os.listdir(f"{pipeline_dir}/*/py_sample_result_parse/*") if f.endswith('.py')]
+    # py_files = glob.glob(f"{pipeline_dir}/*/py_sample_result_parse/*.py")
+    py_files = get_all_module("py_sample_result_parse")
+    for key,py_module in py_files.items():
+        # module_name = py_file[:-3]  # 去掉 `.py` 后缀，获取模块名
+
+       
+        # if module_name not in all_module:
+        #     raise HTTPException(status_code=500, detail=f"py_sample_result_parse: {module_name}没有找到!")
+        # py_module = all_module[module_name]
+        module = importlib.import_module(py_module)
         support_analysis_method = getattr(module, "support_analysis_method")
         analysis_method = support_analysis_method()
 

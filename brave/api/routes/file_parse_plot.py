@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Depends,Request,HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any
-
+from brave.api.service.pipeline  import get_all_module
 # from brave.api.config.db import conn
 # from models.user import users
 from typing import List
@@ -59,7 +59,12 @@ def get_db_dict(db_field,request_param):
     return db_dict
 
 def parse_result(request_param,module_name):
-    module = importlib.import_module(f'brave.api.file_parse_plot.{module_name}')
+    all_module = get_all_module("py_plot")
+    if module_name not in all_module:
+        raise HTTPException(status_code=500, detail=f"py_plot: {module_name}没有找到!")
+
+    py_module = all_module[module_name]
+    module = importlib.import_module(py_module)
     parse_data = getattr(module, "parse_data")
     sig = inspect.signature(parse_data)
     params = sig.parameters.keys()
@@ -126,8 +131,8 @@ def parse_result(request_param,module_name):
     elif isinstance(data,list):
         pass
     else:
-        data = format_output(data,request_param)
-        result = {"dataList":[data]}
+        new_data = format_output(data,request_param)
+        result = {"dataList":[new_data]}
         # if isinstance(data, pd.DataFrame):
         #     # result = {"data":data.to_dict(orient="records")}
         #     result = {"data":json.loads(data.to_json(orient="records"))}
@@ -201,20 +206,42 @@ def format_img_output(plt,request_param):
         "url":f"/brave-api/dir{file_name}"
     }
 
+# 如果请求中没有analysis_method 则不保存
 def format_output(item,request_param):
-    
-    table_type = request_param['table_type']
-    if isinstance(item, pd.DataFrame):
-        downstream_analysis_result,file_name = get_downstream_analysis_result_dir(request_param,table_type)
+    setting = get_settings()
+    base_dir = str(setting.BASE_DIR)
+    if  isinstance(item, pd.DataFrame):
+        file_name = ""
+        if "origin"   in request_param and "file_path" in request_param  :
+            file_path = request_param['file_path']
+            file_name = file_path.replace(base_dir,"/brave/brave-api/dir")
+        else:     
+            table_type = request_param['table_type']
+            downstream_analysis_result,file_name = get_downstream_analysis_result_dir(request_param,table_type)
+            
+            if table_type=='tsv':
+                item.to_csv(downstream_analysis_result, sep="\t", index=False)
+            elif table_type=='xlsx':
+                item.to_excel(downstream_analysis_result,  index=False)
         
-        if table_type=='tsv':
-            item.to_csv(downstream_analysis_result, sep="\t", index=False)
-        elif table_type=='xlsx':
-            item.to_excel(downstream_analysis_result,  index=False)
+
         return  {
-            "data":item.to_dict(orient="records"),
+            "data":json.loads(item.to_json(orient="records")) ,
             "type":"table",
             "url":f"/brave-api/dir{file_name}"
+        }
+    elif isinstance(item, str):
+        if item == 'html':
+            file_path = request_param['file_path']
+            file_name = file_path.replace(base_dir,"/brave/brave-api/dir")
+            return {
+                "data":file_name,
+                "type":"html",
+                "url":f"/brave-api/dir{file_name}"
+            }
+        return {
+            "data":item,
+            "type":"string",
         }
     else:
         return item

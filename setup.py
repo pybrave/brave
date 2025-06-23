@@ -21,7 +21,7 @@ setup(
     python_requires=">=3.7",
     package_data={
         "brave": [
-            "frontend/build/**/*",  # 包含静态资源
+            "frontend/**/*",  # 包含静态资源
             "pipeline/**/*"
         ]
     },

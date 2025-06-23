@@ -14,18 +14,26 @@ def main(
     host: str = typer.Option("0.0.0.0", help="Host to bind"), 
     port: int =  typer.Option(5000, help="Port to bind"),
     reload: bool =  typer.Option(False, help="reload"),
-    base_dir: str =typer.Option(".", help="Base directory path"),
-    work_dir: str =typer.Option(".", help="Work directory path"),
-    db_type: str =typer.Option("mysql", help="Db type"),
-    pipeline_dir: str =typer.Option(None, help="Pipeline dir"),
-    mysql_url: str =typer.Option("root:123456@192.168.3.60:53306/pipeline", help="Mysql url"),
+    base_dir: str =typer.Option(None, help="Base directory"),
+    work_dir: str =typer.Option(None, help="Work directory"),
+    pipeline_dir: str =typer.Option(None, help="Pipeline directory"),
+    literature_dir: str =typer.Option(None, help="Literature directory"),
+    db_type: str =typer.Option("mysql", help="Db type[ mysql, sqlite ]"),
+    mysql_url: str =typer.Option("root:123456@192.168.3.60:53306/pipeline", help="Mysql url")
     ):
-    os.environ["MVP_BASE_DIR"] = base_dir
-    os.environ["WORK_DIR"] = work_dir
+    
+    
     os.environ["DB_TYPE"] = db_type
     os.environ["MYSQL_URL"] = mysql_url
+    if base_dir:
+        os.environ["BASE_DIR"] = base_dir
+    if work_dir:
+        os.environ["WORK_DIR"] = work_dir
     if pipeline_dir:
         os.environ["PIPELINE_DIR"] = pipeline_dir
+    if literature_dir:
+        os.environ["LITERATURE_DIR"] = literature_dir
+
 
 
     # settings = get_settings()

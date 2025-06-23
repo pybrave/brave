@@ -6,3 +6,7 @@ build/
 build/** 
 brave.egg-info/
 brave.egg-info/** 
+README.bak.md
+literature/
+pipeline/
+test.py
