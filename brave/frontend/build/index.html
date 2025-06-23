@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon"  href="./favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BRAVE</title>
+  <style>
+    .screen {
+      width: 98vw;
+      height: 97vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .loading-container {
+      position: relative;
+      width: 32px;
+      height: 32px;
+      transform: rotate(45deg);
+      animation: preloader 1.2s infinite linear;
+    }
+
+    .loading-container i {
+      width: 12px;
+      height: 12px;
+      position: absolute;
+      background: #1890ff;
+      border-radius: 100%;
+      display: block;
+      transform-origin: 50% 50%;
+      opacity: .3;
+      animation: preloader_i 1.2s infinite linear;
+    }
+
+    .loading-container i:nth-child(1) {
+      top: 0;
+      left: 0;
+    }
+
+    .loading-container i:nth-child(2) {
+      top: 0;
+      right: 0;
+      animation-delay: 0.4s;
+    }
+
+    .loading-container i:nth-child(3) {
+      right: 0;
+      bottom: 0;
+      animation-delay: 0.8s;
+    }
+
+    .loading-container i:nth-child(4) {
+      bottom: 0;
+      left: 0;
+      animation-delay: 1.2s;
+    }
+
+    @keyframes preloader {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes preloader_i {
+      0% {
+        opacity: .3;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: .3;
+      }
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-DDPiedLI.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C5bBS0f7.css">
+</head>
+
+<body>
+  <div id="root">
+    <div class="screen">
+      <div class="loading-container">
+        <i></i>
+        <i></i>
+        <i></i>
+        <i></i>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

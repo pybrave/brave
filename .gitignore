@@ -3,7 +3,7 @@ __pycache__/
 databases/
 test/
 build/
-build/** 
+!brave/frontend/build 
 brave.egg-info/
 brave.egg-info/** 
 README.bak.md
