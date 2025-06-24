@@ -6,6 +6,7 @@ const Eggnog: FC<any> = ({ record, plot }) => {
         {record && <>
             <Button type="primary" onClick={() => {
                 plot({
+                    name:"查看注释结果",
                     saveAnalysisMethod:"print_gggnog",
                     moduleName: "eggnog",
                     params: { "file_path": record.content.annotations,
@@ -37,7 +38,7 @@ const Eggnog: FC<any> = ({ record, plot }) => {
 
                     `
                 })
-
+                
             }}> 查看注释结果</Button >
             <Button type="primary" onClick={() => {
                 plot({
@@ -45,7 +46,8 @@ const Eggnog: FC<any> = ({ record, plot }) => {
                     moduleName: "eggnog_kegg",
                     params: { "file_path": record.content.annotations },
                     tableDesc: `
-                    `
+                    `,
+                    name:"提取KEGG注释结果"
                 })
 
             }}>提取KEGG注释结果</Button>

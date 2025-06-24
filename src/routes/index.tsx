@@ -47,6 +47,7 @@ const SampleQC = lazy(() => import('@/pages/sample/sample-qc'));
 const FunctionAnalysis = lazy(() => import('@/pages/meta-analysis/function-analysis'));
 const PipelineCard = lazy(() => import('@/pages/pipeline-card'));
 const AnalysisResult = lazy(() => import('@/pages/analysis-result'));
+const Literature = lazy(() => import('@/pages/literature'));
 
 import Pipeline from '@/pages/components/pipeline'
 import axios from "axios";
@@ -67,11 +68,14 @@ const childern = [
     }, {
         path: "/:project/sample-qc",
         element: <SampleQC />
-    },{
+    }, {
         path: "/:project/analysis-result",
         element: <AnalysisResult />
+    }, {
+        path: "/:project/literature",
+        element: <Literature />
     },
-    
+
     {
         path: "/:project/meta_genome/reads-based-abundance-analysis",
         element: <ReadsBasedAbundanceAnalysis />
@@ -114,20 +118,29 @@ const childern = [
         element: <GeneExpressison />
     }
 ]
+
+import {listPipeline} from '@/api/pipeline'
 const RenderRouter: FC = () => {
     const [routes, setRoutes] = useState<RouteObject[] | null>([]);
     const dispatch = useDispatch()
 
+   
+    
     const loadData = async () => {
-        const resp: any = await axios.get(`/list-pipeline`)
-        dispatch(setMenuItems(resp.data))
-
-        const routes = resp.data.pipeline.map((item: any) => {
-            return {
+        const data:any = await listPipeline(dispatch)
+        const routes = data.flatMap((group:any) =>
+            group.items.map((item:any) => ({
                 path: `/:project/${item.path}`,
                 element: <Pipeline name={item.path} />
-            }
-        })
+            }))
+        );
+        // console.log(routes)
+        // const routes = resp.data.pipeline.map((item: any) => {
+        //     return {
+        // path: `/:project/${item.path}`,
+        // element: <Pipeline name={item.path} />
+        //     }
+        // })
         const router: RouteObject[] = [
             {
                 path: "/",

@@ -64,6 +64,9 @@ const App: React.FC = () => {
         }, {
             key: `${project}/analysis-result`,
             label: "分析结果"
+        }, {
+            key: `${project}/literature`,
+            label: "文献资料"
         }
     ]
     const menu1: MenuProps['items'] = [

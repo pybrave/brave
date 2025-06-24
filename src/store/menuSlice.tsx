@@ -5,6 +5,7 @@ const menuSlice = createSlice({
   initialState: {
     items: [],       // 菜单项数组
     selectedKey: '', // 当前选中的菜单 key
+    
   },
   reducers: {
     setMenuItems: (state, action) => {

@@ -6,17 +6,32 @@ import { colors } from '@/utils/utils'
 
 import axios from "axios"
 import { useNavigate, useParams } from "react-router"
+import { listPipeline } from "@/api/pipeline"
 const Pipeline: FC<any> = ({ name }) => {
     const [pipeline, setPipeline] = useState<any>()
     const [items, setItems] = useState<any>([])
     const { project } = useParams()
     const navigate = useNavigate();
-
+  
     const loadFunction: any = (data: any[]) => {
         if (!data) return undefined
         return data.map((item: any) => {
             if ("paramsFun" in item) {
                 item.paramsFun = eval(item.paramsFun)
+            }
+            if("formJson" in item){
+                item['formJson'].map((it2:any)=>{
+                    if("filter" in it2){
+                        it2['filter'].map((it3:any)=>{
+                            it3.method= eval(it3.method)
+                            return it3
+                        })
+                    }
+
+                    it2.field = eval(it2.field)
+                    return it2
+                })
+                
             }
             return item
         })
@@ -46,8 +61,8 @@ const Pipeline: FC<any> = ({ name }) => {
                     upstreamFormJson={item.upstreamFormJson}
                     appendSampleColumns={loadColumnRender(item.appendSampleColumns)}
                     parseAnalysisParams={{
-                        parse_analysis_module:item.parseAnalysisModule,
-                        parse_analysis_result_module:item.parseAnalysisResultModule
+                        parse_analysis_module: item.parseAnalysisModule,
+                        parse_analysis_result_module: item.parseAnalysisResultModule
                     }}
                     analysisType={item.analysisType ? item.analysisType : "sample"}>
                 </AnalysisPanel>
@@ -74,7 +89,7 @@ const Pipeline: FC<any> = ({ name }) => {
     // ]
     const loadData = async () => {
         const resp = await axios.get(`/get-pipeline/${name}`)
-        console.log(resp)
+        // console.log(resp.data)
         setPipeline(resp.data)
 
     }
@@ -82,19 +97,21 @@ const Pipeline: FC<any> = ({ name }) => {
         loadData()
     }, [])
     return <div style={{ maxWidth: "1800px", margin: "0 auto" }}>
+
         <Flex style={{ marginBottom: "1rem" }} justify={"space-between"} align={"center"} gap="small">
             <div >
                 {pipeline ? <>
                     <h2 style={{ margin: 0 }}>{pipeline?.name}</h2>
                     <p style={{ margin: "0", color: "rgba(0, 0, 0, 0.45)" }}>{pipeline?.description}</p>
                     {pipeline.tags && Array.isArray(pipeline.tags) && pipeline.tags.map((tag: any, index: any) => (
-                        <Tag style={{marginTop:"0.5rem"}} key={index} color={colors[index]}>{tag}</Tag>
+                        <Tag style={{ marginTop: "0.5rem" }} key={index} color={colors[index]}>{tag}</Tag>
                     ))}
                 </> : <Skeleton active></Skeleton>}
             </div>
             <Flex gap="small" wrap>
-                <Button color="primary" variant="solid">流程介绍</Button>
-                <Button color="cyan" variant="solid" onClick={() => navigate(`/${project}/pipeline-card`)}>返回</Button>
+                <Button color="cyan" variant="solid">流程介绍</Button>
+                <Button color="cyan" variant="solid" onClick={loadData}>刷新</Button>
+                <Button color="primary" variant="solid" onClick={() => navigate(`/${project}/pipeline-card`)}>返回</Button>
             </Flex>
 
         </Flex>

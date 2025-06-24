@@ -1,15 +1,17 @@
-import { Card, Col, Row, Tag } from "antd"
+import { Button, Card, Col, Empty, Flex, Row, Tag, Tooltip } from "antd"
 import Item from "antd/es/list/Item"
 import { FC, useEffect, useState } from "react"
-import { useSelector } from "react-redux"
+import { useDispatch, useSelector } from "react-redux"
 import { useNavigate, useParams } from "react-router"
 import Meta from "antd/es/card/Meta"
-import {colors} from '@/utils/utils'
-
+import { colors } from '@/utils/utils'
+import {listPipeline} from '@/api/pipeline'
 const PipelineCard: FC<any> = () => {
     const { project } = useParams()
     const [menu, setMenu] = useState<any>([])
     const navigate = useNavigate();
+    const dispatch = useDispatch()
+
     const menuItems = useSelector((state: any) => state.menu.items)
 
     const menu1: any[] = [
@@ -91,29 +93,90 @@ const PipelineCard: FC<any> = () => {
             ]
         },
     ]
+    const loadPipeine = async ()=>{
+        listPipeline(dispatch)
+    }
     useEffect(() => {
-        const itmes = menuItems.pipeline.map((item: any) => {
-            return {
+        const menu = menuItems.map((group: any) => ({
+            name: group.name,
+            items: group.items.map((item: any) => ({
                 key: `${project}/${item.path}`,
                 label: item.name,
                 img: item.img,
                 tags: item.tags,
-                description:item.description
-            }
-        })
+                description: item.description,
+                category: item.category
+            }))
+        }));
+        // const itmes = menuItems.pipeline.map((item: any) => {
+        //     return {
+        //         key: `${project}/${item.path}`,
+        //         label: item.name,
+        //         img: item.img,
+        //         tags: item.tags,
+        //         description: item.description,
+        //         category:item.category
+        //     }
+        // })
 
-        const newMeanu = {
-            name: "组件化流程(开发中...)",
-            items: itmes
-        }
-        const menu = [newMeanu, ...menu1]
+
+        // const newMeanu = {
+        //     name: "组件化流程(开发中...)",
+        //     items: itmes
+        // }
+        // const menu = [newMeanu]
         setMenu(menu)
-        console.log(menu)
-    }, [])
-    
+        // console.log(menu)
+    }, [JSON.stringify(menuItems)])
+
     // indivi
-    return <div style={{ maxWidth: "1800px", margin: "1rem auto" }}>
-        {menu.map((menuItem: any, menuIndex: any) => (
+    return <div style={{ maxWidth: "1500px", margin: "1rem auto" }}>
+         <Flex justify="flex-end" gap="small">
+            <Button color="cyan" variant="solid" onClick={loadPipeine}>刷新</Button>
+        </Flex>
+        {Array.isArray(menu) && menu.length != 0 ? menu.map((menuItem: any, menuIndex: any) => (
+            <div key={menuIndex}>
+                <h2>{menuItem.name}</h2>
+                <hr />
+                <Row gutter={16}>
+                    {menuItem?.items.map((item: any, index: any) => (
+                        <Col key={index} lg={4} sm={6} xs={24} style={{ marginBottom: "1rem", cursor: "pointer" }}>
+                            <Card hoverable
+                                // title={item.label}
+                                // variant="borderless" 
+                                style={{
+                                    height: "100%"
+                                }}
+                                cover={<img alt={item.label} src={item.img} />}
+                                onClick={() => navigate(`/${item.key}`)}>
+
+
+                                <Meta title={item.label} description={item?.description} style={{ marginBottom: "1rem" }} />
+                                {item.tags && Array.isArray(item.tags) && item.tags.map((tag: any, index: any) => (
+                                    <Tooltip key={index}  title={tag}>
+                                        <Tag style={{
+                                            wordBreak: "break-word",     
+                                            whiteSpace: "nowrap",        
+                                            overflow: "hidden",         
+                                            textOverflow: "ellipsis",  
+                                            maxWidth: 100,             
+                                            display: "inline-block",    
+                                            cursor: "default"           
+                                        }} color={colors[index]}>{tag}</Tag>
+                                    </Tooltip>
+
+                                ))}
+                            </Card>
+                        </Col>
+                    ))}
+
+                </Row>
+            </div>
+        )) : <Empty></Empty>}
+
+        <br /><br /><br /><br /><br /><br />
+
+        {menu1.map((menuItem: any, menuIndex: any) => (
             <div key={menuIndex}>
                 <h2>{menuItem.name}</h2>
                 <hr />

@@ -59,7 +59,7 @@ export const TableView: FC<any> = ({ data, url }) => {
 }
 
 const ImgView: FC<any> = ({ data, url }) => {
-    return <div style={{ display: "flex", justifyContent: "flex-start" }}>
+    return <div >
         <div style={{ textAlign: "center" }}>
 
             <Image src={data} style={{ maxWidth: "20rem", marginRight: "0.5rem" }}></Image>
@@ -75,11 +75,30 @@ const ImgView: FC<any> = ({ data, url }) => {
 
     </div>
 }
+const { Paragraph } = Typography;
 
+const StringView: FC<any> = ({ data }) => {
+
+    return <>
+        <Paragraph style={{ background: "#13c2c2", padding: "1rem", border: "1px solid #1677ff" }}>{data}</Paragraph>
+    </>
+}
+const HtmlView: FC<any> = ({ data}) => {
+
+    return <>
+        {data && data.startsWith("/brave") ? <>
+            <iframe src={data} width={"100%"} style={{ height: "80vh", border: "none" }}>
+            </iframe>
+        </>:<>{data}</>}
+
+    </>
+}
 const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc }) => {
 
     const componentMap: any = {
-        table: TableView
+        table: TableView,
+        string: StringView,
+        html: HtmlView
     };
 
     const ComponentsRender = ({ type, ...rest }: any) => {
@@ -99,8 +118,9 @@ const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc
                 {/* {filePlot.img} */}
 
 
-                {filePlot.img && <div>
+                {filePlot.img && <div style={{ display: "flex", justifyContent: "flex-start" }}>
                     {
+
                         Array.isArray(filePlot.img) ? <>
                             {filePlot.img.map((it: any, index: any) => (<>
                                 <ImgView {...it} key={index}></ImgView>
@@ -115,7 +135,7 @@ const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc
                 </div>}
                 {filePlot.dataList && Array.isArray(filePlot.dataList) && <>
                     {filePlot.dataList.map((item: any, index: any) => (
-                        <ComponentsRender key={index} {...item}></ComponentsRender>
+                      <ComponentsRender key={index} {...item}></ComponentsRender>
                         // <div key={index}>
                         //     {typeof item == 'string' ?
                         //         <TextArea value={item} rows={10}></TextArea>

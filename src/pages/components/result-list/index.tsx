@@ -207,12 +207,14 @@ const ResultList = forwardRef<any, any>(({
                 key: 'analysis_id',
                 ellipsis: true,
 
-            }, {
-                title: '分析版本',
-                dataIndex: 'analysis_version',
-                key: 'analysis_version',
-                ellipsis: true,
-            }, {
+            }, 
+            // {
+            //     title: '分析版本',
+            //     dataIndex: 'analysis_version',
+            //     key: 'analysis_version',
+            //     ellipsis: true,
+            // },
+             {
                 title: '样本名称',
                 dataIndex: 'sample_name',
                 key: 'sample_name',
@@ -234,6 +236,18 @@ const ResultList = forwardRef<any, any>(({
                 title: '样本分组',
                 dataIndex: 'sample_group',
                 key: 'sample_group',
+                ellipsis: true,
+
+            }, {
+                title: '样本来源',
+                dataIndex: 'sample_source',
+                key: 'sample_source',
+                ellipsis: true,
+
+            }, {
+                title: '疾病',
+                dataIndex: 'host_disease',
+                key: 'host_disease',
                 ellipsis: true,
 
             }, {

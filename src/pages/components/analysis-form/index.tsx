@@ -1,19 +1,20 @@
-import { Button, Form, Input, message, Select } from "antd";
+import { Button, Collapse, Form, Input, message, Select, Typography } from "antd";
 import axios from "axios";
 import { FC, useEffect, useState } from "react";
 import FormJsonComp from "../form-components";
+import { listAnalysisResult } from '@/api/analysis-result'
 
 export const AnalysisForm: FC<any> = ({
     form,
     resultTableList,
-    activeTabKey,
+    // activeTabKey,
     formJson,
     formDom,
     moduleName,
     params,
     sampleGroupApI,
     setPlotLoading,
-    currentAnalysisMenthod,
+    inputAnalysisMethod,
     saveAnalysisMethod,
     project,
     setFilePlot,
@@ -51,6 +52,8 @@ export const AnalysisForm: FC<any> = ({
         }
     }
 
+    // const getData = async (inputAnalysisMethod:any)=>{
+    // }
 
     const rank = [
         {
@@ -80,10 +83,10 @@ export const AnalysisForm: FC<any> = ({
         {
             label: "样本分组",
             value: "sample_group"
-        },  {
+        }, {
             label: "样本分组名称",
             value: "sample_group_name"
-        },  {
+        }, {
             label: "样本来源",
             value: "sample_source"
         }, {
@@ -91,11 +94,14 @@ export const AnalysisForm: FC<any> = ({
             value: "host_disease"
         }
     ]
-    const dataMap = {
-        "sample_group_list": sampleGroup,
+    const dataMap_ = {
+        // "sample_group_list": sampleGroup,
+        "first_data_key": undefined,
         "rank": rank,
         group_field: group_field
     }
+    const [dataMap, setDataMap] = useState<any>(dataMap_)
+
 
     const runPlot = async ({ moduleName, params }: any) => {
         const values = await form.validateFields()
@@ -103,7 +109,7 @@ export const AnalysisForm: FC<any> = ({
         setPlotLoading(true)
 
         const downstreamInput = {
-            inputAnalysisMenthod: currentAnalysisMenthod,
+            inputAnalysisMenthod: inputAnalysisMethod,
             moduleName: moduleName,
             params: params
             // analysisMethod:saveAnalysisMethod
@@ -111,16 +117,18 @@ export const AnalysisForm: FC<any> = ({
         // console.log(downstreamInput)
 
         try {
-            const resp: any = await axios.post(`/fast-api/file-parse-plot/${moduleName}`, {
+            const reqParams = {
                 ...params,
                 ...values,
                 project: project,
                 analysis_method: saveAnalysisMethod,
                 table_type: tableType,
-                imgType:imgType,
+                imgType: imgType,
                 ...downstreamInput,
                 software: "python"
-            })
+            }
+            // console.log(reqParams)
+            const resp: any = await axios.post(`/fast-api/file-parse-plot/${moduleName}`, reqParams)
             setFilePlot(resp.data)
             if (plotReloadTable && values.is_save_analysis_result) {
                 plotReloadTable()
@@ -135,30 +143,77 @@ export const AnalysisForm: FC<any> = ({
         setPlotLoading(false)
         // console.log(resp.data);
     }
-    useEffect(()=>{
-        if(name){
+    useEffect(() => {
+        if (name) {
             form.setFieldValue("analysis_name", name)
         }
-    },[name])
+    }, [name])
+    const getFirstKey = (resultTableList: any) => {
+        if (resultTableList && Object.keys(resultTableList).length == 1) {
+            return Object.keys(resultTableList)[0]
+        } else {
+            return undefined
+        }
+    }
+    const loadData = async (analysisMetnodNames:any) => {
+      
+        const data = await listAnalysisResult({ project: project, analysisMethodValues:analysisMetnodNames })
+        const groupedData = data.reduce((acc: any, item: any) => {
+            const key = item.analysis_method;
+            // const key = keyMap[item.analysis_method]
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            const { sample_key, id, sample_group, ...rest } = item
+            // debugger
+            acc[key].push({
+                label: sample_key,
+                value: id,
+                sample_group: sample_group ? sample_group : "no_group",
+                sample_key: sample_key,
+                id: id,
+                // "aaa":"1111",
+                ...rest
+            });
+            return acc;
+        }, {});
+        // console.log(groupedData)
+        const result = { ...dataMap_, ...resultTableList, ...groupedData,first_data_key: getFirstKey(resultTableList) }
+        console.log(result)
+        setDataMap(result)
 
+    }
     useEffect(() => {
         console.log(resultTableList)
         if (sampleGroupApI) {
             getSampleGroup()
         } else {
-            if (resultTableList && activeTabKey) {
-               
-                const resultTable = resultTableList[activeTabKey]
-                if (resultTable) {
-                    setSampleGroup(resultTable)
-                }
-            }else{
-                setSampleGroup(resultTableList)
+            // if (resultTableList && activeTabKey) {
+
+            //     const resultTable = resultTableList[activeTabKey]
+            //     if (resultTable) {
+            //         setSampleGroup(resultTable)
+            //     }
+            // } else {
+            //     // setSampleGroup(resultTableList)
+            //     setDataMap({...dataMap_,...resultTableList})
+            // }  
+            // debugger
+            const analysisMetnodNames = formJson
+                .filter((item: any) => item.inputAnalysisMethod !== undefined)
+                .map((item: any) => item.inputAnalysisMethod);
+            if (analysisMetnodNames.length != 0) {
+                loadData(analysisMetnodNames)
+            } else {
+                setDataMap({ ...dataMap_, ...resultTableList, first_data_key: getFirstKey(resultTableList) })
+
             }
+            // console.log(analysisMetnodNames)
+
 
         }
 
-    }, [resultTableList,activeTabKey])
+    }, [])
     return <>
         {contextHolder}
         <Form form={form}   >
@@ -183,13 +238,13 @@ export const AnalysisForm: FC<any> = ({
                 ]}></Select>
             </Form.Item>
             {is_save_analysis_result &&
-                <Form.Item label="分析名称"  name={"analysis_name"} style={{ maxWidth: 600 }} rules={[{ required: true, message: '该字段不能为空!' }]}>
+                <Form.Item label="分析名称" name={"analysis_name"} style={{ maxWidth: 600 }} rules={[{ required: true, message: '该字段不能为空!' }]}>
                     <Input></Input>
                 </Form.Item>}
 
 
             {formJson &&
-                <FormJsonComp formJson={formJson} dataMap={dataMap}></FormJsonComp>
+                <FormJsonComp project={project} formJson={formJson} dataMap={dataMap}></FormJsonComp>
             }
 
             {formDom &&
@@ -209,11 +264,25 @@ export const AnalysisForm: FC<any> = ({
                                             runPlot({ moduleName: moduleName, params: params })
                                         }}>执行</Button> */}
 
-                <hr />
+
             </>
             }
 
-
+            <Collapse ghost items={[
+                {
+                    key: "1",
+                    label: "更多",
+                    children: <>
+                        <Form.Item noStyle shouldUpdate>
+                            {() => (
+                                <Typography>
+                                    <pre>{JSON.stringify(form.getFieldsValue(), null, 2)}</pre>
+                                </Typography>
+                            )}
+                        </Form.Item>
+                    </>
+                }
+            ]} />
         </Form>
     </>
 }

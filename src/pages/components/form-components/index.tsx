@@ -1,9 +1,9 @@
 import { Button, Form, Input, InputNumber, Select } from "antd";
+import TextArea from "antd/es/input/TextArea";
 import axios from "axios";
 import { Component, FC, useEffect, useState, memo } from "react";
 import { data } from "react-router";
-
-const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
+const FormJsonComp: FC<any> = memo(({ formJson, dataMap}) => {
     const componentMap: any = {
         GroupSelect: {
             Component: BaseSelect,
@@ -17,6 +17,9 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
         },
         BaseInputNumber: {
             Component: BaseInputNumber,
+        },
+        BaseInput: {
+            Component: BaseInput,
         },
         RankSelect: {
             Component: BaseSelect,
@@ -39,21 +42,30 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
             dataKey: "sample_group_list"
         }, MetaphlanCladeSelect: {
             Component: MetaphlanCladeSelect,
-        },SelectAll:{
+        }, SelectAll: {
             Component: SelectAll,
             dataKey: "sample_group_list"
         }
     };
-    const ComponentsRender = ({ type, dataMap, dataKey: dataKey_, data: data_, name, inputKey, ...rest }: any) => {
+    const ComponentsRender =  ({ type, dataMap:dataMap_,inputAnalysisMethod, dataKey: dataKey_, data: data_, name, inputKey, ...rest }: any) => {
         const componentObj = componentMap[type] //|| (() => <div>未知类型</div>);
+        const {first_data_key, ...dataMap} = dataMap_
         if (!componentObj) {
             return <div>未知类型 {type}</div>
         }
-        const { Component, dataKey, ...crest } = componentObj
         // debugger
+        const { Component,  ...crest } = componentObj
+        // debugger
+
+
         let data: any = []
         if (data_) {
             data = data_
+        }else if(inputAnalysisMethod){
+            
+           
+            data = dataMap[inputAnalysisMethod]
+
         } else {
             if (dataKey_) {
                 if (dataKey_ in dataMap) {
@@ -65,8 +77,8 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
                     data = dataMap[name]
 
                 } else {
-                    if (dataKey in dataMap) {
-                        data = dataMap[dataKey]
+                    if (first_data_key in dataMap) {
+                        data = dataMap[first_data_key]
                     }
 
                 }
@@ -90,17 +102,17 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
         ))}
 
     </>
-}, 
-(prevProps, nextProps) => {
-    // console.log(prevProps)
-    // console.log(nextProps)
-    // // console.log("1111111111111111111"+(prevProps === nextProps))
-    // // return prevProps === nextProps; // 自定义比较逻辑
-    // console.log(prevProps)
-    // console.log(nextProps)
-    console.log(JSON.stringify(prevProps) === JSON.stringify(nextProps))
-    return JSON.stringify(prevProps) === JSON.stringify(nextProps) // JSON.stringify(prevProps.formJson) === JSON.stringify(nextProps.formJson) 
-}
+},
+    (prevProps, nextProps) => {
+        // console.log(prevProps)
+        // console.log(nextProps)
+        // // console.log("1111111111111111111"+(prevProps === nextProps))
+        // // return prevProps === nextProps; // 自定义比较逻辑
+        // console.log(prevProps)
+        // console.log(nextProps)
+        console.log(JSON.stringify(prevProps) === JSON.stringify(nextProps))
+        return JSON.stringify(prevProps) === JSON.stringify(nextProps) // JSON.stringify(prevProps.formJson) === JSON.stringify(nextProps.formJson) 
+    }
 )
 
 export default FormJsonComp
@@ -110,6 +122,7 @@ const FilterSelect: FC<any> = ({ label, name, data, rules, field, ...rest }) => 
     const form = Form.useFormInstance();
 
     useEffect(() => {
+        // console.log(data)
         if (data && field) {
             const filterField: any = [...new Set(data.map(field))]
             const options = filterField.map((it: any) => {
@@ -207,6 +220,13 @@ export const GroupCompareSelect: FC<any> = ({ label, name, data, initialValue, r
         <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
             <Select showSearch filterOption={(input: any, option: any) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} {...rest} options={query}></Select>
+        </Form.Item>
+    </>
+}
+const BaseInput: FC<any> = ({label, name, data, initialValue, rules, ...rest}) => {
+    return <>
+        <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
+            <TextArea {...rest} />
         </Form.Item>
     </>
 }
@@ -315,11 +335,11 @@ export const GroupSelectSampleButton: FC<any> = ({ label, name, rules, data, fil
 export const SelectAll: FC<any> = ({ label, name, data, initialValue, rules, ...rest }) => {
     return <>
         <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
-            <SelectAllComp data={data} {...rest }></SelectAllComp>
+            <SelectAllComp data={data} {...rest}></SelectAllComp>
         </Form.Item>
     </>
 }
-const SelectAllComp: FC<any> = ({ data, value, onChange,mode,...rest }) => {
+const SelectAllComp: FC<any> = ({ data, value, onChange, mode, ...rest }) => {
     const [selectedItems, setSelectedItems] = useState<any>(value);
     // const [options, setOptions] = useState<any>([]);
     const onChangeSelct = (value: any) => {
@@ -333,8 +353,8 @@ const SelectAllComp: FC<any> = ({ data, value, onChange,mode,...rest }) => {
     // }, [resultTableList])
     return <>
 
-        <Select {...rest } mode={mode} value={selectedItems} onChange={onChangeSelct}  allowClear options={data}></Select>
-        {mode  == "multiple" && <Button onClick={() => {
+        <Select {...rest} mode={mode} value={selectedItems} onChange={onChangeSelct} allowClear options={data}></Select>
+        {mode == "multiple" && <Button onClick={() => {
             const values = data.map((it: any) => it.value)
             // console.log(values)
             setSelectedItems(values)

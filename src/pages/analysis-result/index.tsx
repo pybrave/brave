@@ -4,7 +4,7 @@ import { Button, Card, Drawer, Flex, Form, Radio, RadioChangeEvent, Spin } from 
 import AnalysisResultView from '../components/analysis-result-view'
 import AnalysisForm from '../components/analysis-form'
 import axios from "axios"
-
+import Literature from '../literature'
 const AnalysisResult = () => {
     const tableRef = useRef<any>(null)
     const [analysisType, setAnalysisType] = useState<any>("downstream")
@@ -95,6 +95,11 @@ const AnalysisResult = () => {
                     plotLoading={plotLoading}
                     filePlot={filePlot}></AnalysisResultView>
             </Card>
+            <hr />
+            <Literature params={{
+                obj_key: record.analysis_method,
+                obj_type: "analysis_img"
+            }}></Literature>
 
             <Drawer loading={drawerLoading} title={`重新分析 - ${record.analysis_name}`} open={open} onClose={() => setOpen(false)} width={"50%"}>
                 <ResultList
@@ -104,7 +109,7 @@ const AnalysisResult = () => {
                     // setActiveTabKey={setActiveTabKey}
                     // cleanDom={cleanDom}
                     analysisType={analysisType}
-                    analysisMethod={[requestParam.inputAnalysisMenthod]}
+                    analysisMethod={requestParam.inputAnalysisMenthod}
                     shouldTrigger={true}
                     setResultTableList={setResultTableList}
                 // form={form}
@@ -126,7 +131,7 @@ const AnalysisResult = () => {
                             setAnalysisFormLoaing(val)
                         }}
                         activeTabKey={requestParam.inputAnalysisMenthod.name}
-                        currentAnalysisMenthod={requestParam.inputAnalysisMenthod}
+                        inputAnalysisMethod={requestParam.inputAnalysisMenthod}
                         saveAnalysisMethod={requestParam.analysis_method}
                         project={requestParam.project}
                         setFilePlot={setFilePlot}

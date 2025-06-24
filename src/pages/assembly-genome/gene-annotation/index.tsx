@@ -13,9 +13,9 @@ const GeneAnnotation: FC<any> = () => {
                 children: <>
                     <AnalysisPanel analysisMethod={[
                          {
-                            key: "1",
                             name: "eggnog",
-                            value: ["eggnog"],
+                            label: "eggnog",
+                            inputKey: ["eggnog"],
                             mode: "multiple"
                         }
                     ]} analysisType="sample" >
