@@ -24,7 +24,9 @@
                 "--pipeline-dir",
                 "/ssd1/wy/workspace2/nextflow-fastapi/pipeline",
                 "--literature-dir",
-                "/ssd1/wy/workspace2/nextflow-fastapi/literature"
+                "/ssd1/wy/workspace2/nextflow-fastapi/literature",
+                "--db-type",
+                "mysql"
                 
 
             ],

@@ -125,6 +125,8 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
 
     with get_engine().begin() as conn:
         analysis_pipline = request_param['analysis_pipline']
+        wrap_analysis_pipline = request_param['wrap_analysis_pipeline']
+
         parse_analysis_module = request_param['parse_analysis_module']
         parse_analysis_result_module = json.dumps(request_param['parse_analysis_result_module'])
         new_analysis = {
@@ -155,9 +157,9 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             work_dir = settings.WORK_DIR
             str_uuid = str(uuid.uuid4())
             # /ssd1/wy/workspace2/nextflow_workspace
-            output_dir = f"{base_dir}/{request_param['project']}/{analysis_pipline}/{str_uuid}"
+            output_dir = f"{base_dir}/{request_param['project']}/{wrap_analysis_pipline}/{analysis_pipline}/{str_uuid}"
             # /data/wangyang/nf_work/
-            work_dir = f"{work_dir}/{request_param['project']}/{analysis_pipline}/{str_uuid}"
+            work_dir = f"{work_dir}/{request_param['project']}/{wrap_analysis_pipline}/{analysis_pipline}/{str_uuid}"
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
             if not os.path.exists(output_dir):

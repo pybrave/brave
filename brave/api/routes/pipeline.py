@@ -18,6 +18,7 @@ async def get_pipeline(name):
     json_file = f"{pipeline_dir}/{name}/main.json"
     data = {
         "files":json_file,
+        "wrapAnalysisPipeline":name,
         "exists":os.path.exists(json_file)
     }
     if os.path.exists(json_file):
@@ -125,6 +126,6 @@ def get_downstream_analysis_list(analysis_method):
     pipeline_files = get_pipeline_list()
     downstream_list = [get_downstream_analysis(item) for item in pipeline_files]
     downstream_list = [item for sublist in downstream_list for item in sublist]
-    downstream_dict = {item['saveAnalysisMethod']: item for item in downstream_list}
+    downstream_dict = {item['saveAnalysisMethod']: item for item in downstream_list  if 'saveAnalysisMethod' in item}
     return downstream_dict[analysis_method]
     
