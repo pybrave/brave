@@ -11,18 +11,18 @@ const Pipeline: FC<any> = ({ name }) => {
     const [pipeline, setPipeline] = useState<any>()
     const [items, setItems] = useState<any>([])
     const navigate = useNavigate();
-  
+
     const loadFunction: any = (data: any[]) => {
         if (!data) return undefined
         return data.map((item: any) => {
             if ("paramsFun" in item) {
                 item.paramsFun = eval(item.paramsFun)
             }
-            if("formJson" in item){
-                item['formJson'].map((it2:any)=>{
-                    if("filter" in it2){
-                        it2['filter'].map((it3:any)=>{
-                            it3.method= eval(it3.method)
+            if ("formJson" in item) {
+                item['formJson'].map((it2: any) => {
+                    if ("filter" in it2) {
+                        it2['filter'].map((it3: any) => {
+                            it3.method = eval(it3.method)
                             return it3
                         })
                     }
@@ -30,7 +30,7 @@ const Pipeline: FC<any> = ({ name }) => {
                     it2.field = eval(it2.field)
                     return it2
                 })
-                
+
             }
             return item
         })
@@ -47,12 +47,13 @@ const Pipeline: FC<any> = ({ name }) => {
             return item
         })
     }
-    const getPipline: any = (wrapAnalysisPipeline:any,pipeline: any[]) => {
+
+    const getPipline: any = (wrapAnalysisPipeline: any, pipeline: any[]) => {
         // console.log(pipeline)
         return pipeline.map((item, index) => {
 
             return {
-                key: index,
+                key: index + 1,
                 label: item.name,
                 children: <AnalysisPanel
                     wrapAnalysisPipeline={wrapAnalysisPipeline}
@@ -92,7 +93,36 @@ const Pipeline: FC<any> = ({ name }) => {
     const loadData = async () => {
         const resp = await axios.get(`/get-pipeline/${name}`)
         // console.log(resp.data)
-        setPipeline(resp.data)
+        const data = resp.data
+        setPipeline(data)
+        const items = getPipline(data.analysisPipline, data.items)
+        const item = data.items[0]
+        const upstreamFormList = data.items
+            .filter((item:any) => item.upstreamFormJson && Array.isArray(item.upstreamFormJson))       // 确保 upstreamFormJson 存在并是数组
+            .flatMap((item:any) => item.upstreamFormJson);
+        const parseAnalysisResultModule = data.items
+            .filter((item:any) => item.parseAnalysisResultModule && Array.isArray(item.parseAnalysisResultModule))       // 确保 upstreamFormJson 存在并是数组
+            .flatMap((item:any) => item.parseAnalysisResultModule);
+        const wrapPipeline = {
+            key: 0,
+            label: "总流程",
+            children: <>
+                <AnalysisPanel
+                    // wrapAnalysisPipeline={data.analysisPipline}
+                    inputAnalysisMethod={item.inputAnalysisMethod}
+                    analysisPipline={data.analysisPipline}
+                    upstreamFormJson={upstreamFormList}
+                    appendSampleColumns={loadColumnRender(item.appendSampleColumns)}
+                    parseAnalysisParams={{
+                        parse_analysis_module: data.parseAnalysisModule,
+                        parse_analysis_result_module: parseAnalysisResultModule
+                    }}
+                    analysisType={item.analysisType ? item.analysisType : "sample"}>
+                </AnalysisPanel>
+                {/* {data.analysisPipline} */}
+            </>
+        }
+        setItems([wrapPipeline, ...items])
 
     }
     useEffect(() => {
@@ -118,7 +148,7 @@ const Pipeline: FC<any> = ({ name }) => {
 
         </Flex>
 
-        {pipeline && Array.isArray(pipeline?.items) ? <Tabs  items={getPipline(pipeline.wrapAnalysisPipeline,pipeline.items)}></Tabs> : <Skeleton active></Skeleton>}
+        {pipeline && Array.isArray(pipeline?.items) ? <Tabs items={items}></Tabs> : <Skeleton active></Skeleton>}
     </div>
 }
 
