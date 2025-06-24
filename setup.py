@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="brave",
+    name="pybrave",
     version="0.1.0",
     packages=find_packages(),
     install_requires=[
@@ -15,11 +15,16 @@ setup(
         ],
     entry_points={
         "console_scripts": [
-            "brave = brave.__main__:app",  # 命令行入口
+            "brave = brave.__main__:app", 
         ]
     },
+    project_urls={                             
+        "Source": "https://github.com/pybrave/brave",
+        "Tracker": "https://github.com/pybrave/brave",
+        "Documentation": "https://github.com/pybrave/brave",
+    },
     author="WangYang",
-    description="Microbial Visualization Pipeline",
+    description="Bioinformatics Reactive Analysis and Visualization Engine",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     python_requires=">=3.7",
