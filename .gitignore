@@ -10,3 +10,5 @@ README.bak.md
 literature/
 pipeline/
 test.py
+pybrave.egg-info/
+dist
