@@ -9,7 +9,19 @@ import 'katex/dist/katex.min.css'
 const Markdown: FC<any> = ({data}) => {
 
     return <>
-        <ReactMarkdown children={data} rehypePlugins={[rehypeKatex]} remarkPlugins={[remarkGfm, remarkMath]}></ReactMarkdown>
+        <ReactMarkdown  
+        children={data} 
+        rehypePlugins={[rehypeKatex]} 
+        remarkPlugins={[remarkGfm, remarkMath]}
+        components={{
+            img: ({ node, ...props }) => (
+              <img
+                {...props}
+                style={{ maxWidth: '50%', height: 'auto',margin: '1rem auto', display: 'block' }}  
+                alt={props.alt || ''}
+              />
+            )
+          }}></ReactMarkdown>
 
     </>
 }

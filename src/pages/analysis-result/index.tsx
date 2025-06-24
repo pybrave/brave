@@ -103,13 +103,13 @@ const AnalysisResult = () => {
 
             <Drawer loading={drawerLoading} title={`重新分析 - ${record.analysis_name}`} open={open} onClose={() => setOpen(false)} width={"50%"}>
                 <ResultList
-                    title={`输出文件}`}
+                    title={`输出文件`}
                     // appendSampleColumns={appendSampleColumns}
                     // activeTabKey={activeTabKey}
                     // setActiveTabKey={setActiveTabKey}
                     // cleanDom={cleanDom}
                     analysisType={analysisType}
-                    analysisMethod={requestParam.inputAnalysisMenthod}
+                    analysisMethod={[requestParam.inputAnalysisMenthod]}
                     shouldTrigger={true}
                     setResultTableList={setResultTableList}
                 // form={form}
@@ -117,7 +117,6 @@ const AnalysisResult = () => {
 
                 // setRecord={(data: any) => { setRecord(data); onClickItem(data) }}
                 ></ResultList>
-
                 <Spin spinning={analysisFormLoaing}>
                     <AnalysisForm
                         form={form}
@@ -131,7 +130,7 @@ const AnalysisResult = () => {
                             setAnalysisFormLoaing(val)
                         }}
                         activeTabKey={requestParam.inputAnalysisMenthod.name}
-                        inputAnalysisMethod={requestParam.inputAnalysisMenthod}
+                        inputAnalysisMethod={[requestParam.inputAnalysisMenthod]}
                         saveAnalysisMethod={requestParam.analysis_method}
                         project={requestParam.project}
                         setFilePlot={setFilePlot}

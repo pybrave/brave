@@ -1,7 +1,7 @@
 import { FC, useEffect, useState } from "react"
 import axios from "axios"
 import { Button, Drawer, Form, Input, Modal, Space, Table, TableProps, Tabs } from "antd"
-import { useParams } from "react-router"
+import { useOutletContext, useParams } from "react-router"
 import TextArea from "antd/es/input/TextArea"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from 'remark-gfm'
@@ -12,7 +12,8 @@ const Sample: FC<any> = () => {
     const [sampleData, setSampleData] = useState([])
     const [data, setData] = useState([])
     const [loading, setLoading] = useState(false)
-    const { project } = useParams()
+    const { project } = useOutletContext<any>()
+
     const [open, setOpen] = useState<any>(false)
     const [form] = Form.useForm();
     const [operatureUrl,setOperatureUrl] = useState<any>()

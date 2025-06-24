@@ -2,12 +2,12 @@ import { Button, Card, Col, Empty, Flex, Row, Tag, Tooltip } from "antd"
 import Item from "antd/es/list/Item"
 import { FC, useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
-import { useNavigate, useParams } from "react-router"
+import { useNavigate, useOutletContext, useParams } from "react-router"
 import Meta from "antd/es/card/Meta"
 import { colors } from '@/utils/utils'
-import {listPipeline} from '@/api/pipeline'
+import { listPipeline } from '@/api/pipeline'
 const PipelineCard: FC<any> = () => {
-    const { project } = useParams()
+    const { project } = useOutletContext<any>()
     const [menu, setMenu] = useState<any>([])
     const navigate = useNavigate();
     const dispatch = useDispatch()
@@ -93,14 +93,14 @@ const PipelineCard: FC<any> = () => {
             ]
         },
     ]
-    const loadPipeine = async ()=>{
+    const loadPipeine = async () => {
         listPipeline(dispatch)
     }
     useEffect(() => {
         const menu = menuItems.map((group: any) => ({
             name: group.name,
             items: group.items.map((item: any) => ({
-                key: `${project}/${item.path}`,
+                key: `${item.path}`,
                 label: item.name,
                 img: item.img,
                 tags: item.tags,
@@ -131,7 +131,7 @@ const PipelineCard: FC<any> = () => {
 
     // indivi
     return <div style={{ maxWidth: "1500px", margin: "1rem auto" }}>
-         <Flex justify="flex-end" gap="small">
+        <Flex justify="flex-end" gap="small">
             <Button color="cyan" variant="solid" onClick={loadPipeine}>刷新</Button>
         </Flex>
         {Array.isArray(menu) && menu.length != 0 ? menu.map((menuItem: any, menuIndex: any) => (
@@ -153,15 +153,15 @@ const PipelineCard: FC<any> = () => {
 
                                 <Meta title={item.label} description={item?.description} style={{ marginBottom: "1rem" }} />
                                 {item.tags && Array.isArray(item.tags) && item.tags.map((tag: any, index: any) => (
-                                    <Tooltip key={index}  title={tag}>
+                                    <Tooltip key={index} title={tag}>
                                         <Tag style={{
-                                            wordBreak: "break-word",     
-                                            whiteSpace: "nowrap",        
-                                            overflow: "hidden",         
-                                            textOverflow: "ellipsis",  
-                                            maxWidth: 100,             
-                                            display: "inline-block",    
-                                            cursor: "default"           
+                                            wordBreak: "break-word",
+                                            whiteSpace: "nowrap",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            maxWidth: 100,
+                                            display: "inline-block",
+                                            cursor: "default"
                                         }} color={colors[index]}>{tag}</Tag>
                                     </Tooltip>
 
@@ -173,34 +173,40 @@ const PipelineCard: FC<any> = () => {
                 </Row>
             </div>
         )) : <Empty></Empty>}
+        {import.meta.env.MODE == "development" &&
+            <>
+                <br /><br /><br /><br /><br /><br />
 
-        <br /><br /><br /><br /><br /><br />
-
-        {menu1.map((menuItem: any, menuIndex: any) => (
-            <div key={menuIndex}>
-                <h2>{menuItem.name}</h2>
-                <hr />
-                <Row gutter={16}>
-                    {menuItem?.items.map((item: any, index: any) => (
-                        <Col key={index} lg={4} sm={6} xs={24} style={{ marginBottom: "1rem", cursor: "pointer" }}>
-                            <Card hoverable
-                                // title={item.label}
-                                // variant="borderless" 
-                                cover={<img alt={item.label} src={item.img} />}
-                                onClick={() => navigate(`/${item.key}`)}>
+                {menu1.map((menuItem: any, menuIndex: any) => (
+                    <div key={menuIndex}>
+                        <h2>{menuItem.name}</h2>
+                        <hr />
+                        <Row gutter={16}>
+                            {menuItem?.items.map((item: any, index: any) => (
+                                <Col key={index} lg={4} sm={6} xs={24} style={{ marginBottom: "1rem", cursor: "pointer" }}>
+                                    <Card hoverable
+                                        // title={item.label}
+                                        // variant="borderless" 
+                                        cover={<img alt={item.label} src={item.img} />}
+                                        onClick={() => navigate(`/${item.key}`)}>
 
 
-                                <Meta title={item.label} description={item?.description} style={{ marginBottom: "1rem" }} />
-                                {item.tags && Array.isArray(item.tags) && item.tags.map((tag: any, index: any) => (
-                                    <Tag key={index} color={colors[index]}>{tag}</Tag>
-                                ))}
-                            </Card>
-                        </Col>
-                    ))}
+                                        <Meta title={item.label} description={item?.description} style={{ marginBottom: "1rem" }} />
+                                        {item.tags && Array.isArray(item.tags) && item.tags.map((tag: any, index: any) => (
+                                            <Tag key={index} color={colors[index]}>{tag}</Tag>
+                                        ))}
+                                    </Card>
+                                </Col>
+                            ))}
 
-                </Row>
-            </div>
-        ))}
+                        </Row>
+                    </div>
+                ))}
+
+
+            </>
+
+        }
 
 
     </div>

@@ -3,13 +3,13 @@ import { FC } from "react"
 import AnalysisPanel from '../../components/analysis-panel'
 import { Bowtie2 } from '../../software-components/bowtie2'
 import axios from "axios"
-import { useParams } from "react-router"
+import { useOutletContext, useParams } from "react-router"
 import { formatUrl } from '@/utils/utils'
 
 
 const ReadsBasedAbundanceAnalysis: FC<any> = () => {
     const [messageApi, contextHolder] = message.useMessage();
-    const { project } = useParams()
+    const { project } = useOutletContext<any>()
 
     const fromSampleImport = async () => {
         const resp: any = await axios.post(`/fast-api/add-sample-analysis?project=${project}`)

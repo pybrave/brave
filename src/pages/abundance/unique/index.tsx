@@ -1,7 +1,7 @@
 import { FC, forwardRef, useEffect, useState } from "react"
 import axios from "axios"
 import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Popover, Popconfirm, Typography, message, notification } from "antd"
-import { useParams } from "react-router"
+import { useOutletContext, useParams } from "react-router"
 import ResultList from '@/pages/components/result-list'
 import { readHdfsAPi } from '@/pages/components/result-list'
 import AnalysisResultInput from '../../components/analysis-result-input'
@@ -10,7 +10,7 @@ import {AnalysisForm2} from '../../components/analysis-form-bak'
 const AbundanceOpterature: FC<any> = () => {
     const [loading, setLoading] = useState(false)
     const [data, setData] = useState<any>()
-    const { project } = useParams()
+    const { project } = useOutletContext<any>()
     const [boxplotModal, setBoxplotModal] = useState(false)
     const [boxplotParams, setBoxplotParams] = useState({})
     // const [counter, setCounter] = useState<any>(0)

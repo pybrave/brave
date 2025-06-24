@@ -5,12 +5,11 @@ import Meta from "antd/es/card/Meta"
 import { colors } from '@/utils/utils'
 
 import axios from "axios"
-import { useNavigate, useParams } from "react-router"
+import { useNavigate, useOutletContext, useParams } from "react-router"
 import { listPipeline } from "@/api/pipeline"
 const Pipeline: FC<any> = ({ name }) => {
     const [pipeline, setPipeline] = useState<any>()
     const [items, setItems] = useState<any>([])
-    const { project } = useParams()
     const navigate = useNavigate();
   
     const loadFunction: any = (data: any[]) => {
@@ -48,12 +47,15 @@ const Pipeline: FC<any> = ({ name }) => {
             return item
         })
     }
-    const getPipline: any = (pipeline: any[]) => {
+    const getPipline: any = (wrapAnalysisPipeline:any,pipeline: any[]) => {
+        // console.log(pipeline)
         return pipeline.map((item, index) => {
+
             return {
                 key: index,
                 label: item.name,
                 children: <AnalysisPanel
+                    wrapAnalysisPipeline={wrapAnalysisPipeline}
                     inputAnalysisMethod={item.inputAnalysisMethod}
                     analysisPipline={item.analysisPipline}
                     analysisMethod={item.analysisMethod}
@@ -111,12 +113,12 @@ const Pipeline: FC<any> = ({ name }) => {
             <Flex gap="small" wrap>
                 <Button color="cyan" variant="solid">流程介绍</Button>
                 <Button color="cyan" variant="solid" onClick={loadData}>刷新</Button>
-                <Button color="primary" variant="solid" onClick={() => navigate(`/${project}/pipeline-card`)}>返回</Button>
+                <Button color="primary" variant="solid" onClick={() => navigate(`/pipeline-card`)}>返回</Button>
             </Flex>
 
         </Flex>
 
-        {pipeline && Array.isArray(pipeline?.items) ? <Tabs items={getPipline(pipeline.items)}></Tabs> : <Skeleton active></Skeleton>}
+        {pipeline && Array.isArray(pipeline?.items) ? <Tabs  items={getPipline(pipeline.wrapAnalysisPipeline,pipeline.items)}></Tabs> : <Skeleton active></Skeleton>}
     </div>
 }
 

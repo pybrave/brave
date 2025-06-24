@@ -2,11 +2,11 @@ import { Venn } from "@ant-design/plots"
 import { Button, message, Popconfirm, Popover, Space, Table, Typography } from "antd"
 import axios from "axios"
 import { FC, useEffect, useState } from "react"
-import { useParams } from "react-router"
+import { useOutletContext, useParams } from "react-router"
 
 export const readHdfsAPi = (contentPath: any) => axios.get(`/api/read-hdfs?path=${contentPath}`)
 const SampleAnalysisResult: FC<any> = ({ form, setTableLoading, setSampleResult, shouldTrigger, analysisName, columnsParamsALL }) => {
-    const { project } = useParams()
+    const { project } = useOutletContext<any>()
     const [data, setData] = useState<any>([])
     const [loading, setLoading] = useState(false)
     // const [content,setContent] = useState<any>()

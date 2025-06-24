@@ -213,7 +213,7 @@ export const AnalysisForm: FC<any> = ({
 
         }
 
-    }, [])
+    }, [JSON.stringify(resultTableList)])
     return <>
         {contextHolder}
         <Form form={form}   >

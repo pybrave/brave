@@ -4,9 +4,11 @@ import { Tabs } from "antd"
 
 import {chinese} from './chinese'
 import {english} from './english'
+import {introduction} from './introduction'
+
 import {EmbedLLM}  from '../components/embed-llm'
 const Project:FC<any> = ()=>{
-    const [data,setData] = useState<any>(english)
+    const [data,setData] = useState<any>(introduction)
     const onChange = (value:any)=>{
         if(value =="chinese"){
             setData(chinese)
@@ -15,7 +17,7 @@ const Project:FC<any> = ()=>{
         }
     }
     return <div style={{ maxWidth: "1000px", margin: "1rem auto" }}>
-        <Tabs onChange={onChange} items={[
+        {/* <Tabs onChange={onChange} items={[
             {
                 key:"english",
                 label:"英文",
@@ -23,8 +25,8 @@ const Project:FC<any> = ()=>{
                 key:"chinese",
                 label:"中文",
             }
-        ]}></Tabs>
-        <EmbedLLM content={"hi"}>LLM</EmbedLLM>
+        ]}></Tabs> */}
+        {/* <EmbedLLM content={"hi"}>LLM</EmbedLLM> */}
         <Markdown data={data}></Markdown>
     </div>
 }

@@ -57,22 +57,22 @@ import { useDispatch } from "react-redux";
 
 const childern = [
     {
-        path: "/:project",
+        path: "/",
         element: <Project />
     }, {
-        path: "/:project/pipeline-card",
+        path: "/pipeline-card",
         element: <PipelineCard />
     }, {
-        path: "/:project/sample",
+        path: "/sample",
         element: <Sample />
     }, {
-        path: "/:project/sample-qc",
+        path: "/sample-qc",
         element: <SampleQC />
     }, {
-        path: "/:project/analysis-result",
+        path: "/analysis-result",
         element: <AnalysisResult />
     }, {
-        path: "/:project/literature",
+        path: "/literature",
         element: <Literature />
     },
 
@@ -130,7 +130,7 @@ const RenderRouter: FC = () => {
         const data:any = await listPipeline(dispatch)
         const routes = data.flatMap((group:any) =>
             group.items.map((item:any) => ({
-                path: `/:project/${item.path}`,
+                path: `/${item.path}`,
                 element: <Pipeline name={item.path} />
             }))
         );

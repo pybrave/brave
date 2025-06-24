@@ -28,7 +28,6 @@ const ResultList = forwardRef<any, any>(({
     }))
     const [messageApi, contextHolder] = message.useMessage();
     
-    // const { project } = useParams()
     const [data, setData] = useState<any>([])
     // const [content,setContent] = useState<any>()
     const [loading, setLoading] = useState(false)

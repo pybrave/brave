@@ -2,7 +2,7 @@ import { Venn } from "@ant-design/plots"
 import { Button, Card, message, Popconfirm, Popover, Space, Table } from "antd"
 import axios from "axios"
 import { FC, forwardRef, useEffect, useImperativeHandle, useState } from "react"
-import { useParams } from "react-router"
+import { useOutletContext, useParams } from "react-router"
 
 export const readHdfsAPi = (contentPath: any) => axios.get(`/api/read-hdfs?path=${contentPath}`)
 export const readJsonAPi = (contentPath: any) => axios.get(`/fast-api/read-json?path=${contentPath}`)
@@ -30,7 +30,7 @@ const ResultList = forwardRef<any, any>(({
         reload
     }))
 
-    const { project } = useParams()
+    const { project } = useOutletContext<any>()
     const [data, setData] = useState<any>([])
     const [groupedData, setGroupedData] = useState<any>()
     // const [content,setContent] = useState<any>()
@@ -122,7 +122,6 @@ const ResultList = forwardRef<any, any>(({
                 });
                 return acc;
             }, {});
-
             if (setResultTableList) {
                 // console.log(groupedData)
                 setResultTableList(groupedData)
@@ -135,6 +134,7 @@ const ResultList = forwardRef<any, any>(({
                 setData(groupedData[analysisMethod[0].name] ? groupedData[analysisMethod[0].name] : [])
             }
         } else {
+            // console.log(resp.data)
             setData(resp.data)
         }
 

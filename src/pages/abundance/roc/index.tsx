@@ -1,7 +1,7 @@
 import { FC, useEffect, useState } from "react"
 import axios from "axios"
 import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs } from "antd"
-import { useParams } from "react-router"
+import { useOutletContext, useParams } from "react-router"
 import ResultList from '@/pages/components/result-list'
 import AnalysisForm from "../../components/analysis-form-bak"
 
@@ -9,7 +9,7 @@ const AbundanceOpterature: FC<any> = () => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false)
     const [data, setData] = useState<any>()
-    const { project } = useParams()
+    const { project } = useOutletContext<any>()
     const [boxplotModal, setBoxplotModal] = useState(false)
     const [taxonomy, setTaxonomy] = useState("")
     const [boxplot, setBoxplot] = useState("")

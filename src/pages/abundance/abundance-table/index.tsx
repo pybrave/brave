@@ -1,12 +1,12 @@
 import { Button, Drawer, Input, Space, Table, TableProps } from "antd"
 import axios from "axios"
 import { FC, useEffect, useState } from "react"
-import { useParams } from "react-router"
+import { useOutletContext, useParams } from "react-router"
 
 const Abundance: FC<any> = () => {
     const [sampleData, setSampleData] = useState([])
     const [loading, setLoading] = useState(false)
-    const { project } = useParams()
+    const { project } = useOutletContext<any>();
     const [open, setOpen] = useState(false)
     const [record, setRecord] = useState<any>()
     const [drawerLoading, setDrawerLoading] = useState(false)

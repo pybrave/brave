@@ -1,7 +1,7 @@
 import { FC, memo, useEffect, useMemo, useRef, useState } from "react"
 import axios from "axios"
 import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Typography, message, Empty, Collapse, Card, Popover } from "antd"
-import { useParams } from "react-router"
+import { useOutletContext, useParams } from "react-router"
 import ResultList from '@/pages/components/result-list'
 // import AnalysisForm from "../analysis-form"
 import SampleAnalysisResult from '../sample-analysis-result'
@@ -12,9 +12,9 @@ import AnalysisList from '../analysis-list'
 import AnalysisResultView from '../analysis-result-view'
 import { GroupSelectSampleButton, BaseSelect } from '@/pages/components/form-components'
 import AnalysisForm from '../analysis-form'
-const AnalysisPanel: FC<any> = ({ analysisPipline, parseAnalysisParams, inputAnalysisMethod, analysisMethod, appendSampleColumns, analysisType = "nonSample", children, cardExtra, upstreamFormJson, downstreamAnalysis }) => {
+const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,analysisPipline, parseAnalysisParams, inputAnalysisMethod, analysisMethod, appendSampleColumns, analysisType = "nonSample", children, cardExtra, upstreamFormJson, downstreamAnalysis }) => {
 
-    const { project } = useParams()
+    const { project } = useOutletContext<any>()
     const [record, setRecord] = useState<any>()
     // inputAnalysisMethod = [
     //     {
@@ -52,6 +52,7 @@ const AnalysisPanel: FC<any> = ({ analysisPipline, parseAnalysisParams, inputAna
                 {inputAnalysisMethod && <>
                     <UpstreamAnalysisInput
                         cardExtra={cardExtra}
+                        wrapAnalysisPipeline={wrapAnalysisPipeline}
                         upstreamFormJson={upstreamFormJson}
                         analysisPipline={analysisPipline}
                         onClickItem={setRecord}
@@ -93,7 +94,7 @@ const AnalysisPanel: FC<any> = ({ analysisPipline, parseAnalysisParams, inputAna
 export default AnalysisPanel
 
 
-export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
+export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline,wrapAnalysisPipeline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
     const [upstreamForm] = Form.useForm();
     const [resultTableList, setResultTableList] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
@@ -110,6 +111,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, parse
             ...values,
             project: project,
             analysis_pipline: currentAnalysisMethod,
+            wrap_analysis_pipeline:wrapAnalysisPipeline,
             ...parseAnalysisParams
         }
         return requestParams
@@ -117,7 +119,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline, parse
     const saveUpstreamAnalysis = async () => {
         const values = await upstreamForm.validateFields()
         const requestParams = getrRequestParams(values)
-        console.log(requestParams)
+        // console.log(parseAnalysisParams)
         setLoading(true)
         try {
             const resp: any = await axios.post(`/fast-api/save-analysis`, requestParams)
@@ -343,15 +345,15 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 
 
 
-    // const getCurrentAnalysisMenthod = () => {
-    //     const analysisMethodDict: any = analysisMethod.reduce((acc: any, item: any) => {
-    //         acc[item.name] = item;
-    //         return acc;
-    //     }, {});
-    //     // const analysisMethodDict = analysisMethidtoDict(analysisMethod)
-    //     const currentAnalysisMenthod = analysisMethodDict[activeTabKey]
-    //     return currentAnalysisMenthod
-    // }
+    const getCurrentAnalysisMenthod = () => {
+        const analysisMethodDict: any = analysisMethod.reduce((acc: any, item: any) => {
+            acc[item.name] = item;
+            return acc;
+        }, {});
+        // const analysisMethodDict = analysisMethidtoDict(analysisMethod)
+        const currentAnalysisMenthod = analysisMethodDict[activeTabKey]
+        return currentAnalysisMenthod
+    }
 
 
     // const savePlot = async ({ moduleName, params }: any) => {
@@ -555,7 +557,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
                                                 params={params}
                                                 name={btnName}
                                                 setPlotLoading={setPlotLoading}
-                                                inputAnalysisMethod={analysisMethod}
+                                                inputAnalysisMethod={getCurrentAnalysisMenthod()}
                                                 saveAnalysisMethod={saveAnalysisMethod}
                                                 project={project}
                                                 setFilePlot={setFilePlot}

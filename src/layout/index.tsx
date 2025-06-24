@@ -1,10 +1,12 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { LaptopOutlined, NotificationOutlined, UserOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { Breadcrumb, Layout, Menu, Skeleton, theme } from 'antd';
+import { Breadcrumb, Button, Layout, Menu, Select, Skeleton, theme } from 'antd';
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { Header } from 'antd/es/layout/layout';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import axios from 'axios';
+import { setCurrenct } from '@/store/priojectSlice'
 
 const { Content, Sider } = Layout;
 
@@ -37,35 +39,51 @@ const Test = () => {
     return <Skeleton active></Skeleton>
 }
 const App: React.FC = () => {
-    const { project } = useParams()
 
     const navigate = useNavigate();
     const location = useLocation();
     const [leftMenus, setLeftMenus] = useState<any>([])
+    const [projectList,setProjectList] = useState<any>([])
+    const dispatch = useDispatch()
 
+    const { projectKey: project } = useSelector((state: any) => state.project.currenct)
+    console.log(project)
     const onMenuClick = (key: string) => {
         console.log(key)
         navigate(key);
     }
+    const loadProject = async ()=>{
+        const resp:any = await axios.get("/list-project")
+        // console.log(resp.data)
+        setProjectList(resp.data.map((item:any)=>{
+            return {
+                label:`${item.project}`,
+                value:item.project
+            }
+        }))
+    }
+    useEffect(() => {
+        loadProject()
+    }, [])
     const {
         token: { colorBgContainer, borderRadiusLG },
     } = theme.useToken();
 
     const menu0: MenuProps['items'] = [
         {
-            key: `${project}`,
+            key: "/",
             label: "项目介绍"
         }, {
-            key: `${project}/sample`,
+            key: `/sample`,
             label: "检测样本"
         }, {
-            key: `${project}/pipeline-card`,
+            key: `/pipeline-card`,
             label: "流程管道"
         }, {
-            key: `${project}/analysis-result`,
+            key: `/analysis-result`,
             label: "分析结果"
         }, {
-            key: `${project}/literature`,
+            key: `/literature`,
             label: "文献资料"
         }
     ]
@@ -123,11 +141,7 @@ const App: React.FC = () => {
             label: "突变比较"
         }
     ]
-    useEffect(() => {
-        setLeftMenus(menu1)
-        // console.log("2222222222222222")
-        // console.log(menuItems)
-    }, [])
+
     const items = [
         {
             key: "menu0",
@@ -142,32 +156,50 @@ const App: React.FC = () => {
     ]
     return (
         <Layout>
-            <Header style={{ display: 'flex', alignItems: 'center' }}>
+            {/* <Header style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ color: "#fff",marginRight:"1rem" }} >BRAVE</div>
-                {/* 单菌组装数据挖掘(lactobacillus murinus) */}
                 <Menu
+                
                     theme="dark"
                     mode="horizontal"
                     defaultSelectedKeys={['1']}
-
-                    // onSelect={(k) => {
-                    //     if (k.key == "menu0") {
-                    //         setLeftMenus(menu0)
-                    //         navigate(`${project}`);
-                    //     }
-                    //     if (k.key == "menu1") {
-                    //         setLeftMenus(menu1)
-                    //         navigate(`${project}/meta_genome/remove-host`);
-                    //     } else if (k.key == "menu2") {
-                    //         setLeftMenus(menu2)
-                    //         navigate(`${project}/single_genome/assembly`);
-                    //     }
-                    //     console.log(k.key)
-                    // }}
                     items={menu0}
                     onSelect={k => onMenuClick(k.key)}
                     style={{ flex: 1, minWidth: 0 }}
                 />
+            </Header> */}
+            <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* 左侧：LOGO + 菜单 */}
+                <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
+                    <div style={{ color: "#fff", marginRight: "1rem", whiteSpace: 'nowrap' }}>BRAVE</div>
+                    <Menu
+                        theme="dark"
+                        mode="horizontal"
+                        defaultSelectedKeys={['1']}
+                        items={menu0}
+                        onSelect={k => onMenuClick(k.key)}
+                        style={{ flex: 1, minWidth: 0 }}
+                    />
+                </div>
+
+                {/* 右侧：项目选择 */}
+                <div style={{ marginLeft: "auto", minWidth: 100 }}>
+                    <Select
+                        onChange={(value:any)=>{
+                            console.log(value)
+                            dispatch(setCurrenct({
+                                name:value,
+                                projectKey:value,
+                            }))
+                        }}
+                        value={project}
+                        style={{ width: 100 }}
+                        placeholder="选择项目"
+                        options={projectList}
+                    >
+                    </Select>
+                    {/* <Button>   {project}</Button> */}
+                </div>
             </Header>
             <Layout
                 style={{ padding: '24px 0', background: colorBgContainer, borderRadius: borderRadiusLG }}
@@ -186,7 +218,7 @@ const App: React.FC = () => {
 
                 <Content style={{ padding: '0 24px', minHeight: "100vh" }}>
                     <Suspense key={location.key} fallback={<Test></Test>}>
-                        <Outlet />
+                        <Outlet context={{ project }} />
                     </Suspense>
                 </Content>
             </Layout>
