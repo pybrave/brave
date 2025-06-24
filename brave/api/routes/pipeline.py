@@ -18,7 +18,7 @@ async def get_pipeline(name):
     json_file = f"{pipeline_dir}/{name}/main.json"
     data = {
         "files":json_file,
-        "wrapAnalysisPipeline":name,
+        # "wrapAnalysisPipeline":name,
         "exists":os.path.exists(json_file)
     }
     if os.path.exists(json_file):

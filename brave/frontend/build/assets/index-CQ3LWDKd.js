@@ -1,4 +1,4 @@
-import{j as e,B as s,T as g,A as t}from"./index-COCGZQB3.js";const o=({record:n,plot:a})=>e.jsx(e.Fragment,{children:n&&e.jsxs(e.Fragment,{children:[e.jsx(s,{type:"primary",onClick:()=>{a({name:"查看注释结果",saveAnalysisMethod:"print_gggnog",moduleName:"eggnog",params:{file_path:n.content.annotations,input_faa:n.content.input_faa},tableDesc:`
+import{j as e,B as s,T as g,A as t}from"./index-s57B3ha7.js";const o=({record:n,plot:a})=>e.jsx(e.Fragment,{children:n&&e.jsxs(e.Fragment,{children:[e.jsx(s,{type:"primary",onClick:()=>{a({name:"查看注释结果",saveAnalysisMethod:"print_gggnog",moduleName:"eggnog",params:{file_path:n.content.annotations,input_faa:n.content.input_faa},tableDesc:`
 | 列                      | 含义                                 |
 | ---------------------- | ---------------------------------- |
 | #query                 | 查询序列的 ID                           |
