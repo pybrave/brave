@@ -51,3 +51,7 @@ class Sample(BaseModel):
     is_available: Optional[int]
     fastq1: Optional[str]
     fastq2: Optional[str]
+
+class ProjectCount(BaseModel):
+    project: Optional[str]
+    count: Optional[int]

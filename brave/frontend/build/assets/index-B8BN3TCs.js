@@ -1,4 +1,4 @@
-import{j as e,B as s,T as t,A as g}from"./index-DDPiedLI.js";const o=({record:n,plot:a})=>e.jsx(e.Fragment,{children:n&&e.jsxs(e.Fragment,{children:[e.jsx(s,{type:"primary",onClick:()=>{a({saveAnalysisMethod:"print_gggnog",moduleName:"eggnog",params:{file_path:n.content.annotations,input_faa:n.content.input_faa},tableDesc:`
+import{j as e,B as s,T as g,A as t}from"./index-COCGZQB3.js";const o=({record:n,plot:a})=>e.jsx(e.Fragment,{children:n&&e.jsxs(e.Fragment,{children:[e.jsx(s,{type:"primary",onClick:()=>{a({name:"查看注释结果",saveAnalysisMethod:"print_gggnog",moduleName:"eggnog",params:{file_path:n.content.annotations,input_faa:n.content.input_faa},tableDesc:`
 | 列                      | 含义                                 |
 | ---------------------- | ---------------------------------- |
 | #query                 | 查询序列的 ID                           |
@@ -23,4 +23,4 @@ import{j as e,B as s,T as t,A as g}from"./index-DDPiedLI.js";const o=({record:n,
 | PFAMs                  | 蛋白结构域信息（来自 Pfam 数据库）               |
 
                     `})},children:" 查看注释结果"}),e.jsx(s,{type:"primary",onClick:()=>{a({saveAnalysisMethod:"eggnog_kegg_table",moduleName:"eggnog_kegg",params:{file_path:n.content.annotations},tableDesc:`
-                    `})},children:"提取KEGG注释结果"})]})}),l=()=>e.jsxs(e.Fragment,{children:[e.jsx(t,{items:[{key:"eggnog",label:"eggnog",children:e.jsx(e.Fragment,{children:e.jsx(g,{analysisMethod:[{key:"1",name:"eggnog",value:["eggnog"],mode:"multiple"}],analysisType:"sample",children:e.jsx(o,{})})})}]}),e.jsx("p",{})]});export{l as default};
+                    `,name:"提取KEGG注释结果"})},children:"提取KEGG注释结果"})]})}),l=()=>e.jsxs(e.Fragment,{children:[e.jsx(g,{items:[{key:"eggnog",label:"eggnog",children:e.jsx(e.Fragment,{children:e.jsx(t,{analysisMethod:[{name:"eggnog",label:"eggnog",inputKey:["eggnog"],mode:"multiple"}],analysisType:"sample",children:e.jsx(o,{})})})}]}),e.jsx("p",{})]});export{l as default};

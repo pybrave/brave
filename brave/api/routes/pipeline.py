@@ -13,7 +13,7 @@ pipeline = APIRouter()
 
 @pipeline.get("/get-pipeline/{name}",tags=['pipeline'])
 async def get_pipeline(name):
-    pipeline_dir =  get_pipeline_dirvim()
+    pipeline_dir =  get_pipeline_dir()
     # filename = f"{name}.json"
     json_file = f"{pipeline_dir}/{name}/main.json"
     data = {

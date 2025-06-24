@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
-from brave.api.schemas.sample import Sample,SampleGroup,SampleGroupQuery,ImportSample,Sample
+from brave.api.schemas.sample import Sample,SampleGroup,SampleGroupQuery,ImportSample,Sample,ProjectCount
 from typing import List
 from starlette.status import HTTP_204_NO_CONTENT
 from sqlalchemy import func, select
@@ -137,3 +137,21 @@ def list_by_project(project):
     with get_engine().begin() as conn:
         return conn.execute(samples.select() \
             .where(and_(samples.c.project==  project )) ).fetchall()
+
+@sample.get(
+    "/list-project",
+    tags=['sample'],
+    response_model=List[ProjectCount],
+    description="列出所有项目")
+def list_project():
+    with get_engine().begin() as conn:
+        stmt = (
+            select(
+                samples.c.project,
+                func.count(samples.c.id).label("count")
+            )
+            .group_by(samples.c.project)
+        )
+        result = conn.execute(stmt).fetchall()
+        # data = [dict(row._mapping) for row in result.fetchall()]
+        return result

@@ -12,3 +12,4 @@ pipeline/
 test.py
 pybrave.egg-info/
 dist
+install.sh
