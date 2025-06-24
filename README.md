@@ -20,3 +20,8 @@ pip install pybrave
 brave
 ```
 + <http://localhost:5000>
+
+install pipeline
+```
+git clone https://github.com/pybrave/pipeline-metagenomics-metphlan-humann.git ~/.brave/pipeline/pipeline-metagenomics-metphlan-humann
+```
