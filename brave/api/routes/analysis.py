@@ -160,9 +160,10 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             if 'wrap_analysis_pipeline' in request_param:
                 wrap_analysis_pipline = request_param['wrap_analysis_pipeline']+"/"
 
-            output_dir = f"{base_dir}/{request_param['project']}/{wrap_analysis_pipline}{analysis_pipline}"
+            project_dir = f"{base_dir}/{request_param['project']}"
+            output_dir = f"{project_dir}/{wrap_analysis_pipline}{analysis_pipline}/{str_uuid}"
             # /data/wangyang/nf_work/
-            work_dir = f"{work_dir}/{request_param['project']}/{wrap_analysis_pipline}{analysis_pipline}"
+            work_dir = f"{work_dir}/{request_param['project']}/{wrap_analysis_pipline}{analysis_pipline}/{str_uuid}"
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
             if not os.path.exists(output_dir):
@@ -175,6 +176,7 @@ def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any
             new_analysis['pipeline_script'] = script
 
             command =  textwrap.dedent(f"""
+            NXF_CACHE_DIR={project_dir}
             nextflow run -offline -resume  \\
                 {script} \\
                 -params-file {params_path} \\
