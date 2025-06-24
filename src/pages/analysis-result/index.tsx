@@ -80,7 +80,7 @@ const AnalysisResult = () => {
 
         {record && <>
 
-            <Card title={`${record.analysis_method}`} extra={<>
+            <Card title={`${record.analysis_name}(${record.analysis_method})`} extra={<>
                 <Button onClick={() => {
                     setOpen(true)
                     getDownstreamAnalysis(requestParam.analysis_method)
@@ -130,7 +130,7 @@ const AnalysisResult = () => {
                             setAnalysisFormLoaing(val)
                         }}
                         activeTabKey={requestParam.inputAnalysisMenthod.name}
-                        inputAnalysisMethod={[requestParam.inputAnalysisMenthod]}
+                        inputAnalysisMethod={requestParam.inputAnalysisMenthod}
                         saveAnalysisMethod={requestParam.analysis_method}
                         project={requestParam.project}
                         setFilePlot={setFilePlot}
