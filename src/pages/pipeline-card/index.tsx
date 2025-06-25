@@ -3,15 +3,19 @@ import Item from "antd/es/list/Item"
 import { FC, useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { useNavigate, useOutletContext, useParams } from "react-router"
-import { DeleteOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 
 import Meta from "antd/es/card/Meta"
 import { colors } from '@/utils/utils'
 import { listPipeline } from '@/api/pipeline'
+import CreatePipeline from '@/pages/components/create-pipeline'
 import axios from "axios"
 const PipelineCard: FC<any> = () => {
     const { project } = useOutletContext<any>()
     const [menu, setMenu] = useState<any>([])
+    const [createOpen, setCreateOpen] = useState<any>(false)
+    const [record, setRecord] = useState<any>()
+
     const navigate = useNavigate();
     const dispatch = useDispatch()
     const [messageApi, contextHolder] = message.useMessage();
@@ -103,14 +107,14 @@ const PipelineCard: FC<any> = () => {
     useEffect(() => {
         const menu = menuItems.map((group: any) => ({
             name: group.name,
-            items: group.items.map((item: any) => ({
-                key: `${item.path}`,
-                label: item.name,
-                img: item.img,
-                tags: item.tags,
-                description: item.description,
-                category: item.category
-            }))
+            items: group.items.map((item: any) => {
+                const {path,name,...rest} = item
+                return {
+                    key: `${path}`,
+                    label: name,
+                    ...rest
+                }
+            })
         }));
         // const itmes = menuItems.pipeline.map((item: any) => {
         //     return {
@@ -137,8 +141,8 @@ const PipelineCard: FC<any> = () => {
     return <div style={{ maxWidth: "1500px", margin: "1rem auto" }}>
         {contextHolder}
         <Flex justify="flex-end" gap="small">
-            <Button color="cyan" variant="solid">创建流程</Button>
-            
+            <Button color="cyan" variant="solid" onClick={() => { setCreateOpen(true) }}>创建流程</Button>
+
             <Popconfirm title="是否安装?" onConfirm={async () => {
                 await axios.post("/import-pipeline")
                 messageApi.success("安装成功!")
@@ -147,7 +151,7 @@ const PipelineCard: FC<any> = () => {
                 <Button color="cyan" variant="solid">从本地安装</Button>
             </Popconfirm>
 
-            <Button color="cyan" variant="solid" onClick={loadPipeine}>刷新</Button>
+            <Button color="primary" variant="solid" onClick={loadPipeine}>刷新</Button>
         </Flex>
         {Array.isArray(menu) && menu.length != 0 ? menu.map((menuItem: any, menuIndex: any) => (
             <div key={menuIndex}>
@@ -181,14 +185,27 @@ const PipelineCard: FC<any> = () => {
                                     </Tooltip>
 
                                 ))}
+                                <EditOutlined
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setCreateOpen(true)
+                                        console.log(item)
+                                        setRecord(item)
+                                    }}
+                                    style={{
+                                        position: "absolute",
+                                        right: 40,
+                                        bottom: 10,
+                                        fontSize: 15,
+                                        color: "rgba(0,0,0,0.45)",
+                                        cursor: "pointer",
+                                    }}
+                                />
                                 <Popconfirm title="是否删除?" onConfirm={(e: any) => {
                                     e.stopPropagation();
                                 }} onCancel={(e: any) => { e.stopPropagation() }} >
                                     <DeleteOutlined
-                                        onClick={(e) => {
-                                            e.stopPropagation(); // 阻止卡片点击事件触发
-                                            // 这里写删除逻辑
-                                        }}
+                                        onClick={(e) => e.stopPropagation()}
                                         style={{
                                             position: "absolute",
                                             right: 10,
@@ -206,6 +223,7 @@ const PipelineCard: FC<any> = () => {
                 </Row>
             </div>
         )) : <Empty></Empty>}
+        <CreatePipeline open={createOpen} setOpen={setCreateOpen} data={record} createType={{}}></CreatePipeline>
         {import.meta.env.MODE == "development" &&
             <>
                 <br /><br /><br /><br /><br /><br />
