@@ -51,13 +51,13 @@ const Pipeline: FC<any> = ({ name }) => {
     const getPipline: any = (wrapAnalysisPipeline: any, pipeline: any[]) => {
         // console.log(pipeline)
         return pipeline.map((item, index) => {
-            const { downstreamAnalysis,appendSampleColumns,
-                parseAnalysisModule,parseAnalysisResultModule,analysisType,...rest}= item
+            const { downstreamAnalysis, appendSampleColumns,
+                parseAnalysisModule, parseAnalysisResultModule, analysisType, ...rest } = item
             return {
                 key: index + 1,
                 label: item.name,
                 children: <AnalysisPanel
-                 
+
                     // inputAnalysisMethod={item.inputAnalysisMethod}
                     // analysisPipline={item.analysisPipline}
                     // analysisMethod={item.analysisMethod}
@@ -94,38 +94,44 @@ const Pipeline: FC<any> = ({ name }) => {
     //     }
     // ]
     const loadData = async () => {
-        const resp = await axios.get(`/get-pipeline/${name}`)
+        const resp = await axios.get(`/get-pipeline-v2/${name}`)
         // console.log(resp.data)
         const data = resp.data
         setPipeline(data)
         const items = getPipline(data.analysisPipline, data.items)
-        const item = data.items[0]
-        const upstreamFormList = data.items
-            .filter((item:any) => item.upstreamFormJson && Array.isArray(item.upstreamFormJson))       // 确保 upstreamFormJson 存在并是数组
-            .flatMap((item:any) => item.upstreamFormJson);
-        const parseAnalysisResultModule = data.items
-            .filter((item:any) => item.parseAnalysisResultModule && Array.isArray(item.parseAnalysisResultModule))       // 确保 upstreamFormJson 存在并是数组
-            .flatMap((item:any) => item.parseAnalysisResultModule);
-        const wrapPipeline = {
-            key: 0,
-            label: "总流程",
-            children: <>
-                <AnalysisPanel
-                    wrapAnalysisPipeline={data.analysisPipline}
-                    inputAnalysisMethod={item.inputAnalysisMethod}
-                    analysisPipline={data.analysisPipline}
-                    upstreamFormJson={upstreamFormList}
-                    appendSampleColumns={loadColumnRender(item.appendSampleColumns)}
-                    parseAnalysisParams={{
-                        parse_analysis_module: data.parseAnalysisModule,
-                        parse_analysis_result_module: parseAnalysisResultModule
-                    }}
-                    analysisType={item.analysisType ? item.analysisType : "sample"}>
-                </AnalysisPanel>
-                {/* {data.analysisPipline} */}
-            </>
+        if (resp.data.items && Array.isArray(resp.data.items) &&resp.data.items.length > 1) {
+            const item = data.items[0]
+            const upstreamFormList = data.items
+                .filter((item: any) => item.upstreamFormJson && Array.isArray(item.upstreamFormJson))       // 确保 upstreamFormJson 存在并是数组
+                .flatMap((item: any) => item.upstreamFormJson);
+            const parseAnalysisResultModule = data.items
+                .filter((item: any) => item.parseAnalysisResultModule && Array.isArray(item.parseAnalysisResultModule))       // 确保 upstreamFormJson 存在并是数组
+                .flatMap((item: any) => item.parseAnalysisResultModule);
+            const wrapPipeline = {
+                key: 0,
+                label: "总流程",
+                children: <>
+                    <AnalysisPanel
+                        wrapAnalysisPipeline={data.analysisPipline}
+                        inputAnalysisMethod={item.inputAnalysisMethod}
+                        analysisPipline={data.analysisPipline}
+                        upstreamFormJson={upstreamFormList}
+                        appendSampleColumns={loadColumnRender(item.appendSampleColumns)}
+                        parseAnalysisParams={{
+                            parse_analysis_module: data.parseAnalysisModule,
+                            parse_analysis_result_module: parseAnalysisResultModule
+                        }}
+                        analysisType={item.analysisType ? item.analysisType : "sample"}>
+                    </AnalysisPanel>
+                    {/* {data.analysisPipline} */}
+                </>
+            }
+            setItems([wrapPipeline, ...items])
+        }else{
+            setItems(items)
         }
-        setItems([wrapPipeline, ...items])
+
+
 
     }
     useEffect(() => {
@@ -144,8 +150,9 @@ const Pipeline: FC<any> = ({ name }) => {
                 </> : <Skeleton active></Skeleton>}
             </div>
             <Flex gap="small" wrap>
-                <Button color="cyan" variant="solid">流程介绍</Button>
-                <Button color="cyan" variant="solid" onClick={loadData}>刷新</Button>
+                <Button color="cyan" variant="solid">创建子流程</Button>
+
+                <Button color="primary" variant="solid" onClick={loadData}>刷新</Button>
                 <Button color="primary" variant="solid" onClick={() => navigate(`/pipeline-card`)}>返回</Button>
             </Flex>
 

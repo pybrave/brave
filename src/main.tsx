@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router'
 import axios from 'axios';
 import store from './store'
 import { Provider } from 'react-redux'
+import { ConfigProvider } from 'antd'
 
 console.log(import.meta.env.MODE)
 axios.defaults.baseURL = '/brave-api';
@@ -15,8 +16,12 @@ createRoot(document.getElementById('root')!).render(
   // <StrictMode>
 
   // </StrictMode>
-  <Provider store={store}>
-    <App />
-  </Provider>
-  
+  // <ConfigProvider>
+    <Provider store={store}>
+      <App />
+    </Provider>
+  // </ConfigProvider>
+
+
+
 )

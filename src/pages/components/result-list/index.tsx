@@ -67,9 +67,12 @@ const ResultList = forwardRef<any, any>(({
     }
     useEffect(() => {
         // const currentAnalysisMethod = analysisMethod[0]
-        if (setActiveTabKey) {
-            setActiveTabKey(analysisMethod[0].name)
+        if (analysisMethod && Array.isArray(analysisMethod) && analysisMethod.length > 0) {
+            if (setActiveTabKey) {
+                setActiveTabKey(analysisMethod[0].name)
+            }
         }
+
         reload()
 
         // initData(currentAnalysisMethod)
@@ -207,14 +210,14 @@ const ResultList = forwardRef<any, any>(({
                 key: 'analysis_id',
                 ellipsis: true,
 
-            }, 
+            },
             // {
             //     title: '分析版本',
             //     dataIndex: 'analysis_version',
             //     key: 'analysis_version',
             //     ellipsis: true,
             // },
-             {
+            {
                 title: '样本名称',
                 dataIndex: 'sample_name',
                 key: 'sample_name',
@@ -255,7 +258,7 @@ const ResultList = forwardRef<any, any>(({
                 dataIndex: 'sample_group_name',
                 key: 'sample_group_name',
                 ellipsis: true,
-            },{
+            }, {
                 title: "软件",
                 dataIndex: 'software',
                 key: 'software',
@@ -387,7 +390,7 @@ const ResultList = forwardRef<any, any>(({
                                 }
 
                                 readJOSN(record.content)
-                                if(setRecord){
+                                if (setRecord) {
                                     setRecord(record)
                                 }
                             }}>查看</a>

@@ -1,6 +1,6 @@
 import { FC, memo, useEffect, useMemo, useRef, useState } from "react"
 import axios from "axios"
-import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Typography, message, Empty, Collapse, Card, Popover } from "antd"
+import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Typography, message, Empty, Collapse, Card, Popover, Flex } from "antd"
 import { useOutletContext, useParams } from "react-router"
 import ResultList from '@/pages/components/result-list'
 // import AnalysisForm from "../analysis-form"
@@ -39,7 +39,9 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
     //         mode:"multiple"
     //     }
     // ]
-
+    const checkAvailable = (analysisMethod: any) => {
+        return analysisMethod && Array.isArray(analysisMethod) && analysisMethod.length > 0
+    }
     return <>
 
         <Row>
@@ -50,7 +52,7 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
                 {/* {analysisName && <SampleAnalysisResult analysisName={analysisName} shouldTrigger={true} setSampleResult={(data: any) => {
                     setSampleResult(data)
                 }}></SampleAnalysisResult>} */}
-                {inputAnalysisMethod && <>
+                {checkAvailable(inputAnalysisMethod) ? <>
                     <UpstreamAnalysisInput
                         {...rest}
                         onClickItem={setRecord}
@@ -62,8 +64,12 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
                         parseAnalysisParams={parseAnalysisParams}
                         analysisMethod={analysisMethod}
                         inputAnalysisMethod={inputAnalysisMethod}></UpstreamAnalysisInput>
+                </> : <>
+                    <Flex justify="center" style={{ margin: "2rem" }}>
+                        <Button color="cyan" variant="solid">添加管道输入</Button>
+                    </Flex>
                 </>}
-                {analysisMethod && <UpstreamAnalysisOutput
+                {checkAvailable(analysisMethod) ? <UpstreamAnalysisOutput
                     {...rest}
                     children={children}
                     onClickItem={setRecord}
@@ -71,7 +77,14 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
                     project={project}
                     analysisType={analysisType}
                     analysisMethod={analysisMethod}
-                    appendSampleColumns={appendSampleColumns}></UpstreamAnalysisOutput>}
+                    appendSampleColumns={appendSampleColumns}></UpstreamAnalysisOutput>
+                    : <>
+                        {wrapAnalysisPipeline != analysisPipline &&
+                         <Flex justify="center" style={{ margin: "2rem" }}>
+                            <Button color="cyan" variant="solid">添加管道输出</Button>
+                        </Flex>}
+
+                    </>}
 
 
 
@@ -97,7 +110,7 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
 export default AnalysisPanel
 
 
-export const UpstreamAnalysisInput: FC<any> = ({ project,markdown, analysisPipline, wrapAnalysisPipeline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
+export const UpstreamAnalysisInput: FC<any> = ({ project, markdown, analysisPipline, wrapAnalysisPipeline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
     const [upstreamForm] = Form.useForm();
     const [resultTableList, setResultTableList] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
@@ -253,7 +266,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ project,markdown, analysisPipli
                                         </>
                                     }
                                 ]} />
-                                
+
                                 {/* {markdown} */}
                                 <AnalysisResultView
                                     plotLoading={false}
