@@ -1,4 +1,4 @@
-import{j as e,B as n,F as t,az as s,T as r,A as l}from"./index-s57B3ha7.js";const o=({record:a,plot:i})=>e.jsx(e.Fragment,{children:a?e.jsxs(e.Fragment,{children:[e.jsx(n,{onClick:()=>{i({moduleName:"prokka_txt_plot",params:{file_path:a.content.txt}})},children:"基因预测统计"}),e.jsx(n,{onClick:()=>{i({moduleName:"genome_circos_plot_gbk",params:{file_path:a.content.gbk},tableDesc:`
+import{j as e,B as n,F as t,az as s,T as r,A as l}from"./index-BEcv5oUg.js";const o=({record:a,plot:i})=>e.jsx(e.Fragment,{children:a?e.jsxs(e.Fragment,{children:[e.jsx(n,{onClick:()=>{i({moduleName:"prokka_txt_plot",params:{file_path:a.content.txt}})},children:"基因预测统计"}),e.jsx(n,{onClick:()=>{i({moduleName:"genome_circos_plot_gbk",params:{file_path:a.content.gbk},tableDesc:`
 + GC skew 是一个用来衡量 DNA 序列中 鸟嘌呤（G）和胞嘧啶（C）含量不对称性 的指标，常用于分析细菌基因组的复制起点（oriC）和终点（terC）。
 + GC skew 通常定义为：
 $$
