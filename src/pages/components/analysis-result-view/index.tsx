@@ -93,7 +93,7 @@ const HtmlView: FC<any> = ({ data}) => {
 
     </>
 }
-const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc }) => {
+const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc,markdown }) => {
 
     const componentMap: any = {
         table: TableView,
@@ -106,13 +106,11 @@ const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc
         return <Component {...rest} />;
     }
     return <>
-        {htmlUrl && <>
+        {/* {htmlUrl && <>
             <iframe src={htmlUrl} width={"100%"} style={{ height: "80vh", border: "none" }}>
             </iframe>
-            {/* {tableDesc && <>
-                            <ReactMarkdown children={tableDesc} remarkPlugins={[remarkGfm]}></ReactMarkdown>
-                        </>} */}
-        </>}
+   
+        </>} */}
         <Spin spinning={plotLoading} tip="请求中..." >
             {filePlot ? <>
                 {/* {filePlot.img} */}
@@ -157,10 +155,13 @@ const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc
                     }
                 </Typography> */}
 
-            </> : <div style={{ height: "100px" }}></div>}
+            </> : <div style={{ height: plotLoading?"100px":"0px" }}></div>}
         </Spin>
+        
+        {tableDesc &&<Markdown data={tableDesc}></Markdown> }
+        {markdown &&<Markdown data={markdown}></Markdown> }
 
-        {tableDesc && <>
+        {/* {tableDesc && <>
             <Collapse ghost items={[
                 {
                     key: "1",
@@ -170,7 +171,7 @@ const AnalysisResultView: FC<any> = ({ htmlUrl, plotLoading, filePlot, tableDesc
                     </>
                 }
             ]} />
-        </>}
+        </>} */}
 
     </>
 }

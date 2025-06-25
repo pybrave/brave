@@ -199,7 +199,7 @@ export const AnalysisForm: FC<any> = ({
             //     setDataMap({...dataMap_,...resultTableList})
             // }  
             // debugger
-            const analysisMetnodNames = formJson
+            const analysisMetnodNames = formJson??[]
                 .filter((item: any) => item.inputAnalysisMethod !== undefined)
                 .map((item: any) => item.inputAnalysisMethod);
             if (analysisMetnodNames.length != 0) {

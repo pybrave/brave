@@ -12,7 +12,8 @@ import AnalysisList from '../analysis-list'
 import AnalysisResultView from '../analysis-result-view'
 import { GroupSelectSampleButton, BaseSelect } from '@/pages/components/form-components'
 import AnalysisForm from '../analysis-form'
-const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,analysisPipline, parseAnalysisParams, inputAnalysisMethod, analysisMethod, appendSampleColumns, analysisType = "nonSample", children, cardExtra, upstreamFormJson, downstreamAnalysis }) => {
+import Literature from "@/pages/literature"
+const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAnalysisParams, inputAnalysisMethod, analysisMethod, appendSampleColumns, analysisType = "nonSample", children, cardExtra, upstreamFormJson, downstreamAnalysis, ...rest }) => {
 
     const { project } = useOutletContext<any>()
     const [record, setRecord] = useState<any>()
@@ -51,17 +52,19 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,analysisPipline, parseAna
                 }}></SampleAnalysisResult>} */}
                 {inputAnalysisMethod && <>
                     <UpstreamAnalysisInput
+                        {...rest}
+                        onClickItem={setRecord}
+                        project={project}
                         cardExtra={cardExtra}
                         wrapAnalysisPipeline={wrapAnalysisPipeline}
                         upstreamFormJson={upstreamFormJson}
                         analysisPipline={analysisPipline}
-                        onClickItem={setRecord}
-                        project={project}
                         parseAnalysisParams={parseAnalysisParams}
                         analysisMethod={analysisMethod}
                         inputAnalysisMethod={inputAnalysisMethod}></UpstreamAnalysisInput>
                 </>}
                 {analysisMethod && <UpstreamAnalysisOutput
+                    {...rest}
                     children={children}
                     onClickItem={setRecord}
                     downstreamAnalysis={downstreamAnalysis}
@@ -94,7 +97,7 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,analysisPipline, parseAna
 export default AnalysisPanel
 
 
-export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline,wrapAnalysisPipeline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
+export const UpstreamAnalysisInput: FC<any> = ({ project,markdown, analysisPipline, wrapAnalysisPipeline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
     const [upstreamForm] = Form.useForm();
     const [resultTableList, setResultTableList] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
@@ -111,7 +114,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline,wrapAn
             ...values,
             project: project,
             analysis_pipline: currentAnalysisMethod,
-            wrap_analysis_pipeline:wrapAnalysisPipeline,
+            wrap_analysis_pipeline: wrapAnalysisPipeline,
             ...parseAnalysisParams
         }
         return requestParams
@@ -250,7 +253,15 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, analysisPipline,wrapAn
                                         </>
                                     }
                                 ]} />
-
+                                
+                                {/* {markdown} */}
+                                <AnalysisResultView
+                                    plotLoading={false}
+                                    markdown={markdown}></AnalysisResultView>
+                                {/* <Literature params={{
+                                    obj_key: analysisPipline,
+                                    obj_type: "analysis_img"
+                                }}></Literature> */}
                             </Spin>
 
                         </>
@@ -323,12 +334,14 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 
     const [sampleSelectComp, setSampleSelectComp] = useState<any>(false)
 
-    const [htmlUrl, setHtmlUrl_] = useState<any>()
+    // const [htmlUrl, setHtmlUrl_] = useState<any>()
     const { Search } = Input;
     const [messageApi, contextHolder] = message.useMessage();
     const [moduleName, setModuleName] = useState<any>()
     const [params, setParams] = useState<any>()
-    const [tableDesc, setTableDesc] = useState<any>()
+    // const [tableDesc, setTableDesc] = useState<any>()
+    const [downstreamData, setDownstreamData] = useState<any>()
+
     const [resultTableList, setResultTableList] = useState<any>([])
     const [saveAnalysisMethod, setSaveAnalysisMethod] = useState<any>()
     const [collapseActiveKey, setCollapseActiveKey] = useState<any>("1")
@@ -394,11 +407,10 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
     // const stableGroupField = useMemo(() => groupField, groupField);
 
 
-    const plot = async ({ name, origin = false, url, moduleName, params, paramsFun, formDom, formJson, tableDesc, saveAnalysisMethod, sampleSelectComp = false, sampleGroupJSON = true, sampleGroupApI = false }: any) => {
+    const plot = async ({ name, origin = false, url, moduleName, params, paramsFun, formDom, formJson, saveAnalysisMethod, sampleSelectComp = false, sampleGroupJSON = true, sampleGroupApI = false, ...rest }: any) => {
         cleanDom()
         setCollapseActiveKey("1")
-        setHtmlUrl(undefined)
-        setTableDesc(tableDesc)
+        setDownstreamData({ ...rest })
         setFormDom(formDom)
         setModuleName(moduleName)
         setParams(params)
@@ -446,30 +458,31 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
             setFilePlot(resp.data)
             // await runPlot({ moduleName: moduleName, params: params })
         }
-        if (url) {
-            setHtmlUrl_(url)
-        } else {
-            if (!formDom && !sampleSelectComp && !sampleGroupJSON && !formJson) {
-                // await runPlot({ moduleName: moduleName, params: params })
-            }
-        }
+        // if (url) {
+        //     setHtmlUrl_(url)
+        // } else {
+        //     if (!formDom && !sampleSelectComp && !sampleGroupJSON && !formJson) {
+        //         // await runPlot({ moduleName: moduleName, params: params })
+        //     }
+        // }
 
 
 
 
     }
     // console.log(downstreamAnalysis)
-    const setHtmlUrl = (url: any, tableDesc: any = undefined) => {
-        setHtmlUrl_(url)
-        setFormDom(undefined)
-        setTableDesc(tableDesc)
-        setFilePlot(undefined)
-        setOrigin(false)
-    }
+    // const setHtmlUrl = (url: any, tableDesc: any = undefined) => {
+    //     setHtmlUrl_(url)
+    //     setFormDom(undefined)
+    //     setTableDesc(tableDesc)
+    //     setFilePlot(undefined)
+    //     setOrigin(false)
+    // }
     const cleanDom = () => {
         setFormDom(undefined)
         setFilePlot(undefined)
-        setHtmlUrl(undefined)
+        // setHtmlUrl(undefined)
+        setDownstreamData(undefined)
         setSaveAnalysisMethod(undefined)
     }
 
@@ -499,10 +512,10 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
                 return <span key={index}>
                     {(record && analysisType == 'one') && <>
                         {/* variant="solid" */}
-                        <Button style={{ marginRight: "0.5rem" }} color="purple" variant={name == btnName?"solid":"filled"} onClick={() => plot({ ...rest, name: name })}>{name}({record.sample_name})</Button>
+                        <Button style={{ marginRight: "0.5rem" }} color="purple" variant={name == btnName ? "solid" : "filled"} onClick={() => plot({ ...rest, name: name })}>{name}({record.sample_name})</Button>
                     </>}
                     {(analysisType != 'one') && <>
-                        <Button style={{ marginRight: "0.5rem" }} color="primary"variant={name == btnName?"solid":"filled"}  onClick={() => plot({ ...rest, name: name })}>{name}</Button>
+                        <Button style={{ marginRight: "0.5rem" }} color="primary" variant={name == btnName ? "solid" : "filled"} onClick={() => plot({ ...rest, name: name })}>{name}</Button>
                     </>}
 
                 </span>
@@ -512,7 +525,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 
         {children && React.cloneElement(children, {
             record: record,
-            setHtmlUrl: setHtmlUrl,
+            // setHtmlUrl: setHtmlUrl,
             plot: plot,
             cleanDom: cleanDom,
             form: form,
@@ -600,10 +613,10 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
                                 </>}
 
 
-                                <AnalysisResultView htmlUrl={htmlUrl}
+                                <AnalysisResultView
                                     plotLoading={plotLoading}
                                     filePlot={filePlot}
-                                    tableDesc={tableDesc}></AnalysisResultView>
+                                    {...downstreamData}></AnalysisResultView>
 
                             </>
 

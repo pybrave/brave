@@ -1,4 +1,4 @@
-import { Card, Col, Pagination, Row, Typography, Image, Flex, Button, Spin, Tag, Popconfirm } from "antd";
+import { Card, Col, Pagination, Row, Typography, Image, Flex, Button, Spin, Tag, Popconfirm, Empty } from "antd";
 import axios from "axios"
 import { FC, useEffect, useState } from "react"
 const { Title, Text, Paragraph } = Typography;
@@ -23,7 +23,7 @@ const Literature: FC<any> = ({ params }) => {
         setTotal(resp.data.total);
     };
 
-    const importLiterature= async ()=> {
+    const importLiterature = async () => {
         setLoading(true)
         await axios.post("/literature/import")
         loadData()
@@ -42,58 +42,62 @@ const Literature: FC<any> = ({ params }) => {
         </Flex>
         <div style={{ maxWidth: "1000px", margin: "1rem auto" }}>
             <Spin spinning={loading}>
-                <Row gutter={[16, 16]}>
-                    {data.map((item: any) => (
-                        <Col span={24} key={item.id}>
-                            <Card
-                                styles={{ body: { padding: 12 } }}
-                                hoverable
-                                style={{ borderRadius: 12 }}
+                {total != 0 ?
+                    <Row gutter={[16, 16]}>
+                        {data.map((item: any) => (
+                            <Col span={24} key={item.id}>
+                                <Card
+                                    styles={{ body: { padding: 12 } }}
+                                    hoverable
+                                    style={{ borderRadius: 12 }}
 
-                            >
-                                <Row gutter={16}>
-                                    {/* 左侧图片区域 */}
-                                    {item.img && <Col span={6}>
-                                        {item.img && (
-                                            <Image
-                                                src={item.img}
-                                                alt="literature"
-                                                style={{
-                                                    width: "100%",
-                                                    // height: 160,
-                                                    objectFit: "cover",
-                                                    borderRadius: 8,
-                                                }}
-                                            />
-                                        )}
-                                    </Col>}
+                                >
+                                    <Row gutter={16}>
+                                        {/* 左侧图片区域 */}
+                                        {item.img && <Col span={6}>
+                                            {item.img && (
+                                                <Image
+                                                    src={item.img}
+                                                    alt="literature"
+                                                    style={{
+                                                        width: "100%",
+                                                        // height: 160,
+                                                        objectFit: "cover",
+                                                        borderRadius: 8,
+                                                    }}
+                                                />
+                                            )}
+                                        </Col>}
 
 
-                                    {/* 右侧文本内容区域 */}
-                                    <Col span={item.img ? 18 : 24}>
-                                        <Title level={5} style={{ marginBottom: 4, marginTop: 0 }}>
-                                            <span style={{ display: "block", color: "gray", fontSize: "0.5rem" }}>{item.literature_key}</span>
-                                            期刊 {item.journal || "未知"} 时间 {item.publish_date || "-"}
-                                            <a href={item.url} target="_blank">来源</a>
-                                            {/* 影响因子 {item.impact || "?"} 时间 {item.year || "-"} */}
-                                        </Title>
-                                        <Paragraph style={{ marginBottom: 8 }}>
-                                            {/* {item.content} */}
-                                            {highlightKeywords(item.content || "", item.keywords || [])}
-                                        </Paragraph>
-                                        <Paragraph>
-                                            {/* <span style={{ color: "red", fontWeight: 500 }}>翻译：</span> */}
-                                            {highlightKeywords(item.translate || "", item.keywords || [])}
-                                        </Paragraph>
-                                        {item.keywords && Array.isArray(item.keywords) && item.keywords.map((tag: any, index: any) => (
-                                            <Tag key={index} color={colors[index]}>{tag}</Tag>
-                                        ))}
-                                    </Col>
-                                </Row>
-                            </Card>
-                        </Col>
-                    ))}
-                </Row>
+                                        {/* 右侧文本内容区域 */}
+                                        <Col span={item.img ? 18 : 24}>
+                                            <Title level={5} style={{ marginBottom: 4, marginTop: 0 }}>
+                                                <span style={{ display: "block", color: "gray", fontSize: "0.5rem" }}>{item.literature_key}</span>
+                                                期刊 {item.journal || "未知"} 时间 {item.publish_date || "-"}
+                                                <a href={item.url} target="_blank">来源</a>
+                                                {/* 影响因子 {item.impact || "?"} 时间 {item.year || "-"} */}
+                                            </Title>
+                                            <Paragraph style={{ marginBottom: 8 }}>
+                                                {/* {item.content} */}
+                                                {highlightKeywords(item.content || "", item.keywords || [])}
+                                            </Paragraph>
+                                            <Paragraph>
+                                                {/* <span style={{ color: "red", fontWeight: 500 }}>翻译：</span> */}
+                                                {highlightKeywords(item.translate || "", item.keywords || [])}
+                                            </Paragraph>
+                                            {item.keywords && Array.isArray(item.keywords) && item.keywords.map((tag: any, index: any) => (
+                                                <Tag key={index} color={colors[index]}>{tag}</Tag>
+                                            ))}
+                                        </Col>
+                                    </Row>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row> :
+                    <Empty description={"暂无相关资料!"}></Empty>
+                }
+
             </Spin>
 
             {total != 0 && <div style={{ textAlign: "center", marginTop: 24 }}>

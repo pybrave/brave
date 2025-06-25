@@ -51,23 +51,26 @@ const Pipeline: FC<any> = ({ name }) => {
     const getPipline: any = (wrapAnalysisPipeline: any, pipeline: any[]) => {
         // console.log(pipeline)
         return pipeline.map((item, index) => {
-
+            const { downstreamAnalysis,appendSampleColumns,
+                parseAnalysisModule,parseAnalysisResultModule,analysisType,...rest}= item
             return {
                 key: index + 1,
                 label: item.name,
                 children: <AnalysisPanel
+                 
+                    // inputAnalysisMethod={item.inputAnalysisMethod}
+                    // analysisPipline={item.analysisPipline}
+                    // analysisMethod={item.analysisMethod}
+                    // upstreamFormJson={item.upstreamFormJson}
+                    {...rest}
                     wrapAnalysisPipeline={wrapAnalysisPipeline}
-                    inputAnalysisMethod={item.inputAnalysisMethod}
-                    analysisPipline={item.analysisPipline}
-                    analysisMethod={item.analysisMethod}
-                    downstreamAnalysis={loadFunction(item.downstreamAnalysis)}
-                    upstreamFormJson={item.upstreamFormJson}
-                    appendSampleColumns={loadColumnRender(item.appendSampleColumns)}
+                    downstreamAnalysis={loadFunction(downstreamAnalysis)}
+                    appendSampleColumns={loadColumnRender(appendSampleColumns)}
                     parseAnalysisParams={{
-                        parse_analysis_module: item.parseAnalysisModule,
-                        parse_analysis_result_module: item.parseAnalysisResultModule
+                        parse_analysis_module: parseAnalysisModule,
+                        parse_analysis_result_module: parseAnalysisResultModule
                     }}
-                    analysisType={item.analysisType ? item.analysisType : "sample"}>
+                    analysisType={analysisType ?? "sample"}>
                 </AnalysisPanel>
             }
         })
@@ -108,7 +111,7 @@ const Pipeline: FC<any> = ({ name }) => {
             label: "总流程",
             children: <>
                 <AnalysisPanel
-                    // wrapAnalysisPipeline={data.analysisPipline}
+                    wrapAnalysisPipeline={data.analysisPipline}
                     inputAnalysisMethod={item.inputAnalysisMethod}
                     analysisPipline={data.analysisPipline}
                     upstreamFormJson={upstreamFormList}
@@ -128,7 +131,7 @@ const Pipeline: FC<any> = ({ name }) => {
     useEffect(() => {
         loadData()
     }, [])
-    return <div style={{ maxWidth: "1800px", margin: "0 auto" }}>
+    return <div style={{ maxWidth: "1500px", margin: "0 auto" }}>
 
         <Flex style={{ marginBottom: "1rem" }} justify={"space-between"} align={"center"} gap="small">
             <div >
