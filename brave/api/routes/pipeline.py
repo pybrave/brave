@@ -14,6 +14,8 @@ pipeline = APIRouter()
 @pipeline.get("/get-pipeline/{name}",tags=['pipeline'])
 async def get_pipeline(name):
     pipeline_dir =  get_pipeline_dir()
+    markdown_dict = get_all_markdown()
+
     # filename = f"{name}.json"
     json_file = f"{pipeline_dir}/{name}/main.json"
     data = {
@@ -24,6 +26,16 @@ async def get_pipeline(name):
     if os.path.exists(json_file):
         with open(json_file,"r") as f:
             json_data = json.load(f)
+            # update_downstream_markdown(json_data.items)
+            for item1 in  json_data['items']:
+                if "markdown" in item1:
+                    content = get_markdown_content(markdown_dict,item1['markdown'] )
+                    item1['markdown'] = content
+                if "downstreamAnalysis" in item1:
+                    for item2 in item1['downstreamAnalysis']:
+                        if "markdown" in item2:
+                            content = get_markdown_content(markdown_dict,item2['markdown'] )
+                            item2['markdown'] = content
             data.update(json_data)
     return data
 
@@ -108,6 +120,18 @@ def get_all_pipeline():
     return nextflow_dict
 
 
+
+def get_all_markdown():
+    pipeline_dir =  get_pipeline_dir()
+    markdown_list = glob.glob(f"{pipeline_dir}/*/markdown/*.md")
+    markdown_dict = {os.path.basename(item).replace(".md",""):item for item in markdown_list}
+    return markdown_dict
+
+def get_markdown_content(markdown_dict,name):
+    markdown_file = markdown_dict[name]
+    with open(markdown_file,"r") as f:
+        content = f.read()
+    return content
 
 def get_downstream_analysis(item):
     with open(item,"r") as f:

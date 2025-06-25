@@ -209,15 +209,21 @@ def format_img_output(plt,request_param):
 def format_output(item,request_param):
     setting = get_settings()
     base_dir = str(setting.BASE_DIR)
+    work_dir = str(setting.WORK_DIR)
     if  isinstance(item, pd.DataFrame):
         file_name = ""
         if "origin"   in request_param and "file_path" in request_param  :
             file_path = request_param['file_path']
-            file_name = file_path.replace(base_dir,"/brave/brave-api/dir")
+            if os.path.islink(file_path):
+                link_path = Path(file_path)
+                real_path = link_path.resolve()
+                file_name = str(real_path).replace(work_dir,"/brave-api/work-dir")
+            else:
+                file_name = file_path.replace(base_dir,"/brave-api/dir")
         else:     
             table_type = request_param['table_type']
             downstream_analysis_result,file_name = get_downstream_analysis_result_dir(request_param,table_type)
-            
+            file_name = f"/brave-api/dir{file_name}"
             if table_type=='tsv':
                 item.to_csv(downstream_analysis_result, sep="\t", index=False)
             elif table_type=='xlsx':
@@ -227,7 +233,7 @@ def format_output(item,request_param):
         return  {
             "data":json.loads(item.to_json(orient="records")) ,
             "type":"table",
-            "url":f"/brave-api/dir{file_name}"
+            "url":f"{file_name}"
         }
     elif isinstance(item, str):
         if item == 'html':

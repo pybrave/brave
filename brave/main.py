@@ -25,7 +25,10 @@ def create_app() -> FastAPI:
 
     settings = get_settings()
     app.mount("/brave-api/dir", StaticFiles(directory=settings.BASE_DIR), name="base_dir")
+    app.mount("/brave-api/work-dir", StaticFiles(directory=settings.WORK_DIR), name="work_dir")
+
     app.mount("/brave-api/literature/dir", StaticFiles(directory=os.path.join(settings.LITERATURE_DIR)), name="literature_dir")
+    app.mount("/brave-api/pipeline-dir", StaticFiles(directory=os.path.join(settings.PIPELINE_DIR)), name="pipeline_dir")
 
     app.include_router(sample_result,prefix="/brave-api")
     app.include_router(file_parse_plot,prefix="/brave-api")
