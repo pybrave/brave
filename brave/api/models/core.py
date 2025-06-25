@@ -90,4 +90,20 @@ relation_literature = Table(
     Column("obj_key", String(255)),
     Column("obj_type", String(255))
 )
+
+
+t_pipeline = Table(
+    "pipeline",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("pipeline_id", String(255)),
+    Column("pipeline_key", String(255)),
+    Column("pipeline_order", Integer),
+    Column("pipeline_type", String(255)),
+    Column("parent_pipeline_id", String(255)),
+    Column("content", Text)
+
+)
+
 # meta.create_all(engine)
+

@@ -7,38 +7,200 @@ import glob
 from brave.api.config.config import get_settings
 from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
 from collections import defaultdict
+from brave.api.models.core import t_pipeline
+import uuid
+from brave.api.config.db import get_engine
+from sqlalchemy import select, and_, join, func,insert,update
+import re
+
 
 pipeline = APIRouter()
+
+def camel_to_snake(name):
+    s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
 # BASE_DIR = os.path.dirname(__file__)
+@pipeline.post("/import-pipeline",tags=['pipeline'])
+async def get_pipeline():
+    pipeline_files = get_pipeline_list()
+    new_pipeline_list = []
+    with get_engine().begin() as conn:
+        wrap_pipeline_list = find_db_pipeline(conn, "wrap_pipeline")
+        db_pipeline_key_list = [item.pipeline_key for item in wrap_pipeline_list ]
+        for wrap_pipeline_item in pipeline_files:
+            json_data = get_pipeine_content(wrap_pipeline_item)
+            wrap_pipeline_key = os.path.basename( os.path.dirname(wrap_pipeline_item))
+            if wrap_pipeline_key in db_pipeline_key_list:
+                continue
+            wrap_pipeline = {k:v for k,v in json_data.items() if  k !="items"}
+            wrap_pipeline_uuid = str(uuid.uuid4())
+            new_pipeline_list.append({
+                "pipeline_id":wrap_pipeline_uuid,
+                "pipeline_key":wrap_pipeline_key,
+                "parent_pipeline_id":wrap_pipeline_uuid,
+                "pipeline_type":"wrap_pipeline",
+                "content":json.dumps(wrap_pipeline)
+            })
+
+            keys_to_remove = ['parseAnalysisResultModule', 'inputAnalysisMethod','upstreamFormJson','analysisMethod','downstreamAnalysis']
+            for pipeline_item in json_data['items']:
+                pipeline_ = {k:v for k,v in pipeline_item.items() if  k not in keys_to_remove}
+                pipeline_uuid = str(uuid.uuid4())
+                new_pipeline_list.append({
+                    "pipeline_id":pipeline_uuid,
+                    "parent_pipeline_id":wrap_pipeline_uuid,
+                    "pipeline_key":wrap_pipeline_key,
+                    "pipeline_type":"pipeline",
+                    "content":json.dumps(pipeline_)
+                })
+                for key in keys_to_remove:
+                    add_pipeline_item(pipeline_item,key,pipeline_uuid,wrap_pipeline_key,new_pipeline_list)
+                # key= "parseAnalysisResultModule"
+        insert_stmt = insert(t_pipeline).values(new_pipeline_list)
+        conn.execute(insert_stmt)
+
+def add_pipeline_item(pipeline_item,key,pipeline_uuid,wrap_pipeline_key,new_pipeline_list):
+    if key in pipeline_item:
+        item_uuid = str(uuid.uuid4())        
+        for item in pipeline_item[key]:
+            if key=='downstreamAnalysis':
+                downstreamAnalysis_ = {k:v for k,v in item.items() if  k !="downstreamAnalysis"}
+                new_pipeline_list.append({
+                    "pipeline_id":item_uuid,
+                    "parent_pipeline_id":pipeline_uuid,
+                    "pipeline_key":wrap_pipeline_key,
+                    "pipeline_type":camel_to_snake(key),
+                    "content":json.dumps(downstreamAnalysis_)
+                })
+                if "formJson" in item:
+                    for formJson_item in item["formJson"]:
+                        formJson_item_uuid = str(uuid.uuid4()) 
+                        new_pipeline_list.append({
+                            "pipeline_id":formJson_item_uuid,
+                            "parent_pipeline_id":item_uuid,
+                            "pipeline_key":wrap_pipeline_key,
+                            "pipeline_type":camel_to_snake("formJson"),
+                            "content":json.dumps(formJson_item)
+                        })
+
+            else:
+                new_pipeline_list.append({
+                    "pipeline_id":item_uuid,
+                    "parent_pipeline_id":pipeline_uuid,
+                    "pipeline_key":wrap_pipeline_key,
+                    "pipeline_type":camel_to_snake(key),
+                    "content":json.dumps(item)
+                })
+
+def find_db_pipeline(conn, pipeline_type):
+    return conn.execute(t_pipeline.select() 
+        .where(t_pipeline.c.pipeline_type==pipeline_type)).fetchall()
 
 @pipeline.get("/get-pipeline/{name}",tags=['pipeline'])
 async def get_pipeline(name):
     pipeline_dir =  get_pipeline_dir()
-    markdown_dict = get_all_markdown()
+    
 
     # filename = f"{name}.json"
     json_file = f"{pipeline_dir}/{name}/main.json"
     data = {
-        "files":json_file,
-        # "wrapAnalysisPipeline":name,
-        "exists":os.path.exists(json_file)
+        # "files":json_file,
+        # # "wrapAnalysisPipeline":name,
+        # "exists":os.path.exists(json_file)
     }
     if os.path.exists(json_file):
-        with open(json_file,"r") as f:
-            json_data = json.load(f)
-            # update_downstream_markdown(json_data.items)
-            for item1 in  json_data['items']:
-                if "markdown" in item1:
-                    content = get_markdown_content(markdown_dict,item1['markdown'] )
-                    item1['markdown'] = content
-                if "downstreamAnalysis" in item1:
-                    for item2 in item1['downstreamAnalysis']:
-                        if "markdown" in item2:
-                            content = get_markdown_content(markdown_dict,item2['markdown'] )
-                            item2['markdown'] = content
-            data.update(json_data)
+        json_data = get_pipeine_content(json_file)
+        data.update(json_data)
     return data
 
+def get_pipeline_item(item):
+    content= json.loads(item.content)
+    return {
+        "id":item.id,
+        "pipeline_id":item.pipeline_id,
+        "parent_pipeline_id":item.parent_pipeline_id,
+        "pipeline_order":item.pipeline_order,
+        "pipeline_type":item.pipeline_type,
+        **content
+    }
+
+@pipeline.get("/get-pipeline-v2/{name}",tags=['pipeline'])
+async def get_pipeline_v2(name):
+    with get_engine().begin() as conn:
+        pipeline_list = conn.execute(t_pipeline.select() 
+            .where(t_pipeline.c.pipeline_key==name)).fetchall()
+        # wrap_pipeline = [item for item in pipeline_list if item.pipeline_type=='wrap_pipeline']
+        data = [get_pipeline_item(item) for item in pipeline_list]
+   
+        wrap = next(d for d in data if d["pipeline_type"] == "wrap_pipeline")
+        sub_pipelines = [d for d in data if d["pipeline_type"] == "pipeline" and d["parent_pipeline_id"] == wrap["pipeline_id"]]
+        items = []
+        for sub in sub_pipelines:
+            parent_id = sub["pipeline_id"]
+            parseAnalysisResultModule = [
+                d for d in data if d["pipeline_type"] == "parse_analysis_result_module" and d["parent_pipeline_id"] == parent_id
+            ]
+            inputAnalysisMethod = [
+                d for d in data if d["pipeline_type"] == "input_analysis_method" and d["parent_pipeline_id"] == parent_id
+            ]
+            upstreamFormJson = [
+                d for d in data if d["pipeline_type"] == "upstream_form_json" and d["parent_pipeline_id"] == parent_id
+            ]
+            analysisMethod = [
+                d for d in data if d["pipeline_type"] == "analysis_method" and d["parent_pipeline_id"] == parent_id
+            ]
+
+            # downstreamAnalysis 有 formJson 嵌套，要特殊处理
+            downstream_raw = [
+                d for d in data if d["pipeline_type"] == "downstream_analysis" and d["parent_pipeline_id"] == parent_id
+            ]
+            downstreamAnalysis = []
+            for d in downstream_raw:
+                entry = {k: d[k] for k in d if k != "formJson"}
+                # 查找 formJson 子项
+                children = [
+                    f for f in data if f.get("pipeline_type") == "form_json" and f["parent_pipeline_id"] == d["pipeline_id"]
+                ]
+                if children:
+                    entry["formJson"] = children
+                downstreamAnalysis.append(entry)
+            items.append({
+                # "name": sub["name"],
+                # "analysisPipline": sub.get("analysisPipline"),
+                # "parseAnalysisModule": sub.get("parseAnalysisModule"),
+                **sub,
+                "parseAnalysisResultModule": parseAnalysisResultModule,
+                "inputAnalysisMethod": inputAnalysisMethod,
+                "upstreamFormJson": upstreamFormJson,
+                "analysisMethod": analysisMethod,
+                "downstreamAnalysis": downstreamAnalysis
+            })
+
+    result = {
+        **wrap,
+        "items": items
+    }
+    return result
+     # with open("test/file.json","w") as f:
+        #     f.write(json.dumps(pipeline_list))
+    
+
+def get_pipeine_content(json_file):
+    markdown_dict = get_all_markdown()
+    with open(json_file,"r") as f:
+        json_data = json.load(f)
+        # update_downstream_markdown(json_data.items)
+        for item1 in  json_data['items']:
+            if "markdown" in item1:
+                content = get_markdown_content(markdown_dict,item1['markdown'] )
+                item1['markdown'] = content
+            if "downstreamAnalysis" in item1:
+                for item2 in item1['downstreamAnalysis']:
+                    if "markdown" in item2:
+                        content = get_markdown_content(markdown_dict,item2['markdown'] )
+                        item2['markdown'] = content
+    return json_data
 
 def get_config():
     pipeline_dir =  get_pipeline_dir()
@@ -49,6 +211,49 @@ def get_config():
     else:
         return {}
     
+
+def get_category(name,key):
+    config = get_config()
+    if "category" in config:
+        category = config['category']
+        if name in category:
+            return category[name][key]
+    return name
+
+def get_pipeline_one_v2(item):
+    data = json.loads(item.content)
+    result = {
+        "id":item.id,
+        "pipeline_id":item.pipeline_id,
+        "path":item.pipeline_key,
+        "name":data['name'],
+        "category":data['category'],
+        "img":f"/brave-api/img/{data['img']}",
+        "tags":data['tags'],
+        "description":data['description'],
+        "order":item.pipeline_order
+    }
+    return result
+@pipeline.get("/list-pipeline-v2",tags=['pipeline'])
+async def get_pipeline():
+    with get_engine().begin() as conn:
+        wrap_pipeline_list = find_db_pipeline(conn, "wrap_pipeline")
+        pipeline_list = [get_pipeline_one_v2(item) for item in wrap_pipeline_list]
+        pipeline_list = sorted(pipeline_list, key=lambda x:x["order"] if x["order"] is not None else x["id"])
+    
+    grouped = defaultdict(list)
+    for item in pipeline_list:
+        grouped[item["category"]].append(item)
+
+    result = []
+    for category, items in grouped.items():
+        result.append({
+            "name": get_category(category,"name"),
+            "items": items
+        })
+    return result
+    # pass
+
 def get_pipeline_one(item):
     with open(item,"r") as f:
         data = json.load(f)
@@ -62,16 +267,6 @@ def get_pipeline_one(item):
         "order":data['order']
     }
     return data
-
-def get_category(name,key):
-    config = get_config()
-    if "category" in config:
-        category = config['category']
-        if name in category:
-            return category[name][key]
-    return name
-
-
 
 @pipeline.get("/list-pipeline",tags=['pipeline'])
 async def get_pipeline():
@@ -87,23 +282,11 @@ async def get_pipeline():
         grouped[item["category"]].append(item)
 
     result = []
-
-
     for category, items in grouped.items():
         result.append({
             "name": get_category(category,"name"),
-            # "chineseName": category_name_map.get(category, ""),
             "items": items
         })
-
-
-    # glob.glob("")
-    # data  = [
-    #     {
-    #         "path":"reads-based-abundance-analysis2",
-            
-    #     }
-    # ]
     return result
 
 
