@@ -445,8 +445,8 @@ const ResultList = forwardRef<any, any>(({
                         </Tooltip>
                         <Tooltip title={currentAnalysisMethod?.label}>
                             <Popconfirm title="确认删除!" onConfirm={() => {
-                                    operatePipeline.datelePipeline(currentAnalysisMethod.pipeline_id)
-                                }}>
+                                operatePipeline.datelePipeline(currentAnalysisMethod.pipeline_id)
+                            }}>
                                 <Button color="cyan" variant="solid" >删除</Button>
                             </Popconfirm>
                         </Tooltip>

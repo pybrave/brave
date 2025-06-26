@@ -110,10 +110,10 @@ const TextAreaContent: FC<any> = ({ data, form }) => {
     </>
 }
 const TextAreaComp:FC<any> = ({value,onChange})=>{
-    const [data,setData] = useState<any>(JSON.stringify(value,null,2))
-    useEffect(()=>{
-        setData(JSON.stringify(value,null,2))
-    },[value])
+    const [data,setData] = useState<any>(JSON.stringify(value))
+    // useEffect(()=>{
+    //     setData(JSON.stringify(value))
+    // },[value])
     return <>
           <TextArea value={data} onChange={(e:any)=>{
             setData(e.target.value)

@@ -406,7 +406,7 @@ export const SelectComp: FC<any> = ({ it, resultTableList, value, onChange }) =>
 
 
 
-const UpstreamAnalysisOutput: FC<any> = ({ operatePipeline, children, project, onClickItem, analysisType, analysisMethod, appendSampleColumns, downstreamAnalysis ,...rest}) => {
+const UpstreamAnalysisOutput: FC<any> = ({ operatePipeline, children, project, onClickItem, analysisType, analysisMethod, appendSampleColumns, downstreamAnalysis, ...rest }) => {
     const [form] = Form.useForm();
 
     // const [loading, setLoading] = useState(false)
@@ -664,7 +664,12 @@ const UpstreamAnalysisOutput: FC<any> = ({ operatePipeline, children, project, o
                                                     operatePipeline.setPipelineRecord(downstreamData)
                                                     operatePipeline.setPipelineStructure({ pipeline_type: "downstream_analysis" })
                                                 }}>更新</Button>
-                                                <Button color="cyan" variant="solid" >删除</Button>
+                                                <Popconfirm title="确认删除!" onConfirm={() => {
+                                                    operatePipeline.datelePipeline(downstreamData.pipeline_id)
+                                                }}>
+                                                    <Button color="cyan" variant="solid" >删除</Button>
+                                                </Popconfirm>
+                                         
                                             </Flex>
                                         </>}
                                         items={[
