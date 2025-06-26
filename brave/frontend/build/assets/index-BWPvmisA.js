@@ -1,4 +1,4 @@
-import{r as i,j as t,M as s}from"./index-BEcv5oUg.js";const o=`
+import{r as i,j as t,M as s}from"./index-D7wMEh1K.js";const o=`
 # Bioinformatics Reactive Analysis and Visualization Engine(BRAVE)
 
 ![](/brave-api/img/logo.png)
