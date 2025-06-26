@@ -11,7 +11,7 @@ const Prokka: FC<any> = ({ record, plot }) => {
 
         }
         {record?<>
-            <Button onClick={() => { plot({ moduleName: "prokka_txt_plot", params: { "file_path": record.content.txt } }) }}>基因预测统计</Button>
+            <Button onClick={() => { plot({name:"基因预测统计",saveAnalysisMethod:"prokka_txt_plot", moduleName: "prokka_txt_plot", params: { "file_path": record.content.txt } }) }}>基因预测统计</Button>
         <Button onClick={() => {
              plot({ 
                 moduleName: "genome_circos_plot_gbk", 
@@ -93,6 +93,7 @@ $$
 
 <Button onClick={() => {
             plot({
+                name:"prokka初步功能注释",saveAnalysisMethod:"prokka_annotation",
                 moduleName: "prokka_annotation",
                 params: { "file_path": record.content.tsv },
                 tableDesc: `

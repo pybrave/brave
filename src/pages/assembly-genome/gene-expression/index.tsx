@@ -108,6 +108,7 @@ const GeneExpressisonComp: FC<any> = ({ resultTableList, plot, activeTabKey }) =
             <Button type="primary"
                 onClick={() => {
                     plot({
+                        name:"差异表达基因分析",
                         // saveAnalysisMethod: "mutations_gene",
                         saveAnalysisMethod: "feature_counts_RNA_deg",
                         moduleName: "feature_counts_RNA_deg",

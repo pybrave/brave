@@ -20,7 +20,7 @@ const PipelineCard: FC<any> = () => {
     const dispatch = useDispatch()
     const [messageApi, contextHolder] = message.useMessage();
 
-    const menuItems = useSelector((state: any) => state.menu.items)
+    // const menuItems = useSelector((state: any) => state.menu.items)
 
     const menu1: any[] = [
         {
@@ -102,46 +102,42 @@ const PipelineCard: FC<any> = () => {
         },
     ]
     const loadPipeine = async () => {
-        listPipeline(dispatch)
-    }
-    useEffect(() => {
-        const menu = menuItems.map((group: any) => ({
+        const data: any = await listPipeline(dispatch)
+        console.log(data)
+        const menu = data.map((group: any) => ({
             name: group.name,
             items: group.items.map((item: any) => {
-                const {path,name,...rest} = item
+                const { path, name, ...rest } = item
                 return {
-                    key: `${path}`,
+                    key: `pipeline/${path}`,
                     label: name,
                     ...rest
                 }
             })
         }));
-        // const itmes = menuItems.pipeline.map((item: any) => {
-        //     return {
-        //         key: `${project}/${item.path}`,
-        //         label: item.name,
-        //         img: item.img,
-        //         tags: item.tags,
-        //         description: item.description,
-        //         category:item.category
-        //     }
-        // })
 
-
-        // const newMeanu = {
-        //     name: "组件化流程(开发中...)",
-        //     items: itmes
-        // }
-        // const menu = [newMeanu]
         setMenu(menu)
+    }
+    const datelePipeline = async (pipelineId: any) => {
+        try {
+            const resp = await axios.delete(`/delete-pipeline/${pipelineId}`)
+            messageApi.success("删除成功!")
+            loadPipeine()
+        } catch (error: any) {
+            console.log(error)
+            messageApi.error(`删除失败!${error.response.data.detail}`)
+        }
+    }
+    useEffect(() => {
+        loadPipeine()
         // console.log(menu)
-    }, [JSON.stringify(menuItems)])
+    }, [])
 
     // indivi
     return <div style={{ maxWidth: "1500px", margin: "1rem auto" }}>
         {contextHolder}
         <Flex justify="flex-end" gap="small">
-            <Button color="cyan" variant="solid" onClick={() => { setCreateOpen(true) }}>创建流程</Button>
+            <Button color="cyan" variant="solid" onClick={() => { setRecord(undefined); setCreateOpen(true) }}>创建流程</Button>
 
             <Popconfirm title="是否安装?" onConfirm={async () => {
                 await axios.post("/import-pipeline")
@@ -203,6 +199,7 @@ const PipelineCard: FC<any> = () => {
                                 />
                                 <Popconfirm title="是否删除?" onConfirm={(e: any) => {
                                     e.stopPropagation();
+                                    datelePipeline(item.pipeline_id)
                                 }} onCancel={(e: any) => { e.stopPropagation() }} >
                                     <DeleteOutlined
                                         onClick={(e) => e.stopPropagation()}
@@ -223,7 +220,16 @@ const PipelineCard: FC<any> = () => {
                 </Row>
             </div>
         )) : <Empty></Empty>}
-        <CreatePipeline open={createOpen} setOpen={setCreateOpen} data={record} createType={{}}></CreatePipeline>
+        <CreatePipeline
+            callback={loadPipeine}
+            pipelineStructure={{
+                pipeline_type: "wrap_pipeline",
+                parent_pipeline_id: "0"
+
+            }}
+            open={createOpen}
+            setOpen={setCreateOpen}
+            data={record}></CreatePipeline>
         {import.meta.env.MODE == "development" &&
             <>
                 <br /><br /><br /><br /><br /><br />

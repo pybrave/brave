@@ -1,5 +1,5 @@
 import { Venn } from "@ant-design/plots"
-import { Button, Card, message, Popconfirm, Popover, Space, Table } from "antd"
+import { Button, Card, Flex, message, Popconfirm, Popover, Space, Table, Tooltip } from "antd"
 import axios from "axios"
 import { FC, forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useOutletContext, useParams } from "react-router"
@@ -24,6 +24,10 @@ const ResultList = forwardRef<any, any>(({
     activeTabKey,
     setActiveTabKey,
     cardExtra,
+    operatePipeline,
+    pipelineType,
+    currentAnalysisMethod,
+    setCurrentAnalysisMethod,
     params
 }, ref) => {
     useImperativeHandle(ref, () => ({
@@ -35,7 +39,9 @@ const ResultList = forwardRef<any, any>(({
     const [groupedData, setGroupedData] = useState<any>()
     // const [content,setContent] = useState<any>()
     const [loading, setLoading] = useState(false)
+    // const [currentAnalysisMenthod, setCurrentAnalysisMenthod] = useState<any>()
     // const [currentAnalysisMethod, setCurrentAnalysisMethod] = useState<any>()
+    // const { setPipelineStructure, setOperateOpen, setPipelineRecord, datelePipeline } = operatePipeline
 
     // const reload = () => {
     //     loadData(currentAnalysisMethod.value)
@@ -65,11 +71,23 @@ const ResultList = forwardRef<any, any>(({
         }
 
     }
+
+    const getCurrentAnalysisMenthod = (activeTabKey: any) => {
+        const analysisMethodDict: any = analysisMethod.reduce((acc: any, item: any) => {
+            acc[item.name] = item;
+            return acc;
+        }, {});
+        // const analysisMethodDict = analysisMethidtoDict(analysisMethod)
+        const currentAnalysisMenthod = analysisMethodDict[activeTabKey]
+        return currentAnalysisMenthod
+    }
     useEffect(() => {
         // const currentAnalysisMethod = analysisMethod[0]
         if (analysisMethod && Array.isArray(analysisMethod) && analysisMethod.length > 0) {
             if (setActiveTabKey) {
                 setActiveTabKey(analysisMethod[0].name)
+                const currentAnalysisMethod = getCurrentAnalysisMenthod(analysisMethod[0].name)
+                setCurrentAnalysisMethod(currentAnalysisMethod)
             }
         }
 
@@ -81,9 +99,10 @@ const ResultList = forwardRef<any, any>(({
     const onTabChange = (key: any) => {
         setData(groupedData[key])
         setActiveTabKey(key)
-
-
+        const currentAnalysisMethod = getCurrentAnalysisMenthod(key)
+        setCurrentAnalysisMethod(currentAnalysisMethod)
     }
+
     const getKeyMap = () => {
         const analysisMethodMap = Object.fromEntries(analysisMethod.map((item: any) => [item.name, item.inputKey]));
         // console.log(analysisMethodMap)
@@ -413,12 +432,35 @@ const ResultList = forwardRef<any, any>(({
 
     return <>
         <Card title={title}
-            extra={<>{cardExtra}<Button onClick={reload}>刷新</Button></>}
+            extra={<>{cardExtra}
+                <Flex gap={"small"}>
+                    {operatePipeline.setOperateOpen && <>
+                        <Tooltip title={currentAnalysisMethod?.label}>
+                            <Button color="cyan" variant="solid" onClick={() => {
+                                operatePipeline.setOperateOpen(true)
+                                operatePipeline.setPipelineRecord(currentAnalysisMethod)
+                                operatePipeline.setPipelineStructure({ pipeline_type: pipelineType })
+
+                            }}>更新</Button>
+                        </Tooltip>
+                        <Tooltip title={currentAnalysisMethod?.label}>
+                            <Popconfirm title="确认删除!" onConfirm={() => {
+                                    operatePipeline.datelePipeline(currentAnalysisMethod.pipeline_id)
+                                }}>
+                                <Button color="cyan" variant="solid" >删除</Button>
+                            </Popconfirm>
+                        </Tooltip>
+                    </>}
+
+                    <Button color="primary" variant="solid" onClick={reload}>刷新</Button>
+                </Flex>
+            </>}
             tabList={analysisMethod && Array.isArray(analysisMethod) && analysisMethod.length > 1 ?
                 analysisMethod.map((it: any) => ({ key: it.name, label: it.label })) : undefined}
             activeTabKey={activeTabKey}
             onTabChange={onTabChange}
         >
+            {/* {JSON.stringify(currentAnalysisMenthod)} */}
             <Table
                 rowKey={(it: any) => it.id}
                 size="small"

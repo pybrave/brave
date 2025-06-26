@@ -15,9 +15,9 @@ const GenePrediction: FC<any> = () => {
                     <AnalysisPanel
                         inputAnalysisMethod={[
                             {
-                                key: "1",
-                                name: "基因组组装文件",
-                                value: ["ngs-individual-assembly", 'tgs_individual_assembly'],
+                                name: "1",
+                                label: "基因组组装文件",
+                                inputKey: ["ngs-individual-assembly", 'tgs_individual_assembly'],
                                 mode: "multiple",
                                 type: "GroupSelectSampleButton",
                                 groupField:"sample_group",
@@ -26,9 +26,9 @@ const GenePrediction: FC<any> = () => {
                         ]}
                         analysisMethod={[
                             {
-                                key: "1",
-                                name: "prokka",
-                                value: ["prokka"],
+                                name: "1",
+                                label: "prokka",
+                                inputKey: ["prokka"],
                                 mode: "multiple"
                             }
                         ]}

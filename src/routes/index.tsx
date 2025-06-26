@@ -74,6 +74,9 @@ const childern = [
     }, {
         path: "/literature",
         element: <Literature />
+    }, {
+        path: "/pipeline/:pipelineId",
+        element: <Pipeline />
     },
 
     {
@@ -121,48 +124,60 @@ const childern = [
 
 import {listPipeline} from '@/api/pipeline'
 const RenderRouter: FC = () => {
-    const [routes, setRoutes] = useState<RouteObject[] | null>([]);
-    const dispatch = useDispatch()
+    // const [routes, setRoutes] = useState<RouteObject[] | null>([]);
+    // const dispatch = useDispatch()
 
    
     
-    const loadData = async () => {
-        const data:any = await listPipeline(dispatch)
-        const routes = data.flatMap((group:any) =>
-            group.items.map((item:any) => ({
-                path: `/${item.path}`,
-                element: <Pipeline name={item.path} />
-            }))
-        );
-        // console.log(routes)
-        // const routes = resp.data.pipeline.map((item: any) => {
-        //     return {
-        // path: `/:project/${item.path}`,
-        // element: <Pipeline name={item.path} />
-        //     }
-        // })
-        const router: RouteObject[] = [
-            {
-                path: "/",
-                element: <Layout />,
-                children: [
-                    ...routes,
-                    ...childern,
-                ]
-            },
-        ]
-        // console.log(router)
-        setRoutes(router)
+    // const loadData = async () => {
+    //     const data:any = await listPipeline(dispatch)
+    //     const routes = data.flatMap((group:any) =>
+    //         group.items.map((item:any) => ({
+    //             path: `/${item.path}`,
+    //             element: <Pipeline name={item.path} />
+    //         }))
+    //     );
+    //     // console.log(routes)
+    //     // const routes = resp.data.pipeline.map((item: any) => {
+    //     //     return {
+    //     // path: `/:project/${item.path}`,
+    //     // element: <Pipeline name={item.path} />
+    //     //     }
+    //     // })
+    //     const router: RouteObject[] = [
+    //         {
+    //             path: "/",
+    //             element: <Layout />,
+    //             children: [
+    //                 ...routes,
+    //                 ...childern,
+    //             ]
+    //         },
+    //     ]
+    //     // console.log(router)
+    //     setRoutes(router)
 
-    }
-    useEffect(() => {
-        loadData()
-        // console.log("1111111111111111")
-    }, [])
+    // }
+    // useEffect(() => {
+    //     loadData()
+    //     // console.log("1111111111111111")
+    // }, [])
+    // const element = routes ? useRoutes(routes) : null;
+
+    const routes: RouteObject[] = [
+        {
+            path: "/",
+            element: <Layout />,
+            children: [
+                ...childern,
+            ]
+        },
+    ]
+
     // const element = useRoutes(router);
-    const element = routes ? useRoutes(routes) : null;
+    const element = useRoutes(routes)
 
-    return element ?? <Skeleton active ></Skeleton>;
+    return element ;
     // return element;
 };
 

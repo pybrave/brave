@@ -1,17 +1,25 @@
-import { Breadcrumb, Button, Flex, Skeleton, Tabs, Tag } from "antd"
+import { Breadcrumb, Button, Flex, message, Skeleton, Tabs, Tag } from "antd"
 import { FC, useEffect, useState } from "react"
 import AnalysisPanel from '../analysis-panel'
 import Meta from "antd/es/card/Meta"
 import { colors } from '@/utils/utils'
 
 import axios from "axios"
-import { useNavigate, useOutletContext, useParams } from "react-router"
+import { useLocation, useNavigate, useOutletContext, useParams } from "react-router"
 import { listPipeline } from "@/api/pipeline"
-const Pipeline: FC<any> = ({ name }) => {
+import CreatePipeline from "../create-pipeline"
+const Pipeline: FC<any> = ({ }) => {
+    const { pipelineId: name } = useParams()
+    // console.log(pipelineId)
     const [pipeline, setPipeline] = useState<any>()
     const [items, setItems] = useState<any>([])
     const navigate = useNavigate();
+    const [createOpen, setCreateOpen] = useState<any>(false)
+    const [record, setRecord] = useState<any>()
+    const [messageApi, contextHolder] = message.useMessage();
 
+    const [pipelineStructure, setPipelineStructure] = useState<any>()
+    pipelineStructure
     const loadFunction: any = (data: any[]) => {
         if (!data) return undefined
         return data.map((item: any) => {
@@ -47,7 +55,7 @@ const Pipeline: FC<any> = ({ name }) => {
             return item
         })
     }
-
+    
     const getPipline: any = (wrapAnalysisPipeline: any, pipeline: any[]) => {
         // console.log(pipeline)
         return pipeline.map((item, index) => {
@@ -63,6 +71,10 @@ const Pipeline: FC<any> = ({ name }) => {
                     // analysisMethod={item.analysisMethod}
                     // upstreamFormJson={item.upstreamFormJson}
                     {...rest}
+                    datelePipeline={datelePipeline}
+                    setPipelineStructure={setPipelineStructure}
+                    setOperateOpen={setCreateOpen}
+                    setPipelineRecord={setRecord}
                     wrapAnalysisPipeline={wrapAnalysisPipeline}
                     downstreamAnalysis={loadFunction(downstreamAnalysis)}
                     appendSampleColumns={loadColumnRender(appendSampleColumns)}
@@ -99,7 +111,7 @@ const Pipeline: FC<any> = ({ name }) => {
         const data = resp.data
         setPipeline(data)
         const items = getPipline(data.analysisPipline, data.items)
-        if (resp.data.items && Array.isArray(resp.data.items) &&resp.data.items.length > 1) {
+        if (resp.data.items && Array.isArray(resp.data.items) && resp.data.items.length > 1) {
             const item = data.items[0]
             const upstreamFormList = data.items
                 .filter((item: any) => item.upstreamFormJson && Array.isArray(item.upstreamFormJson))       // 确保 upstreamFormJson 存在并是数组
@@ -127,18 +139,29 @@ const Pipeline: FC<any> = ({ name }) => {
                 </>
             }
             setItems([wrapPipeline, ...items])
-        }else{
+        } else {
             setItems(items)
         }
 
 
 
     }
+
+    const datelePipeline = async (pipelineId: any) => {
+        try {
+            const resp = await axios.delete(`/delete-pipeline/${pipelineId}`)
+            messageApi.success("删除成功!")
+            loadData()
+        } catch (error: any) {
+            console.log(error)
+            messageApi.error(`删除失败!${error.response.data.detail}`)
+        }
+    }
     useEffect(() => {
         loadData()
     }, [])
     return <div style={{ maxWidth: "1500px", margin: "0 auto" }}>
-
+        {contextHolder}
         <Flex style={{ marginBottom: "1rem" }} justify={"space-between"} align={"center"} gap="small">
             <div >
                 {pipeline ? <>
@@ -150,7 +173,15 @@ const Pipeline: FC<any> = ({ name }) => {
                 </> : <Skeleton active></Skeleton>}
             </div>
             <Flex gap="small" wrap>
-                <Button color="cyan" variant="solid">创建子流程</Button>
+                <Button color="cyan" variant="solid" onClick={()=>{
+                    setRecord(undefined);
+                    setPipelineStructure({
+                        pipeline_type: "pipeline",
+                        // pipeline_key:pipeline.pipeline_key,
+                        parent_pipeline_id:pipeline.pipeline_id
+                    })
+                    setCreateOpen(true)
+                }}>创建子流程</Button>
 
                 <Button color="primary" variant="solid" onClick={loadData}>刷新</Button>
                 <Button color="primary" variant="solid" onClick={() => navigate(`/pipeline-card`)}>返回</Button>
@@ -159,6 +190,18 @@ const Pipeline: FC<any> = ({ name }) => {
         </Flex>
 
         {pipeline && Array.isArray(pipeline?.items) ? <Tabs items={items}></Tabs> : <Skeleton active></Skeleton>}
+
+        {/* {
+                pipeline_type: "wrap_pipeline",
+                parent_pipeline_id: "0"
+
+            } */}
+        <CreatePipeline
+            callback={loadData}
+            pipelineStructure={pipelineStructure}
+            open={createOpen}
+            setOpen={setCreateOpen}
+            data={record}></CreatePipeline>
     </div>
 }
 

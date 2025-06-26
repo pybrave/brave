@@ -1,6 +1,6 @@
 import { FC, memo, useEffect, useMemo, useRef, useState } from "react"
 import axios from "axios"
-import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Typography, message, Empty, Collapse, Card, Popover, Flex } from "antd"
+import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Typography, message, Empty, Collapse, Card, Popover, Flex, Popconfirm } from "antd"
 import { useOutletContext, useParams } from "react-router"
 import ResultList from '@/pages/components/result-list'
 // import AnalysisForm from "../analysis-form"
@@ -13,7 +13,22 @@ import AnalysisResultView from '../analysis-result-view'
 import { GroupSelectSampleButton, BaseSelect } from '@/pages/components/form-components'
 import AnalysisForm from '../analysis-form'
 import Literature from "@/pages/literature"
-const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAnalysisParams, inputAnalysisMethod, analysisMethod, appendSampleColumns, analysisType = "nonSample", children, cardExtra, upstreamFormJson, downstreamAnalysis, ...rest }) => {
+const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
+    analysisPipline,
+    parseAnalysisParams,
+    inputAnalysisMethod,
+    analysisMethod,
+    appendSampleColumns,
+    analysisType = "nonSample",
+    children,
+    cardExtra,
+    upstreamFormJson,
+    downstreamAnalysis,
+    setPipelineStructure,
+    setOperateOpen,
+    setPipelineRecord,
+    datelePipeline,
+    ...rest }) => {
 
     const { project } = useOutletContext<any>()
     const [record, setRecord] = useState<any>()
@@ -52,11 +67,22 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
                 {/* {analysisName && <SampleAnalysisResult analysisName={analysisName} shouldTrigger={true} setSampleResult={(data: any) => {
                     setSampleResult(data)
                 }}></SampleAnalysisResult>} */}
+
+
+
                 {checkAvailable(inputAnalysisMethod) ? <>
                     <UpstreamAnalysisInput
                         {...rest}
                         onClickItem={setRecord}
                         project={project}
+                        operatePipeline={
+                            {
+                                setPipelineStructure: setPipelineStructure,
+                                setOperateOpen: setOperateOpen,
+                                setPipelineRecord: setPipelineRecord,
+                                datelePipeline: datelePipeline,
+                            }
+                        }
                         cardExtra={cardExtra}
                         wrapAnalysisPipeline={wrapAnalysisPipeline}
                         upstreamFormJson={upstreamFormJson}
@@ -66,7 +92,16 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
                         inputAnalysisMethod={inputAnalysisMethod}></UpstreamAnalysisInput>
                 </> : <>
                     <Flex justify="center" style={{ margin: "2rem" }}>
-                        <Button color="cyan" variant="solid">添加管道输入</Button>
+                        <Button color="cyan" variant="solid" onClick={() => {
+                            setPipelineRecord(undefined);
+                            setPipelineStructure({
+                                pipeline_type: "input_analysis_method",
+                                //  pipeline_key:pipeline.pipeline_key,
+                                parent_pipeline_id: rest.pipeline_id
+                            })
+                            setOperateOpen(true)
+                        }}>添加管道输入</Button>
+                        {/* {JSON.stringify(rest)} */}
                     </Flex>
                 </>}
                 {checkAvailable(analysisMethod) ? <UpstreamAnalysisOutput
@@ -74,15 +109,31 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
                     children={children}
                     onClickItem={setRecord}
                     downstreamAnalysis={downstreamAnalysis}
+                    operatePipeline={
+                        {
+                            setPipelineStructure: setPipelineStructure,
+                            setOperateOpen: setOperateOpen,
+                            setPipelineRecord: setPipelineRecord,
+                            datelePipeline: datelePipeline,
+                        }
+                    }
                     project={project}
                     analysisType={analysisType}
                     analysisMethod={analysisMethod}
                     appendSampleColumns={appendSampleColumns}></UpstreamAnalysisOutput>
                     : <>
                         {wrapAnalysisPipeline != analysisPipline &&
-                         <Flex justify="center" style={{ margin: "2rem" }}>
-                            <Button color="cyan" variant="solid">添加管道输出</Button>
-                        </Flex>}
+                            <Flex justify="center" style={{ margin: "2rem" }}>
+                                <Button color="cyan" variant="solid" onClick={() => {
+                                    setPipelineRecord(undefined);
+                                    setPipelineStructure({
+                                        pipeline_type: "analysis_method",
+                                        //  pipeline_key:pipeline.pipeline_key,
+                                        parent_pipeline_id: rest.pipeline_id
+                                    })
+                                    setOperateOpen(true)
+                                }}>添加管道输出</Button>
+                            </Flex>}
 
                     </>}
 
@@ -90,6 +141,22 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
 
             </Col>
             <Col lg={4} sm={24} xs={24} style={{ paddingLeft: "1rem" }}>
+                {wrapAnalysisPipeline != analysisPipline && <>
+                    <Flex gap="small" style={{ marginBottom: "1rem" }}>
+                        <Button color="cyan" variant="solid" onClick={() => {
+                            setPipelineStructure({ pipeline_type: "pipeline" })
+                            setOperateOpen(true)
+                            setPipelineRecord(rest)
+                        }}>更新子流程</Button>
+                        <Popconfirm title="是否删除?" onConfirm={() => {
+                            datelePipeline(rest.pipeline_id)
+                        }}>
+                            <Button color="cyan" variant="solid" >删除子流程</Button>
+                        </Popconfirm>
+                        {/* {JSON.stringify(rest)} */}
+                    </Flex>
+
+                </>}
                 <Card title={`详细信息`}>
                     {record ? <>
                         <p>
@@ -110,23 +177,25 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline, analysisPipline, parseAn
 export default AnalysisPanel
 
 
-export const UpstreamAnalysisInput: FC<any> = ({ project, markdown, analysisPipline, wrapAnalysisPipeline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
+export const UpstreamAnalysisInput: FC<any> = ({ operatePipeline, project, markdown, analysisPipline, wrapAnalysisPipeline, parseAnalysisParams, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra }) => {
     const [upstreamForm] = Form.useForm();
     const [resultTableList, setResultTableList] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
     const [loading, setLoading] = useState<boolean>(false)
     const formId = Form.useWatch((values) => values?.id, upstreamForm);
     // const [currentAnalysisMethod, setCurrentAnalysisMethod] = useState<any>(analysisMethod[0].value[0])
-    const [currentAnalysisMethod, setCurrentAnalysisMethod] = useState<any>(analysisPipline ? analysisPipline : "")
+    // const [currentAnalysisMethod, setCurrentAnalysisMethod] = useState<any>(analysisPipline ? analysisPipline : "")
     const [activeTabKey, setActiveTabKey] = useState<any>()
+    const [currentAnalysisMethod, setCurrentAnalysisMethod] = useState<any>()
 
+    // const {    setPipelineStructure,setOperateOpen,setPipelineRecord,datelePipeline} = operatePipeline
     const tableRef = useRef<any>(null)
 
     const getrRequestParams = (values: any) => {
         const requestParams = {
             ...values,
             project: project,
-            analysis_pipline: currentAnalysisMethod,
+            analysis_pipline: analysisPipline,
             wrap_analysis_pipeline: wrapAnalysisPipeline,
             ...parseAnalysisParams
         }
@@ -183,6 +252,10 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, markdown, analysisPipl
     return <>
         {contextHolder}
         <ResultList
+            currentAnalysisMethod={currentAnalysisMethod}
+            setCurrentAnalysisMethod={setCurrentAnalysisMethod}
+            operatePipeline={operatePipeline}
+            pipelineType="input_analysis_method"
             cardExtra={cardExtra}
             title={`输入文件 ${inputAnalysisMethod.length > 0 ? "" : inputAnalysisMethod.map((it: any) => it.label)}`}
             activeTabKey={activeTabKey}
@@ -239,7 +312,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ project, markdown, analysisPipl
                                     project={project}
                                     ref={tableRef}
                                     shouldTrigger={true}
-                                    analysisMethod={currentAnalysisMethod}
+                                    analysisMethod={analysisPipline}
                                     setRecord={(record: any) => {
                                         const param = JSON.parse(record.request_param)
                                         console.log(param)
@@ -333,7 +406,7 @@ export const SelectComp: FC<any> = ({ it, resultTableList, value, onChange }) =>
 
 
 
-const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analysisType, analysisMethod, appendSampleColumns, downstreamAnalysis }) => {
+const UpstreamAnalysisOutput: FC<any> = ({ operatePipeline, children, project, onClickItem, analysisType, analysisMethod, appendSampleColumns, downstreamAnalysis ,...rest}) => {
     const [form] = Form.useForm();
 
     // const [loading, setLoading] = useState(false)
@@ -359,6 +432,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
     const [saveAnalysisMethod, setSaveAnalysisMethod] = useState<any>()
     const [collapseActiveKey, setCollapseActiveKey] = useState<any>("1")
     const [activeTabKey, setActiveTabKey] = useState<any>()
+    const [currentAnalysisMethod, setCurrentAnalysisMethod] = useState<any>()
 
     const [sampleGroupJSON, setSampleGroupJSON] = useState<any>()
     const [btnName, setBtnName] = useState<any>()
@@ -371,15 +445,15 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 
 
 
-    const getCurrentAnalysisMenthod = () => {
-        const analysisMethodDict: any = analysisMethod.reduce((acc: any, item: any) => {
-            acc[item.name] = item;
-            return acc;
-        }, {});
-        // const analysisMethodDict = analysisMethidtoDict(analysisMethod)
-        const currentAnalysisMenthod = analysisMethodDict[activeTabKey]
-        return currentAnalysisMenthod
-    }
+    // const getCurrentAnalysisMenthod = () => {
+    //     const analysisMethodDict: any = analysisMethod.reduce((acc: any, item: any) => {
+    //         acc[item.name] = item;
+    //         return acc;
+    //     }, {});
+    //     // const analysisMethodDict = analysisMethidtoDict(analysisMethod)
+    //     const currentAnalysisMenthod = analysisMethodDict[activeTabKey]
+    //     return currentAnalysisMenthod
+    // }
 
 
     // const savePlot = async ({ moduleName, params }: any) => {
@@ -502,6 +576,10 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
     return <>
         {contextHolder}
         <ResultList
+            currentAnalysisMethod={currentAnalysisMethod}
+            setCurrentAnalysisMethod={setCurrentAnalysisMethod}
+            operatePipeline={operatePipeline}
+            pipelineType="analysis_method"
             title={`输出文件 ${analysisMethod.length > 0 ? "" : analysisMethod.map((it: any) => it.name)}`}
             appendSampleColumns={appendSampleColumns}
             activeTabKey={activeTabKey}
@@ -533,6 +611,15 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
 
                 </span>
             })}
+            <Button color="cyan" variant="solid" onClick={() => {
+                operatePipeline.setPipelineRecord(undefined);
+                operatePipeline.setPipelineStructure({
+                    pipeline_type: "downstream_analysis",
+                    //  pipeline_key:pipeline.pipeline_key,
+                    parent_pipeline_id: rest.pipeline_id
+                })
+                operatePipeline.setOperateOpen(true)
+            }}>新增下游分析</Button>
         </div>
 
 
@@ -557,6 +644,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
                 </Form.Item> */}
 
             {btnName && <>
+                {/* {JSON.stringify(downstreamData)} */}
                 <Collapse
                     // activeKey={collapseActiveKey}
                     style={{ marginTop: "1rem" }}
@@ -568,58 +656,69 @@ const UpstreamAnalysisOutput: FC<any> = ({ children, project, onClickItem, analy
                             label: <>执行分析{btnName ? `(${btnName})` : ""}</>,
                             children: <>
                                 {!origin && <>
-                                    <Tabs items={[
-                                        {
-                                            key: "1",
-                                            label: "分析",
-                                            children: <AnalysisForm
-                                                form={form}
-                                                resultTableList={resultTableList}
-                                                formJson={formJson}
-                                                formDom={formDom}
-                                                // activeTabKey={activeTabKey}
-                                                sampleGroupApI={sampleGroupApI}
-                                                moduleName={moduleName}
-                                                params={params}
-                                                name={btnName}
-                                                setPlotLoading={setPlotLoading}
-                                                inputAnalysisMethod={getCurrentAnalysisMenthod()}
-                                                saveAnalysisMethod={saveAnalysisMethod}
-                                                project={project}
-                                                setFilePlot={setFilePlot}
-                                                plotReloadTable={() => {
-                                                    if (tableRef.current) {
-                                                        tableRef.current.reload()
-                                                    }
-                                                }}
-                                            // runPlot={runPlot}
-                                            // sampleGroup={sampleGroup}
-                                            // analysisMethod={analysisMethod} 
-                                            ></AnalysisForm>
+                                    <Tabs
+                                        tabBarExtraContent={<>
+                                            <Flex gap={"small"}>
+                                                <Button color="cyan" variant="solid" onClick={() => {
+                                                    operatePipeline.setOperateOpen(true)
+                                                    operatePipeline.setPipelineRecord(downstreamData)
+                                                    operatePipeline.setPipelineStructure({ pipeline_type: "downstream_analysis" })
+                                                }}>更新</Button>
+                                                <Button color="cyan" variant="solid" >删除</Button>
+                                            </Flex>
+                                        </>}
+                                        items={[
+                                            {
+                                                key: "1",
+                                                label: "分析",
+                                                children: <AnalysisForm
+                                                    form={form}
+                                                    resultTableList={resultTableList}
+                                                    formJson={formJson}
+                                                    formDom={formDom}
+                                                    // activeTabKey={activeTabKey}
+                                                    sampleGroupApI={sampleGroupApI}
+                                                    moduleName={moduleName}
+                                                    params={params}
+                                                    name={btnName}
+                                                    setPlotLoading={setPlotLoading}
+                                                    inputAnalysisMethod={currentAnalysisMethod}
+                                                    saveAnalysisMethod={saveAnalysisMethod}
+                                                    project={project}
+                                                    setFilePlot={setFilePlot}
+                                                    plotReloadTable={() => {
+                                                        if (tableRef.current) {
+                                                            tableRef.current.reload()
+                                                        }
+                                                    }}
+                                                // runPlot={runPlot}
+                                                // sampleGroup={sampleGroup}
+                                                // analysisMethod={analysisMethod} 
+                                                ></AnalysisForm>
 
-                                        }, {
-                                            key: "2",
-                                            label: "分析结果",
-                                            children: <ResultList
-                                                title="下游分析历史记录"
-                                                ref={tableRef}
-                                                analysisType={"analysisResult"}
-                                                analysisMethod={[
-                                                    {
-                                                        name: saveAnalysisMethod,
-                                                        label: saveAnalysisMethod,
-                                                        inputKey: [saveAnalysisMethod],
-                                                        mode: "multiple"
-                                                    }
-                                                ]}
-                                                form={form}
-                                                setTableLoading={setPlotLoading}
-                                                // setRecord={(data: any) => {  onClickItem(data) }}
-                                                setTabletData={(data: any) => {
-                                                    setFilePlot(data)
-                                                }}  ></ResultList>
-                                        }
-                                    ]}></Tabs>
+                                            }, {
+                                                key: "2",
+                                                label: "分析结果",
+                                                children: <ResultList
+                                                    title="下游分析历史记录"
+                                                    ref={tableRef}
+                                                    analysisType={"analysisResult"}
+                                                    analysisMethod={[
+                                                        {
+                                                            name: saveAnalysisMethod,
+                                                            label: saveAnalysisMethod,
+                                                            inputKey: [saveAnalysisMethod],
+                                                            mode: "multiple"
+                                                        }
+                                                    ]}
+                                                    form={form}
+                                                    setTableLoading={setPlotLoading}
+                                                    // setRecord={(data: any) => {  onClickItem(data) }}
+                                                    setTabletData={(data: any) => {
+                                                        setFilePlot(data)
+                                                    }}  ></ResultList>
+                                            }
+                                        ]}></Tabs>
 
 
 

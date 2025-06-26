@@ -155,9 +155,9 @@ export const AnalysisForm: FC<any> = ({
             return undefined
         }
     }
-    const loadData = async (analysisMetnodNames:any) => {
-      
-        const data = await listAnalysisResult({ project: project, analysisMethodValues:analysisMetnodNames })
+    const loadData = async (analysisMetnodNames: any) => {
+
+        const data = await listAnalysisResult({ project: project, analysisMethodValues: analysisMetnodNames })
         const groupedData = data.reduce((acc: any, item: any) => {
             const key = item.analysis_method;
             // const key = keyMap[item.analysis_method]
@@ -178,7 +178,7 @@ export const AnalysisForm: FC<any> = ({
             return acc;
         }, {});
         // console.log(groupedData)
-        const result = { ...dataMap_, ...resultTableList, ...groupedData,first_data_key: getFirstKey(resultTableList) }
+        const result = { ...dataMap_, ...resultTableList, ...groupedData, first_data_key: getFirstKey(resultTableList) }
         console.log(result)
         setDataMap(result)
 
@@ -198,10 +198,12 @@ export const AnalysisForm: FC<any> = ({
             //     // setSampleGroup(resultTableList)
             //     setDataMap({...dataMap_,...resultTableList})
             // }  
-            // debugger
-            const analysisMetnodNames = formJson??[]
-                .filter((item: any) => item.inputAnalysisMethod !== undefined)
-                .map((item: any) => item.inputAnalysisMethod);
+            let analysisMetnodNames = []
+            if (formJson) {
+                analysisMetnodNames = formJson.filter((item: any) => item.inputAnalysisMethod !== undefined).map((item: any) => item.inputAnalysisMethod);
+            }
+            console.log(formJson)
+            console.log(analysisMetnodNames)
             if (analysisMetnodNames.length != 0) {
                 loadData(analysisMetnodNames)
             } else {
