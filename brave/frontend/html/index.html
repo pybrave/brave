@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SSE Queue Monitor</title>
+</head>
+<body>
+    <h1>SSE from Queue</h1>
+    <div id="output"></div>
+
+    <script>
+        const eventSource = new EventSource("/brave-api/sse");
+
+        eventSource.onmessage = function(event) {
+            const output = document.getElementById("output");
+            const p = document.createElement("p");
+            p.textContent = "Received: " + event.data;
+            output.appendChild(p);
+        };
+    </script>
+</body>
+</html>

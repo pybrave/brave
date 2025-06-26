@@ -8,6 +8,9 @@ from brave.api.routes.sample import sample
 from brave.api.routes.analysis import analysis_api
 from brave.api.routes.pipeline import pipeline
 from brave.api.routes.literature import literature_api
+from brave.api.routes.sse import sseController,broadcast_loop,producer
+import asyncio
+
 
 from brave.api.routes.bio_database import bio_database
 from fastapi.staticfiles import StaticFiles
@@ -37,11 +40,35 @@ def create_app() -> FastAPI:
     app.include_router(bio_database,prefix="/brave-api")
     app.include_router(pipeline,prefix="/brave-api")
     app.include_router(literature_api,prefix="/brave-api")
+    app.include_router(sseController,prefix="/brave-api")
 
+
+    producer_task = None
+    broadcast_task = None
+
+    # 启动后台广播任务
+    @sseController.on_event("startup")
+    async def start_broadcast():
+        print("✅ 启动后台任务")
+        global producer_task, broadcast_task
+        asyncio.create_task(broadcast_loop())
+        asyncio.create_task(producer())
+
+    @app.on_event("shutdown")
+    async def on_shutdown():
+        print("✅ 关闭后台任务")
+        for task in [producer_task, broadcast_task]:
+            if task:
+                task.cancel()
     @app.get("/favicon.ico")
     async def serve_frontend():
         favicon = os.path.join(frontend_path, "build/favicon.ico")
         return FileResponse(favicon)
+
+    @app.get("/html/index.html")
+    async def serve_frontend():
+        index_path = os.path.join(frontend_path, "html/index.html")
+        return FileResponse(index_path)
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
