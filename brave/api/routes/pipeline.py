@@ -10,10 +10,11 @@ from collections import defaultdict
 from brave.api.models.core import t_pipeline
 import uuid
 from brave.api.config.db import get_engine
-from sqlalchemy import select, and_, join, func,insert,update
 import re
 from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline,QueryModule
 import brave.api.service.pipeline  as pipeline_service
+from sqlalchemy import select, union, table, column, or_, and_, literal_column, bindparam,join,func,insert,update
+
 pipeline = APIRouter()
 
 def camel_to_snake(name):
@@ -87,7 +88,7 @@ def add_pipeline_item(analysis_method_uuid,analysis_method,key,new_pipeline_list
     new_pipeline_list.append({
         "pipeline_id":analysis_method_uuid,
         "parent_pipeline_id":None,
-        "pipeline_key":None,
+        "pipeline_key":analysis_method_uuid,
         "pipeline_input":None,
         "pipeline_output":None,
         "pipeline_type":"analysis_method",
@@ -99,7 +100,7 @@ def add_pipeline_item(analysis_method_uuid,analysis_method,key,new_pipeline_list
             new_pipeline_list.append({
                 "pipeline_id":downstream_analysis_uuid,
                 "parent_pipeline_id":analysis_method_uuid,
-                "pipeline_key":None,
+                "pipeline_key":analysis_method_uuid,
                 "pipeline_input":None,
                 "pipeline_output":None,
                 "pipeline_type":"downstream_analysis",
@@ -167,18 +168,86 @@ async def get_pipeline(name):
 
 def get_pipeline_item(item):
     content= json.loads(item.content)
+    item = {k:v for k,v in item.items() if k!="content"}
     return {
-        "id":item.id,
-        "pipeline_id":item.pipeline_id,
-        "pipeline_key":item.pipeline_key,
-        "parent_pipeline_id":item.parent_pipeline_id,
-        "pipeline_order":item.pipeline_order,
-        "pipeline_type":item.pipeline_type,
+        # "id":item.id,
+        # "pipeline_id":item.pipeline_id,
+        # "pipeline_key":item.pipeline_key,
+        # "parent_pipeline_id":item.parent_pipeline_id,
+        # "pipeline_order":item.pipeline_order,
+        # "pipeline_type":item.pipeline_type,
+        **item,
         **content
     }
-
 @pipeline.get("/get-pipeline-v2/{name}",tags=['pipeline'])
 async def get_pipeline_v2(name):
+    with get_engine().begin() as conn:
+        # 子查询：联合 input/output
+        subq_input = select(t_pipeline.c.pipeline_input).where(
+            and_(
+                t_pipeline.c.pipeline_key == name,
+                t_pipeline.c.pipeline_type == "pipeline"
+            )
+        )
+
+        subq_output = select(t_pipeline.c.pipeline_output).where(
+            and_(
+                t_pipeline.c.pipeline_key == name,
+                t_pipeline.c.pipeline_type == "pipeline"
+            )
+        )
+
+        union_subquery = union(subq_input, subq_output).alias("sub_ids")
+
+        # 主查询
+        stmt = select(t_pipeline).where(
+            or_(
+                and_(
+                    t_pipeline.c.pipeline_key == name,
+                    t_pipeline.c.pipeline_type.in_(["wrap_pipeline", "pipeline"])
+                ),
+                t_pipeline.c.pipeline_key.in_(select(union_subquery.c.pipeline_input))  # 注意：input/output列名统一
+            )
+        )
+        pipeline_list = conn.execute(stmt).mappings().all()
+        result = [get_pipeline_item(item) for item in pipeline_list]
+        result = format_get_pipeline(result)
+        return result
+
+
+def format_get_pipeline(data):
+    wrap_pipeline = next(item for item in data if item["pipeline_type"] == "wrap_pipeline")
+    sub_pipelines = [d for d in data if d["pipeline_type"] == "pipeline" and d["parent_pipeline_id"] == wrap_pipeline["pipeline_id"]]
+    items = []
+    for sub in sub_pipelines:
+        input_analysis_method = sub["pipeline_input"]
+        output_analysis_method = sub["pipeline_output"]
+        inputAnalysisMethod = next(item for item in data if item["pipeline_type"] == "analysis_method" and item["pipeline_id"] == input_analysis_method)
+        if inputAnalysisMethod:
+            inputAnalysisMethod['downstreamAnalysis'] = [
+                d for d in data if d["pipeline_type"] == "downstream_analysis" and d["parent_pipeline_id"] == inputAnalysisMethod['pipeline_id']
+            ]
+            sub['inputAnalysisMethod'] = inputAnalysisMethod
+        
+        analysisMethod = next(item for item in data if item["pipeline_type"] == "analysis_method" and item["pipeline_id"] == output_analysis_method)
+        if analysisMethod:
+            analysisMethod['downstreamAnalysis'] = [
+                d for d in data if d["pipeline_type"] == "downstream_analysis" and d["parent_pipeline_id"] == analysisMethod['pipeline_id']
+            ]
+            sub['analysisMethod'] = analysisMethod
+
+        
+        items.append(sub)
+    
+    result = {
+        **wrap_pipeline,
+        "items": items
+    }
+    return result
+
+        
+@pipeline.get("/get-pipeline-v3/{name}",tags=['pipeline'])
+async def get_pipeline_v3(name):
     with get_engine().begin() as conn:
         pipeline_list = conn.execute(t_pipeline.select() 
             .where(t_pipeline.c.pipeline_key==name)).fetchall()
