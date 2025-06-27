@@ -1,12 +1,12 @@
 import { FC, useState } from "react"
-import Markdown from "../components/markdown"
+import Markdown from "../../components/markdown"
 import { Tabs } from "antd"
 
 import {chinese} from './chinese'
 import {english} from './english'
 import {introduction} from './introduction'
 
-import {EmbedLLM}  from '../components/embed-llm'
+import {EmbedLLM}  from '../../components/embed-llm'
 const Project:FC<any> = ()=>{
     const [data,setData] = useState<any>(introduction)
     const onChange = (value:any)=>{

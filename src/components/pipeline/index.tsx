@@ -1,4 +1,4 @@
-import { Breadcrumb, Button, Flex, message, Skeleton, Tabs, Tag } from "antd"
+import { Breadcrumb, Button, Flex, message, Modal, Skeleton, Tabs, Tag } from "antd"
 import { FC, useEffect, useState } from "react"
 import AnalysisPanel from '../analysis-panel'
 import Meta from "antd/es/card/Meta"
@@ -8,18 +8,33 @@ import axios from "axios"
 import { useLocation, useNavigate, useOutletContext, useParams } from "react-router"
 import { listPipeline } from "@/api/pipeline"
 import CreatePipeline from "../create-pipeline"
+import ModuleEdit from "../module-edit"
+import { useModal } from '@/hooks/useModal'
 const Pipeline: FC<any> = ({ }) => {
     const { pipelineId: name } = useParams()
     // console.log(pipelineId)
     const [pipeline, setPipeline] = useState<any>()
     const [items, setItems] = useState<any>([])
     const navigate = useNavigate();
-    const [createOpen, setCreateOpen] = useState<any>(false)
-    const [record, setRecord] = useState<any>()
-    const [messageApi, contextHolder] = message.useMessage();
 
-    const [pipelineStructure, setPipelineStructure] = useState<any>()
-    pipelineStructure
+    const [messageApi, contextHolder] = message.useMessage();
+    // const [editor, setEditor] = useState<any>({
+    //     open: false,
+    // })
+    // const updateEditor = (key: string, value: any) => {
+    //     setEditor((prev: any) => ({
+    //         ...prev,
+    //         [key]: value
+    //     }));
+    // };
+    const { modal, openModal, closeModal } = useModal();
+
+    // const [createOpen, setCreateOpen] = useState<any>(false)
+    // const [record, setRecord] = useState<any>()
+    // const [pipelineStructure, setPipelineStructure] = useState<any>()
+
+
+
     const loadFunction: any = (data: any[]) => {
         if (!data) return undefined
         return data.map((item: any) => {
@@ -55,12 +70,11 @@ const Pipeline: FC<any> = ({ }) => {
             return item
         })
     }
-    
+
     const getPipline: any = (wrapAnalysisPipeline: any, pipeline: any[]) => {
         // console.log(pipeline)
         return pipeline.map((item, index) => {
-            const { downstreamAnalysis, appendSampleColumns,
-                parseAnalysisModule, parseAnalysisResultModule, analysisType, ...rest } = item
+            const { downstreamAnalysis, appendSampleColumns, analysisType, ...rest } = item
             return {
                 key: index + 1,
                 label: item.name,
@@ -71,17 +85,26 @@ const Pipeline: FC<any> = ({ }) => {
                     // analysisMethod={item.analysisMethod}
                     // upstreamFormJson={item.upstreamFormJson}
                     {...rest}
-                    datelePipeline={datelePipeline}
-                    setPipelineStructure={setPipelineStructure}
-                    setOperateOpen={setCreateOpen}
-                    setPipelineRecord={setRecord}
+                    // editor={editor}
+                    // updateEditor={updateEditor}
+                    operatePipeline={
+                        {
+                            datelePipeline: datelePipeline,
+                            openModal: openModal
+                        }
+                    }
+                    // datelePipeline={datelePipeline}
+                    // setPipelineStructure={setPipelineStructure}
+                    // setOperateOpen={setCreateOpen}
+                    // setPipelineRecord={setRecord}
+                    // openModal={openModal}
                     wrapAnalysisPipeline={wrapAnalysisPipeline}
                     downstreamAnalysis={loadFunction(downstreamAnalysis)}
                     appendSampleColumns={loadColumnRender(appendSampleColumns)}
-                    parseAnalysisParams={{
-                        parse_analysis_module: parseAnalysisModule,
-                        parse_analysis_result_module: parseAnalysisResultModule
-                    }}
+                    // parseAnalysisParams={{
+                    //     parse_analysis_module: parseAnalysisModule,
+                    //     parse_analysis_result_module: parseAnalysisResultModule
+                    // }}
                     analysisType={analysisType ?? "sample"}>
                 </AnalysisPanel>
             }
@@ -173,15 +196,21 @@ const Pipeline: FC<any> = ({ }) => {
                 </> : <Skeleton active></Skeleton>}
             </div>
             <Flex gap="small" wrap>
-                <Button color="cyan" variant="solid" onClick={()=>{
-                    setRecord(undefined);
-                    setPipelineStructure({
-                        pipeline_type: "pipeline",
-                        // pipeline_key:pipeline.pipeline_key,
-                        parent_pipeline_id:pipeline.pipeline_id
+                <Button color="cyan" variant="solid" onClick={() => {
+                    openModal("modalA", {
+                        data: undefined, pipelineStructure: {
+                            pipeline_type: "pipeline",
+                            parent_pipeline_id: pipeline.pipeline_id
+                        }
                     })
-                    setCreateOpen(true)
                 }}>创建子流程</Button>
+                <Button color="cyan" variant="solid" onClick={() => {
+                    openModal("modalA", {
+                        data: pipeline, pipelineStructure: {
+                            pipeline_type: "wrap_pipeline",
+                        }
+                    })
+                }}>更新流程</Button>
 
                 <Button color="primary" variant="solid" onClick={loadData}>刷新</Button>
                 <Button color="primary" variant="solid" onClick={() => navigate(`/pipeline-card`)}>返回</Button>
@@ -189,19 +218,27 @@ const Pipeline: FC<any> = ({ }) => {
 
         </Flex>
 
-        {pipeline && Array.isArray(pipeline?.items) ? <Tabs items={items}></Tabs> : <Skeleton active></Skeleton>}
+        {pipeline && Array.isArray(pipeline?.items) ? <Tabs destroyInactiveTabPane={true} items={items}></Tabs> : <Skeleton active></Skeleton>}
 
         {/* {
                 pipeline_type: "wrap_pipeline",
                 parent_pipeline_id: "0"
 
             } */}
+        <ModuleEdit
+            visible={modal.key == "modalB" && modal.visible}
+            onClose={closeModal}
+            callback={loadData}
+            params={modal.params}
+        >
+        </ModuleEdit>
         <CreatePipeline
             callback={loadData}
-            pipelineStructure={pipelineStructure}
-            open={createOpen}
-            setOpen={setCreateOpen}
-            data={record}></CreatePipeline>
+            // pipelineStructure={pipelineStructure}
+            // data={record}
+            visible={modal.key == "modalA" && modal.visible}
+            onClose={closeModal}
+            params={modal.params}></CreatePipeline>
     </div>
 }
 

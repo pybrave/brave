@@ -1,6 +1,6 @@
 import { Tabs } from "antd"
 import { FC } from "react"
-import AnalysisPanel from '../../components/analysis-panel'
+import AnalysisPanel from '../../../components/analysis-panel'
 const Assembly: FC<any> = () => {
    
     return <>

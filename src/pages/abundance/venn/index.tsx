@@ -2,11 +2,11 @@ import { FC, forwardRef, useEffect, useState } from "react"
 import axios from "axios"
 import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Popover, Popconfirm, Typography, message, notification } from "antd"
 import { useOutletContext, useParams } from "react-router"
-import ResultList from '@/pages/components/result-list'
-import { readHdfsAPi } from '@/pages/components/result-list'
-import AnalysisResultInput from '../../components/analysis-result-input'
+import ResultList from '@/components/result-list'
+import { readHdfsAPi } from '@/components/result-list'
+import AnalysisResultInput from '../../../components/analysis-result-input'
 import './style.css'
-import {AnalysisForm2} from '../../components/analysis-form-bak'
+import {AnalysisForm2} from '../../../components/analysis-form-bak'
 
 const AbundanceOpterature: FC<any> = () => {
     const [loading, setLoading] = useState(false)

@@ -1,4 +1,4 @@
-import { Button, Card, Col, Empty, Flex, message, Popconfirm, Row, Tag, Tooltip } from "antd"
+import { Button, Card, Col, Empty, Flex, message, notification, Popconfirm, Row, Tag, Tooltip } from "antd"
 import Item from "antd/es/list/Item"
 import { FC, useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
@@ -8,8 +8,10 @@ import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import Meta from "antd/es/card/Meta"
 import { colors } from '@/utils/utils'
 import { listPipeline } from '@/api/pipeline'
-import CreatePipeline from '@/pages/components/create-pipeline'
+import CreatePipeline from '@/components/create-pipeline'
 import axios from "axios"
+import { useModal } from "@/hooks/useModal"
+
 const PipelineCard: FC<any> = () => {
     const { project } = useOutletContext<any>()
     const [menu, setMenu] = useState<any>([])
@@ -19,8 +21,10 @@ const PipelineCard: FC<any> = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch()
     const [messageApi, contextHolder] = message.useMessage();
+    const { modal, openModal, closeModal } = useModal();
 
     // const menuItems = useSelector((state: any) => state.menu.items)
+    const sseData = useSelector((state: any) => state.global.sseData)
 
     const menu1: any[] = [
         {
@@ -136,8 +140,17 @@ const PipelineCard: FC<any> = () => {
     // indivi
     return <div style={{ maxWidth: "1500px", margin: "1rem auto" }}>
         {contextHolder}
+        {JSON.stringify(sseData)}
         <Flex justify="flex-end" gap="small">
-            <Button color="cyan" variant="solid" onClick={() => { setRecord(undefined); setCreateOpen(true) }}>创建流程</Button>
+            <Button color="cyan" variant="solid" onClick={() => {
+                 openModal("modalA", {
+                    data: undefined,
+                    pipelineStructure: {
+                        pipeline_type: "wrap_pipeline",
+                        parent_pipeline_id: "0"
+                    }
+                })
+            }}>创建流程</Button>
 
             <Popconfirm title="是否安装?" onConfirm={async () => {
                 await axios.post("/import-pipeline")
@@ -184,9 +197,16 @@ const PipelineCard: FC<any> = () => {
                                 <EditOutlined
                                     onClick={(e) => {
                                         e.stopPropagation()
-                                        setCreateOpen(true)
-                                        console.log(item)
-                                        setRecord(item)
+                                        openModal("modalA", {
+                                            data: item,
+                                            pipelineStructure: {
+                                                pipeline_type: "wrap_pipeline",
+                                                parent_pipeline_id: "0"
+                                            }
+                                        })
+                                        // setCreateOpen(true)
+                                        // console.log(item)
+                                        // setRecord(item)
                                     }}
                                     style={{
                                         position: "absolute",
@@ -220,7 +240,7 @@ const PipelineCard: FC<any> = () => {
                 </Row>
             </div>
         )) : <Empty></Empty>}
-        <CreatePipeline
+        {/* <CreatePipeline
             callback={loadPipeine}
             pipelineStructure={{
                 pipeline_type: "wrap_pipeline",
@@ -229,7 +249,15 @@ const PipelineCard: FC<any> = () => {
             }}
             open={createOpen}
             setOpen={setCreateOpen}
-            data={record}></CreatePipeline>
+            data={record}></CreatePipeline> */}
+
+        <CreatePipeline
+            callback={loadPipeine}
+            // pipelineStructure={pipelineStructure}
+            // data={record}
+            visible={modal.key == "modalA" && modal.visible}
+            onClose={closeModal}
+            params={modal.params}></CreatePipeline>
         {import.meta.env.MODE == "development" &&
             <>
                 <br /><br /><br /><br /><br /><br />

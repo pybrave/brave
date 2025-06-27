@@ -1,6 +1,6 @@
 import { Button, Form, Input, Modal, notification, Select, Space, Typography } from "antd";
 import { FC, useState } from "react";
-import ResultList from '@/pages/components/result-list'
+import ResultList from '@/components/result-list'
 
 const AnalysisResultInput: FC<any> = ({ value, onChange, multiple = true }) => {
     const [form] = Form.useForm();

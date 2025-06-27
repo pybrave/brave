@@ -49,7 +49,7 @@ const PipelineCard = lazy(() => import('@/pages/pipeline-card'));
 const AnalysisResult = lazy(() => import('@/pages/analysis-result'));
 const Literature = lazy(() => import('@/pages/literature'));
 
-import Pipeline from '@/pages/components/pipeline'
+import Pipeline from '@/components/pipeline'
 import axios from "axios";
 import { Skeleton } from "antd";
 import { useDispatch } from "react-redux";

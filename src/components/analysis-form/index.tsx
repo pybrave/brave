@@ -10,7 +10,6 @@ export const AnalysisForm: FC<any> = ({
     // activeTabKey,
     formJson,
     formDom,
-    moduleName,
     params,
     sampleGroupApI,
     setPlotLoading,
@@ -19,7 +18,8 @@ export const AnalysisForm: FC<any> = ({
     project,
     setFilePlot,
     plotReloadTable,
-    name
+    name,
+    ...rest
 }) => {
     const formId = Form.useWatch((values: any) => values?.id, form);
     const is_save_analysis_result = Form.useWatch((values: any) => values?.is_save_analysis_result, form);
@@ -125,7 +125,11 @@ export const AnalysisForm: FC<any> = ({
                 table_type: tableType,
                 imgType: imgType,
                 ...downstreamInput,
-                software: "python"
+                software: "python",
+                pipeline_key:rest.pipeline_key
+            }
+            if(rest?.moduleDir){
+                reqParams['module_dir'] = rest.moduleDir
             }
             // console.log(reqParams)
             const resp: any = await axios.post(`/fast-api/file-parse-plot/${moduleName}`, reqParams)
@@ -149,7 +153,7 @@ export const AnalysisForm: FC<any> = ({
         }
     }, [name])
     const getFirstKey = (resultTableList: any) => {
-        if (resultTableList && Object.keys(resultTableList).length == 1) {
+        if (resultTableList && Object.keys(resultTableList).length >0) {
             return Object.keys(resultTableList)[0]
         } else {
             return undefined
@@ -179,12 +183,13 @@ export const AnalysisForm: FC<any> = ({
         }, {});
         // console.log(groupedData)
         const result = { ...dataMap_, ...resultTableList, ...groupedData, first_data_key: getFirstKey(resultTableList) }
-        console.log(result)
+        // console.log(result)
+        // console.log(resultTableList)
         setDataMap(result)
 
     }
     useEffect(() => {
-        console.log(resultTableList)
+        
         if (sampleGroupApI) {
             getSampleGroup()
         } else {
@@ -203,11 +208,14 @@ export const AnalysisForm: FC<any> = ({
                 analysisMetnodNames = formJson.filter((item: any) => item.inputAnalysisMethod !== undefined).map((item: any) => item.inputAnalysisMethod);
             }
             console.log(formJson)
-            console.log(analysisMetnodNames)
+            // console.log(analysisMetnodNames)
             if (analysisMetnodNames.length != 0) {
                 loadData(analysisMetnodNames)
             } else {
-                setDataMap({ ...dataMap_, ...resultTableList, first_data_key: getFirstKey(resultTableList) })
+                const data = { ...dataMap_, ...resultTableList, first_data_key: getFirstKey(resultTableList) }
+                console.log(data)
+                console.log(resultTableList)
+                setDataMap(data)
 
             }
             // console.log(analysisMetnodNames)
@@ -218,6 +226,7 @@ export const AnalysisForm: FC<any> = ({
     }, [JSON.stringify(resultTableList)])
     return <>
         {contextHolder}
+        {JSON.stringify(rest)}
         <Form form={form}   >
             <Form.Item name={"id"} style={{ display: "none" }}>
                 <Input></Input>
@@ -258,7 +267,7 @@ export const AnalysisForm: FC<any> = ({
 
             {(formDom || sampleGroup || formJson) && <>
                 <Button type="primary" onClick={() => {
-                    runPlot({ moduleName: moduleName, params: params })
+                    runPlot({ moduleName: rest.moduleName, params: params })
                 }}>{formId ? <>更新</> : is_save_analysis_result ? <>运行并保存</> : <>运行</>}</Button>
                 {formId && <Button type="primary" onClick={() => form.setFieldValue("id", undefined)}>取消更新</Button>}
 

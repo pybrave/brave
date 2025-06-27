@@ -1,6 +1,6 @@
 import { Button, Form, Select, Tabs, Typography } from "antd"
 
-import AnalysisPanel from "../../components/analysis-panel"
+import AnalysisPanel from "../../../components/analysis-panel"
 
 import { FC, useEffect, useState } from "react"
 import { json } from "stream/consumers"

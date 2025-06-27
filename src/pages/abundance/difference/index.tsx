@@ -3,8 +3,8 @@ import axios from "axios"
 import { Button, Col, Drawer, Input, Row, Space, Table, TableProps, Image, Form, Select, Spin, Modal, Tabs, Popconfirm, message } from "antd"
 import { useParams } from "react-router"
 import { Box } from '@ant-design/plots';
-import ResultList from '@/pages/components/result-list'
-import AnalysisForm from "../../components/analysis-form-bak";
+import ResultList from '@/components/result-list'
+import AnalysisForm from "../../../components/analysis-form-bak";
 
 const AbundanceOpterature: FC<any> = () => {
     const [form] = Form.useForm();

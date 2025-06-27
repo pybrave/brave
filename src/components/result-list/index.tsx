@@ -434,7 +434,7 @@ const ResultList = forwardRef<any, any>(({
         <Card title={title}
             extra={<>{cardExtra}
                 <Flex gap={"small"}>
-                    {operatePipeline.setOperateOpen && <>
+                    {/* {operatePipeline.setOperateOpen && <>
                         <Tooltip title={currentAnalysisMethod?.label}>
                             <Button color="cyan" variant="solid" onClick={() => {
                                 operatePipeline.setOperateOpen(true)
@@ -450,7 +450,7 @@ const ResultList = forwardRef<any, any>(({
                                 <Button color="cyan" variant="solid" >删除</Button>
                             </Popconfirm>
                         </Tooltip>
-                    </>}
+                    </>} */}
 
                     <Button color="primary" variant="solid" onClick={reload}>刷新</Button>
                 </Flex>

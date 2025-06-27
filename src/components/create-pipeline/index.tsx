@@ -3,7 +3,10 @@ import TextArea from "antd/es/input/TextArea"
 import axios from "axios"
 import { FC, use, useEffect, useState } from "react"
 
-const CreatePipeline: FC<any> = ({ open, setOpen, data, pipelineStructure, callback }) => {
+const CreatePipeline: FC<any> = ({ visible, onClose,params, callback }) => {
+    if (!visible) return null;
+    
+    const { data, pipelineStructure} = params
     const [form] = Form.useForm()
     const [pipeline, setPipeline] = useState<any>()
     const [loading, setLoaidng] = useState<any>(false)
@@ -30,7 +33,7 @@ const CreatePipeline: FC<any> = ({ open, setOpen, data, pipelineStructure, callb
 
     useEffect(() => {
 
-        if (open) {
+        if (visible) {
             if (data) {
                 getPipeleine(data.pipeline_id)
             } else {
@@ -38,7 +41,7 @@ const CreatePipeline: FC<any> = ({ open, setOpen, data, pipelineStructure, callb
             }
         }
 
-    }, [open])
+    }, [visible])
     const getParams = (values: any) => {
         const params = {
             ...values,
@@ -65,7 +68,7 @@ const CreatePipeline: FC<any> = ({ open, setOpen, data, pipelineStructure, callb
         if (callback) {
             callback()
         }
-        setOpen(false)
+        onClose()
     }
     return <>
         <Modal
@@ -73,9 +76,9 @@ const CreatePipeline: FC<any> = ({ open, setOpen, data, pipelineStructure, callb
             title={`${data ? "更新" : "新增"}流程(${pipelineStructure?.pipeline_type})`}
             okText={data ? "更新" : "新增"}
             onOk={savePipeline}
-            open={open}
-            onClose={() => setOpen(false)}
-            onCancel={() => setOpen(false)}>
+            open={visible}
+            onClose={() => onClose()}
+            onCancel={() => onClose()}>
             <Form form={form}>
 
                 <ComponentsRender {...pipelineStructure} data={pipeline} form={form}></ComponentsRender>

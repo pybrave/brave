@@ -3,10 +3,11 @@ import { Button, Card, message, Popconfirm, Popover, Space, Table } from "antd"
 import axios from "axios"
 import { FC, forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useParams } from "react-router"
+import ResultParse from "../result-parse"
+import { useModal } from "@/hooks/useModal"
 
 export const readHdfsAPi = (contentPath: any) => axios.get(`/api/read-hdfs?path=${contentPath}`)
 export const readJsonAPi = (contentPath: any) => axios.get(`/fast-api/read-json?path=${contentPath}`)
-export const parseAnalysisResultAPi = (id: any) => axios.post(`/fast-api/parse-analysis-result/${id}`)
 
 const ResultList = forwardRef<any, any>(({
     title,
@@ -27,7 +28,8 @@ const ResultList = forwardRef<any, any>(({
         reload: loadData
     }))
     const [messageApi, contextHolder] = message.useMessage();
-    
+    const { modal, openModal, closeModal } = useModal();
+
     const [data, setData] = useState<any>([])
     // const [content,setContent] = useState<any>()
     const [loading, setLoading] = useState(false)
@@ -122,36 +124,44 @@ const ResultList = forwardRef<any, any>(({
                             </Typography> */}
                         {record.analysis_name}
                     </>} >
-                        <a onClick={() => {
+                        <Button color="cyan" variant="solid" onClick={() => {
                             // record.content = JSON.parse(record.content)
                             setRecord(record)
                             // if (cleanDom) {
                             //     cleanDom(undefined)
                             // }
-                        }}>查看</a>
+                        }}>查看</Button>
                     </Popover>
+                    <Popconfirm title={"是否运行!"} onConfirm={async () => {
+                    }}>
+                        <Button color="cyan" variant="solid">运行</Button>
+                    </Popconfirm>
                     <Popconfirm title={"是否删除!"} onConfirm={async () => {
                         await deleteById(record.id)
                     }}>
-                        <a>删除</a>
+                        <Button color="cyan" variant="solid">删除</Button>
                     </Popconfirm>
-                    <Popconfirm title={"是否解析!"} onConfirm={async () => {
+                    <Button color="cyan" variant="solid" onClick={() => {
+                        openModal("modalA", record)
+                    }}>解析</Button>
+                    {/* <Popconfirm title={"是否解析!"} onConfirm={async () => {
                         try {
-                            await parseAnalysisResultAPi(record.id)
+                            await parseAnalysisResultAPi(record.id, true)
                             messageApi.success("提交成功")
-                        } catch (error:any) {
+                        } catch (error: any) {
                             console.log(error)
                             messageApi.error(error?.response?.data?.detail)
                         }
 
                     }}>
-                        <a>解析</a>
-                    </Popconfirm>
+                        
+                    </Popconfirm> */}
                 </Space>
             ),
         },
     ]
 
+ 
 
     useEffect(() => {
         loadData()
@@ -169,6 +179,12 @@ const ResultList = forwardRef<any, any>(({
                 dataSource={data} />
 
         </Card>
+        <ResultParse
+            visible={modal.key == "modalA" && modal.visible}
+            onClose={closeModal}
+            // callback={loadData}
+            params={modal.params}
+        ></ResultParse>
 
     </>
 })

@@ -1,15 +1,17 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { LaptopOutlined, NotificationOutlined, UserOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { Breadcrumb, Button, Layout, Menu, Select, Skeleton, theme } from 'antd';
+import { Breadcrumb, Button, Layout, Menu, notification, Select, Skeleton, theme } from 'antd';
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { Header } from 'antd/es/layout/layout';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { setCurrenct } from '@/store/priojectSlice'
+import { setSseData } from '@/store/globalSlice'
 
 const { Content, Sider } = Layout;
 
+type NotificationType = 'success' | 'info' | 'warning' | 'error';
 
 
 const items2: MenuProps['items'] = [UserOutlined, LaptopOutlined, NotificationOutlined].map(
@@ -43,25 +45,53 @@ const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [leftMenus, setLeftMenus] = useState<any>([])
-    const [projectList,setProjectList] = useState<any>([])
+    const [projectList, setProjectList] = useState<any>([])
     const dispatch = useDispatch()
+    const [notificationApi, notificationContextHolder] = notification.useNotification();
 
+    const openNotification = ({type,message="",description=""}:{type:NotificationType,message:string,description?:string}) => {
+        notificationApi[type]({
+        message: message,
+        description:description,
+        placement:"bottomRight"
+      });
+    };
     const { projectKey: project } = useSelector((state: any) => state.project.currenct)
     console.log(project)
     const onMenuClick = (key: string) => {
         console.log(key)
         navigate(key);
     }
-    const loadProject = async ()=>{
-        const resp:any = await axios.get("/list-project")
+    const loadProject = async () => {
+        const resp: any = await axios.get("/list-project")
         // console.log(resp.data)
-        setProjectList(resp.data.map((item:any)=>{
+        setProjectList(resp.data.map((item: any) => {
             return {
-                label:`${item.project}`,
-                value:item.project
+                label: `${item.project}`,
+                value: item.project
             }
         }))
     }
+    useEffect(() => {
+        const eventSource = new EventSource('/brave-api/sse');
+
+        eventSource.onmessage = (event) => {
+            //   setMessages(prev => [...prev, event.data]);
+            console.log(event.data)
+            openNotification({type:"info",message:event.data})
+            dispatch(setSseData(event.data))
+        };
+
+        eventSource.onerror = (err) => {
+            console.error('SSE connection error:', err);
+            eventSource.close(); // 可选：关闭连接
+        };
+
+        return () => {
+            eventSource.close(); // 组件卸载时关闭连接
+        };
+    }, [])
+
     useEffect(() => {
         loadProject()
     }, [])
@@ -156,6 +186,7 @@ const App: React.FC = () => {
     ]
     return (
         <Layout>
+            {notificationContextHolder}
             {/* <Header style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ color: "#fff",marginRight:"1rem" }} >BRAVE</div>
                 <Menu
@@ -185,11 +216,11 @@ const App: React.FC = () => {
                 {/* 右侧：项目选择 */}
                 <div style={{ marginLeft: "auto", minWidth: 100 }}>
                     <Select
-                        onChange={(value:any)=>{
+                        onChange={(value: any) => {
                             console.log(value)
                             dispatch(setCurrenct({
-                                name:value,
-                                projectKey:value,
+                                name: value,
+                                projectKey: value,
                             }))
                         }}
                         value={project}

@@ -61,6 +61,8 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap}) => {
         let data: any = []
         if (data_) {
             data = data_
+
+        //下游分析从数据库加载其它数据
         }else if(inputAnalysisMethod){
             
            

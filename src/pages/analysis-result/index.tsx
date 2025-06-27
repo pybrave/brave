@@ -1,8 +1,8 @@
 import { useRef, useState } from "react"
-import ResultList from "../components/result-list"
+import ResultList from "../../components/result-list"
 import { Button, Card, Drawer, Flex, Form, Radio, RadioChangeEvent, Spin } from "antd"
-import AnalysisResultView from '../components/analysis-result-view'
-import AnalysisForm from '../components/analysis-form'
+import AnalysisResultView from '../../components/analysis-result-view'
+import AnalysisForm from '../../components/analysis-form'
 import axios from "axios"
 import Literature from '../literature'
 const AnalysisResult = () => {
