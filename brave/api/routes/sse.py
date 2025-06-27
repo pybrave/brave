@@ -29,7 +29,7 @@ async def broadcast_loop():
 async def event_generator(request: Request, client_queue: asyncio.Queue):
     try:
         while True:
-            print(f"is_disconnected: {request.is_disconnected()}")
+            # print(f"is_disconnected: {request.is_disconnected()}")
             if await request.is_disconnected():
                 print("请求关闭!")
                 break
@@ -60,8 +60,8 @@ async def send_message(msg: str):
 async def  producer():
     i = 1
     while True:
-        await asyncio.sleep(5)
-        print(f"消息 {i}")
+        await asyncio.sleep(10)
+        print(f"📦 当前线程：{threading.current_thread().name}, 消息 {i}")
         await global_queue.put(f"消息 {i}")
         i += 1
 

@@ -30,6 +30,7 @@ analysis = Table(
     Column("id", Integer, primary_key=True),
     Column("project", String(255)),
     Column("analysis_key", String(255)),
+    Column("pipeline_id", String(255)),
     Column("analysis_name", String(255)),
     Column("input_file", String(255)),
     Column("analysis_method", String(255)),

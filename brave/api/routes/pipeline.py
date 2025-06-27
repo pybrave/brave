@@ -12,7 +12,7 @@ import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import select, and_, join, func,insert,update
 import re
-from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline
+from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline,QueryModule
 import brave.api.service.pipeline  as pipeline_service
 pipeline = APIRouter()
 
@@ -24,7 +24,7 @@ def camel_to_snake(name):
 @pipeline.post("/import-pipeline",tags=['pipeline'])
 async def get_pipeline():
     pipeline_files = get_pipeline_list()
-    new_pipeline_list = []
+    new_pipeline_list = [] 
     with get_engine().begin() as conn:
         wrap_pipeline_list = find_db_pipeline(conn, "wrap_pipeline")
         db_pipeline_key_list = [item.pipeline_key for item in wrap_pipeline_list ]
@@ -43,7 +43,7 @@ async def get_pipeline():
                 "content":json.dumps(wrap_pipeline)
             })
 
-            keys_to_remove = [ 'inputAnalysisMethod','analysisMethod','downstreamAnalysis']
+            keys_to_remove = [ 'downstreamAnalysis']
             for pipeline_item in json_data['items']:
                 pipeline_ = {k:v for k,v in pipeline_item.items() if  k not in keys_to_remove}
                 pipeline_uuid = str(uuid.uuid4())
@@ -143,15 +143,15 @@ async def get_pipeline_v2(name):
             # parseAnalysisResultModule = [
             #     d for d in data if d["pipeline_type"] == "parse_analysis_result_module" and d["parent_pipeline_id"] == parent_id
             # ]
-            inputAnalysisMethod = [
-                d for d in data if d["pipeline_type"] == "input_analysis_method" and d["parent_pipeline_id"] == parent_id
-            ]
-            # upstreamFormJson = [
-            #     d for d in data if d["pipeline_type"] == "upstream_form_json" and d["parent_pipeline_id"] == parent_id
+            # inputAnalysisMethod = [
+            #     d for d in data if d["pipeline_type"] == "input_analysis_method" and d["parent_pipeline_id"] == parent_id
             # ]
-            analysisMethod = [
-                d for d in data if d["pipeline_type"] == "analysis_method" and d["parent_pipeline_id"] == parent_id
-            ]
+            # # upstreamFormJson = [
+            # #     d for d in data if d["pipeline_type"] == "upstream_form_json" and d["parent_pipeline_id"] == parent_id
+            # # ]
+            # analysisMethod = [
+            #     d for d in data if d["pipeline_type"] == "analysis_method" and d["parent_pipeline_id"] == parent_id
+            # ]
 
             # downstreamAnalysis 有 formJson 嵌套，要特殊处理
             downstreamAnalysis = [
@@ -167,15 +167,16 @@ async def get_pipeline_v2(name):
             #     if children:
             #         entry["formJson"] = children
             #     downstreamAnalysis.append(entry)
+            
             items.append({
                 # "name": sub["name"],
                 # "analysisPipline": sub.get("analysisPipline"),
                 # "parseAnalysisModule": sub.get("parseAnalysisModule"),
                 **sub,
                 # "parseAnalysisResultModule": parseAnalysisResultModule,
-                "inputAnalysisMethod": inputAnalysisMethod,
-                # "upstreamFormJson": upstreamFormJson,
-                "analysisMethod": analysisMethod,
+                # "inputAnalysisMethod": inputAnalysisMethod,
+                # # "upstreamFormJson": upstreamFormJson,
+                # "analysisMethod": analysisMethod,
                 "downstreamAnalysis": downstreamAnalysis
             })
 
@@ -186,6 +187,14 @@ async def get_pipeline_v2(name):
     return result
      # with open("test/file.json","w") as f:
         #     f.write(json.dumps(pipeline_list))
+    
+@pipeline.post("/get-module-content",tags=['pipeline'])
+async def get_module_content(queryModule:QueryModule):
+    module_dir = queryModule.pipeline_key
+    if queryModule.module_dir:
+        module_dir = queryModule.module_dir
+    py_module = pipeline_service.find_module(queryModule.module_type,module_dir,queryModule.module_name)
+    return py_module
     
 
 def get_pipeine_content(json_file):
@@ -344,7 +353,7 @@ def get_downstream_analysis(item):
     return file_list
 
 @pipeline.get("/find_downstream_analysis/{analysis_method}",tags=['pipeline'])
-def get_downstream_analysis_list(analysis_method):
+async def get_downstream_analysis_list(analysis_method):
     pipeline_files = get_pipeline_list()
     downstream_list = [get_downstream_analysis(item) for item in pipeline_files]
     downstream_list = [item for sublist in downstream_list for item in sublist]
@@ -352,14 +361,12 @@ def get_downstream_analysis_list(analysis_method):
     return downstream_dict[analysis_method]
     
 @pipeline.post("/find-pipeline",tags=['pipeline'],response_model=Pipeline)
-def find_pipeline_by_pipeline_id(queryPipeline:QueryPipeline):
+async def find_pipelined(queryPipeline:QueryPipeline):
     with get_engine().begin() as conn:
-        stmt = t_pipeline.select().where(t_pipeline.c.pipeline_id ==queryPipeline.pipeline_id)
-        find_pipeine = conn.execute(stmt).fetchone()
-        return find_pipeine
+        return pipeline_service.find_pipeline(conn,queryPipeline)
 
 @pipeline.post("/save-pipeline",tags=['pipeline'])
-def save_pipeline(savePipeline:SavePipeline):
+async def save_pipeline(savePipeline:SavePipeline):
     
  
     save_pipeline_dict = savePipeline.dict()
@@ -395,7 +402,7 @@ def save_pipeline(savePipeline:SavePipeline):
 
 
 @pipeline.delete("/delete-pipeline/{pipeline_id}")
-def delete_user(pipeline_id: str):
+async def delete_user(pipeline_id: str):
     with get_engine().begin() as conn:
         stmt = t_pipeline.select().where(t_pipeline.c.parent_pipeline_id ==pipeline_id)
         find_pipeine = conn.execute(stmt).fetchone()

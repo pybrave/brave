@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Depends,Request,HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any
-from brave.api.service.pipeline  import get_all_module
+from brave.api.service.pipeline  import find_module
 # from brave.api.config.db import conn
 # from models.user import users
 from typing import List
@@ -57,12 +57,22 @@ def get_db_dict(db_field,request_param):
     db_dict = { key:find_analyais_result_by_ids(value) for key,value in  db_ids_dict.items()}
     return db_dict
 
+# 实现模块默认隔离，通过module_dir实现模块共享
+# 指定了module_dir，从module_dir所在目录查找模块
+# pipeline/share/py_plot/abundance_difference.py
+# 未指定module_dir，从pipeline_key所在目录查找模块
+# pipeline/reads-alignment-based-abundance-analysis/py_plot/abundance_alpha_diversity.py
 def parse_result(request_param,module_name):
-    all_module = get_all_module("py_plot")
-    if module_name not in all_module:
-        raise HTTPException(status_code=500, detail=f"py_plot: {module_name}没有找到!")
-
-    py_module = all_module[module_name]
+    module_dir = request_param['pipeline_key']
+    if "module_dir" in request_param:
+        module_dir = request_param['module_dir']
+    py_module = find_module("py_plot",module_dir,module_name)['module']
+    # if module_dir not in all_module:
+    #     raise HTTPException(status_code=500, detail=f"py_plot: 目录{module_dir}没有找到!")
+    # py_module_dir = all_module[module_dir]
+    # if module_name not in py_module_dir:
+    #     raise HTTPException(status_code=500, detail=f"py_plot: 目录{module_dir}文件{module_name}没有找到!")
+    # py_module = py_module_dir[module_name]['module']
     module = importlib.import_module(py_module)
     parse_data = getattr(module, "parse_data")
     sig = inspect.signature(parse_data)
@@ -253,7 +263,7 @@ def format_output(item,request_param):
 
 
 @file_parse_plot.get("/fast-api/file-parse-plot-test")
-def parse_result_restful():
+async def parse_result_restful():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
     # project="test"

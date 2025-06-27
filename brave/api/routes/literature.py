@@ -16,7 +16,7 @@ literature_api = APIRouter()
     "/literature",
     tags=['literature']
 )
-def get_analysis(query: LiteratureQuery) -> Dict[str, Any]:
+async def get_analysis(query: LiteratureQuery) -> Dict[str, Any]:
     with get_engine().begin() as conn:
         offset = (query.page_number - 1) * query.page_size
 
@@ -98,7 +98,7 @@ def add_or_update_relation_literature(conn,literature_key,literature_relation_da
     "/literature/import",
     tags=['literature']
 )
-def import_literature():
+async def import_literature():
     setting = get_settings()
     literature_dir = setting.LITERATURE_DIR
     literature_file_list = glob.glob(f"{literature_dir}/json/*.json")

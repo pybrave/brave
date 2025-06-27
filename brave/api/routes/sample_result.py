@@ -1,5 +1,6 @@
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
+import threading
 
 # from brave.api.config.db import conn
 # from models.user import users
@@ -19,6 +20,7 @@ from brave.api.config.db import get_engine
 import inspect
 from fastapi import HTTPException
 from brave.api.service.pipeline  import get_all_module,get_pipeline_dir
+import threading
 
 
 sample_result = APIRouter()
@@ -74,33 +76,17 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
             db.commit()
             print(">>>>新增: ",sample_name, software, content_type)
 
-def parse_result_oneV2(analysis_method,module_args,analsyisRecord,module,dir_path,project,verison,analysis_id=-1):
-    parse = getattr(module, "parse")
-    sig = inspect.signature(parse)
-    params = sig.parameters
-    res = None
-
-    # if len(params)==1:
-    #     res = parse(dir_path)
-    # elif len(params)==2:
-    #     res = parse(dir_path,analsyisRecord)
-    # elif len(params) ==3:
+def parse_result_oneV2(res, analysis_method,project,verison,analysis_id=-1):
     
-    args = {
-        "dir_path":dir_path,
-        "analysis": analsyisRecord,
-        **module_args
-    }
-    res = parse(**args)
 
-    if hasattr(module,"get_analysis_method"):
-        get_analysis_method = getattr(module, "get_analysis_method")
-        analysis_method = get_analysis_method()
-        print(f">>>>>更改分析名称: {analysis_method}")
+    # if hasattr(module,"get_analysis_method"):
+    #     get_analysis_method = getattr(module, "get_analysis_method")
+    #     analysis_method = get_analysis_method()
+    #     print(f">>>>>更改分析名称: {analysis_method}")
     analysis_name = analysis_method
-    if hasattr(module,"get_analysis_name"):
-        get_analysis_name = getattr(module, "get_analysis_name")
-        analysis_name = get_analysis_name()
+    # if hasattr(module,"get_analysis_name"):
+    #     get_analysis_name = getattr(module, "get_analysis_name")
+    #     analysis_name = get_analysis_name()
         
     with get_db_session() as db:
         if len(res) >0:
@@ -180,7 +166,7 @@ def parse_result(dir_path,project,verison):
 
 
 @sample_result.get("/sample-parse-result-test-hexiaoyan",tags=['analsyis_result'])
-def parse_result_restful():
+async def parse_result_restful():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
     # project="test"
@@ -194,7 +180,7 @@ def parse_result_restful():
     return {"msg":"success"}
 
 @sample_result.get("/sample-parse-result-test",tags=['analsyis_result'])
-def parse_result_restful():
+async def parse_result_restful():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
     # project="test"
@@ -208,7 +194,7 @@ def parse_result_restful():
     return {"msg":"success"}
 
 @sample_result.get("/sample-parse-result-test-leipu-meta",tags=['analsyis_result'])
-def parse_result_restful():
+async def parse_result_restful():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
     # project="test"
@@ -222,7 +208,7 @@ def parse_result_restful():
     return {"msg":"success"}
 
 @sample_result.get("/sample-parse-result")
-def parse_result_restful(base_path,verison,project):
+async def parse_result_restful(base_path,verison,project):
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result"
     # verison = "V1.0"
     
@@ -254,25 +240,6 @@ def find_analyais_result_by_ids( value):
     
 
 def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
-    return find_analyais_result_by_analysis_method(analysisResultQuery)
-
-@sample_result.post(
-    "/fast-api/find-analyais-result-by-analysis-method",
-    response_model=List[AnalysisResult])
-def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisResultQuery):
-    # with get_db_session() as session:
-    #     analysis_result =  session.query(SampleAnalysisResult,Sample) \
-    #         .outerjoin(Sample, SampleAnalysisResult.sample_key == Sample.sample_key) \
-    #         .filter(and_( \
-    #             SampleAnalysisResult.analysis_method.in_(analysisResultQuery.analysis_method), \
-    #             SampleAnalysisResult.project == analysisResultQuery.project \
-    #         )) \
-    #             .all()
-
-    #     for item in analysis_result:
-    #         if item.content_type=="json":
-    #             item.content = json.loads(item.content)
-            # print()
     with get_engine().begin() as conn:
         stmt = analysis_result.select() 
         if analysisResultQuery.querySample:
@@ -301,11 +268,32 @@ def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisResultQu
         # # rows = result.mappings().all()
         # pass
     return result_dict
+
+@sample_result.post(
+    "/fast-api/find-analyais-result-by-analysis-method",
+    response_model=List[AnalysisResult])
+async def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisResultQuery):
+    return find_analyais_result(analysisResultQuery)
+    # with get_db_session() as session:
+    #     analysis_result =  session.query(SampleAnalysisResult,Sample) \
+    #         .outerjoin(Sample, SampleAnalysisResult.sample_key == Sample.sample_key) \
+    #         .filter(and_( \
+    #             SampleAnalysisResult.analysis_method.in_(analysisResultQuery.analysis_method), \
+    #             SampleAnalysisResult.project == analysisResultQuery.project \
+    #         )) \
+    #             .all()
+
+    #     for item in analysis_result:
+    #         if item.content_type=="json":
+    #             item.content = json.loads(item.content)
+            # print()
+    # print(f"find_analyais_result_by_analysis_method 当前线程：{threading.current_thread().name}")
+  
     # return {"aa":"aa"}
 
 
 @sample_result.delete("/analyais-result/delete-by-id/{id}",  status_code=HTTP_204_NO_CONTENT)
-def delete_analysis_result(id: int):
+async def delete_analysis_result(id: int):
     with get_engine().begin() as conn:
         conn.execute(analysis_result.delete().where(analysis_result.c.id == id))
     return {"message":"success"}
@@ -316,7 +304,7 @@ def delete_analysis_result(id: int):
     "/fast-api/add-sample-analysis",
     tags=['analsyis_result'],
     description="根据项目名称导入样本")
-def add_sample_analysis(project):
+async def add_sample_analysis(project):
     insert_sample_list = []
     with get_engine().begin() as conn:
         stmt = samples.select().where(samples.c.project==project)

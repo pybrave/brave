@@ -14,3 +14,4 @@ pybrave.egg-info/
 dist
 install.sh
 pybrave-pipeline
+test.json

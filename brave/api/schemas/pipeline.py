@@ -25,3 +25,9 @@ class Pipeline(BaseModel):
     pipeline_order: Optional[int]
     pipeline_type: Optional[str]
     content: Optional[str]
+
+class QueryModule(BaseModel):
+    module_type: Optional[str]
+    module_name: Optional[str]
+    pipeline_key:Optional[str]
+    module_dir: Optional[str]=None

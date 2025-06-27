@@ -52,7 +52,7 @@ def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,ve
 
 
 @sample.post("/fast-api/import_sample_form_str",tags=["sample"],)
-def import_sample_form_str(sample:ImportSample):
+async def import_sample_form_str(sample:ImportSample):
     csv_buffer = StringIO(sample.content)
     df = pd.read_csv(csv_buffer)
     # pass
@@ -68,7 +68,7 @@ def import_sample_form_str(sample:ImportSample):
 
 
 @sample.post("/fast-api/update_sample_form_str",tags=["sample"],)
-def import_sample_form_str(sample:ImportSample):
+async def import_sample_form_str(sample:ImportSample):
     csv_buffer = StringIO(sample.content)
     df = pd.read_csv(csv_buffer)
     if not "project" in df.columns or not "sample_name" in df.columns:
@@ -89,7 +89,7 @@ def import_sample_form_str(sample:ImportSample):
 # ,response_model=List[Sample]
 # /ssd1/wy/workspace2/leipu/leipu_workspace2/sample/RNA.sample.csv
 @sample.get("/import-sample",tags=["sample"],)
-def import_sample(path):
+async def import_sample(path):
     df = pd.read_csv(path)
     with get_engine().begin() as conn:
         df_dict = df.to_dict(orient="records")
@@ -101,7 +101,7 @@ def import_sample(path):
         return {"msg":"success"}
 
 @sample.get("/update-import-sample",tags=["sample"],description="更新样本")
-def import_sample(path):
+async def import_sample(path):
     df = pd.read_csv(path)
     with get_engine().begin() as conn:
         df_dict = df.to_dict(orient="records")
@@ -119,7 +119,7 @@ def import_sample(path):
     tags=["sample"],
     description="查找样本"
 )
-def get_analysis(query:SampleGroupQuery):
+async def get_analysis(query:SampleGroupQuery):
     with get_engine().begin() as conn:
         return conn.execute(samples.select() \
             .where(and_(samples.c.project==  query.project \
@@ -133,7 +133,7 @@ def get_analysis(query:SampleGroupQuery):
     "/list-by-project",
     tags=["sample"],
     response_model=List[Sample] )
-def list_by_project(project):
+async def list_by_project(project):
     with get_engine().begin() as conn:
         return conn.execute(samples.select() \
             .where(and_(samples.c.project==  project )) ).fetchall()
@@ -143,7 +143,7 @@ def list_by_project(project):
     tags=['sample'],
     response_model=List[ProjectCount],
     description="列出所有项目")
-def list_project():
+async def list_project():
     with get_engine().begin() as conn:
         stmt = (
             select(

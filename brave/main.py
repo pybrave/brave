@@ -47,12 +47,12 @@ def create_app() -> FastAPI:
     broadcast_task = None
 
     # 启动后台广播任务
-    @sseController.on_event("startup")
+    @app.on_event("startup")
     async def start_broadcast():
         print("✅ 启动后台任务")
         global producer_task, broadcast_task
         asyncio.create_task(broadcast_loop())
-        asyncio.create_task(watch_folder("/workspace/brave/test"))
+        # asyncio.create_task(watch_folder("/workspace/brave/test"))
         asyncio.create_task(producer())
 
     @app.on_event("shutdown")
