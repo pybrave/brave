@@ -1,0 +1,556 @@
+{
+    "name": "clean_reads",
+    "label": "clean reads",
+    "inputKey": [
+        "fastp_clean_reads"
+    ],
+    "mode": "multiple",
+    "type": "GroupSelectSampleButton",
+    "groupField": "sample_group",
+    "rules": [
+        {
+            "required": true,
+            "message": "该字段不能为空!"
+        }
+    ],
+    "downstreamAnalysis": [
+        {
+            "name": "丰度矩阵",
+            "sampleGroupJSON": true,
+            "saveAnalysisMethod": "metaphlan_sam_abundance_matrix",
+            "moduleName": "abundance_matrix",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect"
+                },
+                {
+                    "name": "metaphlan_sam_abundance",
+                    "label": "丰度文件",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                }
+            ],
+            "tableDesc": ""
+        },
+        {
+            "name": "堆叠图",
+            "moduleName": "abundance_stacked_diagram",
+            "saveAnalysisMethod": "abundance_stacked_diagram",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect",
+                    "clear": [
+                        "samples_group"
+                    ]
+                },
+                {
+                    "name": "samples",
+                    "label": "选择分组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "rank",
+                    "label": "rank",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "RankSelect"
+                },
+                {
+                    "name": "ncol",
+                    "label": "图例的列数",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "BaseInputNumber",
+                    "initialValue": 2
+                }
+            ]
+        },
+        {
+            "name": "分组箱线图",
+            "moduleName": "abundance_grouped_boxplot",
+            "saveAnalysisMethod": "abundance_grouped_boxplot",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect"
+                },
+                {
+                    "name": "treatment",
+                    "label": "处理组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "control",
+                    "label": "对照组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "rank",
+                    "label": "rank",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "RankSelect"
+                },
+                {
+                    "name": "clade",
+                    "label": "clade",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "BaseInput"
+                }
+            ]
+        },
+        {
+            "name": "alpha多样性",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect"
+                },
+                {
+                    "name": "treatment",
+                    "label": "处理组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "control",
+                    "label": "对照组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "rank",
+                    "label": "rank",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "RankSelect"
+                }
+            ],
+            "saveAnalysisMethod": "metaphlan_abundance_alpha_diversity",
+            "moduleName": "abundance_alpha_diversity",
+            "tableDesc": ""
+        },
+        {
+            "name": "beta多样性",
+            "moduleName": "abundance_beta_diversity",
+            "saveAnalysisMethod": "metaphlan_abundance_beta_diversity",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect"
+                },
+                {
+                    "name": "treatment",
+                    "label": "处理组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "control",
+                    "label": "对照组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "rank",
+                    "label": "rank",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "RankSelect"
+                }
+            ]
+        },
+        {
+            "name": "差异分析",
+            "moduleName": "abundance_difference",
+            "saveAnalysisMethod": "metaphlan_abundance_difference_matrix",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect"
+                },
+                {
+                    "name": "treatment",
+                    "label": "处理组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "control",
+                    "label": "对照组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "rank",
+                    "label": "rank",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "RankSelect"
+                }
+            ]
+        },
+        {
+            "name": "ROC分析",
+            "moduleName": "abundance_roc",
+            "saveAnalysisMethod": "abundance_roc",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect"
+                },
+                {
+                    "name": "treatment",
+                    "label": "处理组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "control",
+                    "label": "对照组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "rank",
+                    "label": "rank",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "RankSelect"
+                }
+            ]
+        },
+        {
+            "name": "流行度分析",
+            "moduleName": "abundance_prevalence",
+            "saveAnalysisMethod": "metaphlan_prevalence_matrix",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect"
+                },
+                {
+                    "name": "sites1",
+                    "label": "部位一",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "sites2",
+                    "label": "部位二",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "rank",
+                    "label": "rank",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "RankSelect"
+                }
+            ]
+        },
+        {
+            "name": "累积丰度分析",
+            "moduleName": "abundance_cumulative_abundance",
+            "saveAnalysisMethod": "abundance_cumulative_abundance",
+            "formJson": [
+                {
+                    "name": "group_field",
+                    "label": "分组列",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupFieldSelect"
+                },
+                {
+                    "name": "sites1",
+                    "label": "部位一",
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "sites2",
+                    "label": "部位二",
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "query",
+                    "label": "累积丰度菌定义",
+                    "mode": "multiple",
+                    "type": "GroupCompareSelect"
+                },
+                {
+                    "name": "clade",
+                    "label": "clade",
+                    "type": "BaseInput"
+                },
+                {
+                    "name": "treatment",
+                    "label": "累积丰度处理组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "control",
+                    "label": "累积丰度对照组",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "GroupSelectSampleButton",
+                    "group": "group_field"
+                },
+                {
+                    "name": "rank",
+                    "label": "rank",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "RankSelect"
+                },
+                {
+                    "name": "calculation_method",
+                    "data": [
+                        {
+                            "label": "sum",
+                            "value": "sum"
+                        },
+                        {
+                            "label": "count",
+                            "value": "count"
+                        }
+                    ],
+                    "initialValue": "sum",
+                    "label": "计算方式",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "BaseSelect"
+                },
+                {
+                    "name": "hypothesis",
+                    "data": [
+                        {
+                            "label": "Mann–Whitney U(Wilcoxon rank-sum)",
+                            "value": "mannwhitneyu"
+                        },
+                        {
+                            "label": "Poisson regression",
+                            "value": "poisson"
+                        }
+                    ],
+                    "initialValue": "mannwhitneyu",
+                    "label": "统计检验方法",
+                    "rules": [
+                        {
+                            "required": true,
+                            "message": "该字段不能为空!"
+                        }
+                    ],
+                    "type": "BaseSelect"
+                }
+            ]
+        }
+    ]
+}

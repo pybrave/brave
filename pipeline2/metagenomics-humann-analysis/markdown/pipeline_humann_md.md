@@ -1,0 +1,1 @@
+![](/brave-api/pipeline-dir/metagenomics-humann-analysis/img/humann_workflow.png)

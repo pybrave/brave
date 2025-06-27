@@ -15,18 +15,9 @@
                 // "brave.__main__:main"
                 // "brave.main:create_app",
                 "--reload",
-                "--port",
-                "4000",
-                "--base-dir",
-                "/ssd1/wy/workspace2/nextflow_workspace",
-                "--work-dir",
-                "/data/wangyang/nf_work",
                 "--pipeline-dir",
-                "/ssd1/wy/workspace2/nextflow-fastapi/pipeline",
-                "--literature-dir",
-                "/ssd1/wy/workspace2/nextflow-fastapi/literature",
-                "--db-type",
-                "mysql"
+                "/workspace/brave/pipeline2"
+             
                 
 
             ],

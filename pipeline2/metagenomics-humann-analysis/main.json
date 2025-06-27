@@ -1,0 +1,79 @@
+{
+    "name": "宏基因组功能分析 ",
+    "analysisPipline": "metagenomics_humann_analysis",
+    "parseAnalysisModule": "metagenomics_humann_analysis",
+    "description": "宏基因组功能分析",
+    "tags": [
+        "HUMAnN"
+    ],
+    "img": "pipeline.jpg",
+    "category": "metagenomics",
+    "order": 10,
+    "items": [
+        {
+            "name": "功能分析",
+            "analysisPipline": "pipeline_humann",
+            "parseAnalysisModule": "pipeline_humann",
+            "markdown": "pipeline_humann_md",
+            "parseAnalysisResultModule": "humann_profile",
+            "inputAnalysisMethod": {
+                "name": "reads",
+                "label": "去宿主后的reads",
+                "inputKey": [
+                    "samtools_remove_hosts"
+                ],
+                "mode": "multiple",
+                "type": "GroupSelectSampleButton",
+                "groupField": "sample_group",
+                "rules": [
+                    {
+                        "required": true,
+                        "message": "该字段不能为空!"
+                    }
+                ]
+            },
+            "analysisMethod": {
+                "name": "humann_profile",
+                "label": "humann_profile",
+                "inputKey": [
+                    "humann_profile"
+                ],
+                "mode": "multiple",
+                "downstreamAnalysis": [
+                    {
+                        "name": "查看genefamilies",
+                        "analysisType": "one",
+                        "moduleName": "tsv",
+                        "markdown": "humann_genefamilies",
+                        "origin": true,
+                        "formJson": [
+                            {
+                                "name": "group_field",
+                                "label": "分组列",
+                                "rules": [
+                                    {
+                                        "required": true,
+                                        "message": "该字段不能为空!"
+                                    }
+                                ],
+                                "type": "GroupFieldSelect"
+                            },
+                            {
+                                "name": "metaphlan_sam_abundance",
+                                "label": "丰度文件",
+                                "rules": [
+                                    {
+                                        "required": true,
+                                        "message": "该字段不能为空!"
+                                    }
+                                ],
+                                "type": "GroupSelectSampleButton",
+                                "group": "group_field"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

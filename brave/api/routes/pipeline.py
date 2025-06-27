@@ -40,27 +40,77 @@ async def get_pipeline():
                 "pipeline_key":wrap_pipeline_key,
                 "parent_pipeline_id":"0",
                 "pipeline_type":"wrap_pipeline",
+                "pipeline_input":None,
+                "pipeline_output":None,
                 "content":json.dumps(wrap_pipeline)
             })
 
-            keys_to_remove = [ 'downstreamAnalysis']
+            keys_to_remove = [ 'inputAnalysisMethod','analysisMethod']
             for pipeline_item in json_data['items']:
                 pipeline_ = {k:v for k,v in pipeline_item.items() if  k not in keys_to_remove}
                 pipeline_uuid = str(uuid.uuid4())
-                new_pipeline_list.append({
+                
+                new_pipeline_item = {
                     "pipeline_id":pipeline_uuid,
                     "parent_pipeline_id":wrap_pipeline_uuid,
                     "pipeline_key":wrap_pipeline_key,
                     "pipeline_type":"pipeline",
+                    "pipeline_input":None,
+                    "pipeline_output":None,
                     "content":json.dumps(pipeline_)
-                })
-                for key in keys_to_remove:
-                    add_pipeline_item(pipeline_item,key,pipeline_uuid,wrap_pipeline_key,new_pipeline_list)
+                }
+
+                if "inputAnalysisMethod" in pipeline_item:
+                    pipeline_input_uuid = str(uuid.uuid4()) 
+                    add_pipeline_item(pipeline_input_uuid,  pipeline_item["inputAnalysisMethod"],"inputAnalysisMethod",new_pipeline_list)
+                    new_pipeline_item.update({"pipeline_input":pipeline_input_uuid})
+
+                if "analysisMethod" in pipeline_item:
+                    pipeline_output_uuid = str(uuid.uuid4()) 
+                    add_pipeline_item(pipeline_output_uuid,  pipeline_item['analysisMethod'],"analysisMethod",new_pipeline_list)
+                    new_pipeline_item.update({"pipeline_output":pipeline_output_uuid})
+
+                new_pipeline_list.append(new_pipeline_item)
+                # for key in keys_to_remove:
+                #     add_pipeline_item(pipeline_item,key,wrap_pipeline_key,new_pipeline_list)
                 # key= "parseAnalysisResultModule"
         insert_stmt = insert(t_pipeline).values(new_pipeline_list)
         conn.execute(insert_stmt)
+        return new_pipeline_list
 
-def add_pipeline_item(pipeline_item,key,pipeline_uuid,wrap_pipeline_key,new_pipeline_list):
+def add_pipeline_item(analysis_method_uuid,analysis_method,key,new_pipeline_list):
+    # print(analysis_method_uuid)
+    # if key in pipeline_item:
+    # analysis_method = pipeline_item[key] # analysis_method
+    analysis_method_ = {k:v for k,v in analysis_method.items() if  k !="downstreamAnalysis"}
+    # analysis_method_uuid = str(uuid.uuid4()) 
+    new_pipeline_list.append({
+        "pipeline_id":analysis_method_uuid,
+        "parent_pipeline_id":None,
+        "pipeline_key":None,
+        "pipeline_input":None,
+        "pipeline_output":None,
+        "pipeline_type":"analysis_method",
+        "content":json.dumps(analysis_method_)
+    })
+    if "downstreamAnalysis" in analysis_method:
+        for downstream_analysis in analysis_method['downstreamAnalysis']:
+            downstream_analysis_uuid = str(uuid.uuid4())
+            new_pipeline_list.append({
+                "pipeline_id":downstream_analysis_uuid,
+                "parent_pipeline_id":analysis_method_uuid,
+                "pipeline_key":None,
+                "pipeline_input":None,
+                "pipeline_output":None,
+                "pipeline_type":"downstream_analysis",
+                "content":json.dumps(downstream_analysis)
+            }) 
+                        
+
+
+
+
+def add_pipeline_item2(pipeline_item,key,pipeline_uuid,wrap_pipeline_key,new_pipeline_list):
     if key in pipeline_item:
               
         for item in pipeline_item[key]:

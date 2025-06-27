@@ -101,6 +101,8 @@ t_pipeline = Table(
     Column("pipeline_key", String(255)),
     Column("pipeline_order", Integer),
     Column("pipeline_type", String(255)),
+    Column("pipeline_input", String(255)),
+    Column("pipeline_output", String(255)),
     Column("parent_pipeline_id", String(255)),
     Column("content", Text)
 
