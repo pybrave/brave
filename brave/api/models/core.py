@@ -92,19 +92,77 @@ relation_literature = Table(
     Column("obj_type", String(255))
 )
 
-
+# pipeline_type: pipelne analysis_software analysis_file  downstream_analysis
+# 
 t_pipeline = Table(
     "pipeline",
     meta,
     Column("id", Integer, primary_key=True),
     Column("pipeline_id", String(255)),
-    Column("pipeline_key", String(255)),
+    Column("install_key", String(255)),
     Column("pipeline_order", Integer),
-    Column("pipeline_type", String(255)),
-    Column("parent_pipeline_id", String(255)),
+    Column("pipeline_type", String(255)), 
+    # Column("parent_pipeline_id", String(255)),
     Column("content", Text)
 
 )
+# relation_type: pipeline_software software_input_file  software_ouput_file  file_downstream
+t_relation_pipeline = Table(
+    "relation_pipeline",
+    meta,
+    Column("relation_id", Integer, primary_key=True),
+    Column("relation_type", String(255)), 
+    Column("install_key", String(255)),
+    Column("pipeline_id", String(255)),
+    Column("parent_pipeline_id", String(255))
+)
 
-# meta.create_all(engine)
+# t_relation_pipeline_software = Table(
+#     "relation_pipeline_software",
+#     meta,
+#     Column("relation_id", Integer, primary_key=True),
+#     Column("pipeline_id", String(255)),
+#     Column("analysis_software_id", String(255))
+# )
+
+# t_analysis_software = Table(
+#     "analysis_software",
+#     meta,
+#     Column("id", Integer, primary_key=True),
+#     Column("analysis_software_id", String(255)),
+#     Column("content", Text)
+
+# )
+# t_relation_software_file = Table(
+#     "relation_software_file",
+#     meta,
+#     Column("relation_id", Integer, primary_key=True),
+#     Column("analysis_software_id", String(255)),
+#     Column("analysis_file_id", String(255)),
+#     Column("file_type", String(255)),
+#     Column("content", Text)
+# )
+
+
+# t_analysis_file = Table(
+#     "analysis_file",
+#     meta,
+#     Column("id", Integer, primary_key=True),
+#     Column("analysis_file_id", String(255))
+
+# )
+# t_relation_file_downstream = Table(
+#     "relation_file_downstream",
+#     mata,
+#     Column("relation_id", Integer, primary_key=True),
+#     Column("analysis_file_id", String(255)),
+#     Column("downstream_analysis_id", String(255))
+# )
+# t_downstream_analysis = Table(
+#     "downstream_analysis",
+#     meta,
+#     Column("id", Integer, primary_key=True),
+#     Column("downstream_analysis_id", String(255))
+# )
+# # meta.create_all(engine)
 

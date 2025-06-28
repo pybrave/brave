@@ -7,13 +7,17 @@ import glob
 from brave.api.config.config import get_settings
 from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
 from collections import defaultdict
-from brave.api.models.core import t_pipeline
+from brave.api.models.core import t_pipeline,t_relation_pipeline
 import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import select, and_, join, func,insert,update
 import re
 from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline,QueryModule
 import brave.api.service.pipeline  as pipeline_service
+from sqlalchemy import  Column, Integer, String, Text, select, cast, null
+from sqlalchemy.orm import aliased
+from sqlalchemy.sql import union_all
+
 pipeline = APIRouter()
 
 def camel_to_snake(name):
@@ -25,74 +29,112 @@ def camel_to_snake(name):
 async def get_pipeline():
     pipeline_files = get_pipeline_list()
     new_pipeline_list = [] 
+    new_relation_list = []
     with get_engine().begin() as conn:
-        wrap_pipeline_list = find_db_pipeline(conn, "wrap_pipeline")
-        db_pipeline_key_list = [item.pipeline_key for item in wrap_pipeline_list ]
-        for wrap_pipeline_item in pipeline_files:
-            json_data = get_pipeine_content(wrap_pipeline_item)
-            wrap_pipeline_key = os.path.basename( os.path.dirname(wrap_pipeline_item))
-            if wrap_pipeline_key in db_pipeline_key_list:
+        pipeline_list = find_db_pipeline(conn, "pipeline")
+        db_pipeline_key_list = [item.install_key for item in pipeline_list ]
+        for pipeline_item_file in pipeline_files:
+            json_data = get_pipeine_content(pipeline_item_file)
+            install_key = os.path.basename( os.path.dirname(pipeline_item_file))
+            if install_key in db_pipeline_key_list:
                 continue
-            wrap_pipeline = {k:v for k,v in json_data.items() if  k !="items"}
-            wrap_pipeline_uuid = str(uuid.uuid4())
+            pipeline_item = {k:v for k,v in json_data.items() if  k !="items"}
+            pipeline_item_uuid = str(uuid.uuid4())
             new_pipeline_list.append({
-                "pipeline_id":wrap_pipeline_uuid,
-                "pipeline_key":wrap_pipeline_key,
-                "parent_pipeline_id":"0",
-                "pipeline_type":"wrap_pipeline",
-                "content":json.dumps(wrap_pipeline)
+                "pipeline_id":pipeline_item_uuid,
+                "install_key":install_key,
+                # "pipeline_key":wrap_pipeline_key,
+                # "parent_pipeline_id":"0",
+                "pipeline_type":"pipeline",
+                "content":json.dumps(pipeline_item)
             })
 
-            keys_to_remove = [ 'downstreamAnalysis']
-            for pipeline_item in json_data['items']:
-                pipeline_ = {k:v for k,v in pipeline_item.items() if  k not in keys_to_remove}
-                pipeline_uuid = str(uuid.uuid4())
+            keys_to_remove = [ 'inputFile','outputFile']
+            for analysis_software in json_data['items']:
+                analysis_software_ = {k:v for k,v in analysis_software.items() if  k not in keys_to_remove}
+                analysis_software_uuid = str(uuid.uuid4())
                 new_pipeline_list.append({
-                    "pipeline_id":pipeline_uuid,
-                    "parent_pipeline_id":wrap_pipeline_uuid,
-                    "pipeline_key":wrap_pipeline_key,
-                    "pipeline_type":"pipeline",
-                    "content":json.dumps(pipeline_)
+                    "pipeline_id":analysis_software_uuid,
+                    "install_key":install_key,
+                    # "parent_pipeline_id":wrap_pipeline_uuid,
+                    # "pipeline_key":wrap_pipeline_key,
+                    "pipeline_type":"analysis_software",
+                    "content":json.dumps(analysis_software_)
+                })
+                new_relation_list.append({
+                    "relation_type":"pipeline_software",
+                    "install_key":install_key,
+                    "pipeline_id":analysis_software_uuid,
+                    "parent_pipeline_id":pipeline_item_uuid,
                 })
                 for key in keys_to_remove:
-                    add_pipeline_item(pipeline_item,key,pipeline_uuid,wrap_pipeline_key,new_pipeline_list)
+                    add_analysis_file(analysis_software_uuid,install_key,analysis_software,key,new_pipeline_list,new_relation_list)
                 # key= "parseAnalysisResultModule"
         insert_stmt = insert(t_pipeline).values(new_pipeline_list)
         conn.execute(insert_stmt)
+        insert_stmt = insert(t_relation_pipeline).values(new_relation_list)
+        conn.execute(insert_stmt)
+        return {
+            "pipeline":new_pipeline_list,
+            "relation_pipeline":new_relation_list
+        }
+        
 
-def add_pipeline_item(pipeline_item,key,pipeline_uuid,wrap_pipeline_key,new_pipeline_list):
+def add_analysis_file(analysis_software_uuid,install_key,pipeline_item,key,new_pipeline_list,new_relation_list):
     if key in pipeline_item:
               
-        for item in pipeline_item[key]:
-            item_uuid = str(uuid.uuid4())  
+        for analysis_file in pipeline_item[key]:
+            analysis_file_uuid = str(uuid.uuid4())  
             # if key=='downstreamAnalysis':
-            #     downstreamAnalysis_ = {k:v for k,v in item.items() if  k !="downstreamAnalysis"}
-            #     new_pipeline_list.append({
-            #         "pipeline_id":item_uuid,
-            #         "parent_pipeline_id":pipeline_uuid,
-            #         "pipeline_key":wrap_pipeline_key,
-            #         "pipeline_type":camel_to_snake(key),
-            #         "content":json.dumps(downstreamAnalysis_)
-            #     })
-            #     if "formJson" in item:
-            #         for formJson_item in item["formJson"]:
-            #             formJson_item_uuid = str(uuid.uuid4()) 
-            #             new_pipeline_list.append({
-            #                 "pipeline_id":formJson_item_uuid,
-            #                 "parent_pipeline_id":item_uuid,
-            #                 "pipeline_key":wrap_pipeline_key,
-            #                 "pipeline_type":camel_to_snake("formJson"),
-            #                 "content":json.dumps(formJson_item)
-            #             })
+            analysis_file_ = {k:v for k,v in analysis_file.items() if  k !="downstreamAnalysis"}
+            new_pipeline_list.append({
+                "pipeline_id":analysis_file_uuid,
+                "install_key":install_key,
+                # "parent_pipeline_id":pipeline_uuid,
+                # "pipeline_key":wrap_pipeline_key,
+                "pipeline_type":"analysis_file",
+                "content":json.dumps(analysis_file_)
+            })
+            if key=="inputFile":
+                new_relation_list.append({
+                    "relation_type":"software_input_file",
+                    "install_key":install_key,
+                    "pipeline_id":analysis_file_uuid,
+                    "parent_pipeline_id":analysis_software_uuid
+                }) 
+            elif  key=="outputFile":
+                new_relation_list.append({
+                    "relation_type":"software_ouput_file",
+                    "install_key":install_key,
+                    "pipeline_id":analysis_file_uuid,
+                    "parent_pipeline_id":analysis_software_uuid
+                })
+            if "downstreamAnalysis" in analysis_file:
+                for downstream_analysis in analysis_file["downstreamAnalysis"]:
+                    downstream_analysis_uuid = str(uuid.uuid4()) 
+                    new_pipeline_list.append({
+                        "pipeline_id":downstream_analysis_uuid,
+                        "install_key":install_key,
+                        # "parent_pipeline_id":item_uuid,
+                        # "pipeline_key":wrap_pipeline_key,
+                        "pipeline_type":"downstream_analysis",
+                        "content":json.dumps(downstream_analysis)
+                    })
+                    new_relation_list.append({
+                        "relation_type":"file_downstream",
+                        "pipeline_id":downstream_analysis_uuid,
+                        "install_key":install_key,
+                        "parent_pipeline_id":analysis_file_uuid
+                    })
 
             # else:
-            new_pipeline_list.append({
-                "pipeline_id":item_uuid,
-                "parent_pipeline_id":pipeline_uuid,
-                "pipeline_key":wrap_pipeline_key,
-                "pipeline_type":camel_to_snake(key),
-                "content":json.dumps(item)
-            })
+            # new_pipeline_list.append({
+            #     "pipeline_id":item_uuid,
+            #     "parent_pipeline_id":pipeline_uuid,
+            #     "pipeline_key":wrap_pipeline_key,
+            #     "pipeline_type":camel_to_snake(key),
+            #     "content":json.dumps(item)
+            # })
 
 def find_db_pipeline(conn, pipeline_type):
     return conn.execute(t_pipeline.select() 
@@ -127,8 +169,98 @@ def get_pipeline_item(item):
         **content
     }
 
+
+
 @pipeline.get("/get-pipeline-v2/{name}",tags=['pipeline'])
 async def get_pipeline_v2(name):
+   # 创建递归 CTE
+    base = select(
+        t_pipeline.c.pipeline_id,
+        t_pipeline.c.pipeline_type,
+        t_pipeline.c.install_key,
+        t_pipeline.c.content,
+        cast(null(), String).label("relation_type"),
+        cast(null(), String).label("parent_pipeline_id")
+    ).where(
+        t_pipeline.c.pipeline_id == "5533ec6a-7900-4ac6-9650-4e3c4b8f24f8",
+        t_pipeline.c.pipeline_type == "pipeline"
+    )
+
+    # 递归部分
+    tp2 = aliased(t_pipeline)
+    trp = t_relation_pipeline
+    fp = aliased(t_pipeline)
+
+    recursive = select(
+        tp2.c.pipeline_id,
+        tp2.c.pipeline_type,
+        tp2.c.install_key,
+        tp2.c.content,
+        trp.c.relation_type,
+        trp.c.parent_pipeline_id
+    ).join(trp, tp2.c.pipeline_id == trp.c.pipeline_id) \
+    .join(fp, fp.c.pipeline_id == trp.c.parent_pipeline_id)
+
+    # union_all 并组成 CTE
+    cte = base.union_all(recursive).cte("full_pipeline", recursive=True)
+
+    # 查询最终结果
+    final_query = select(cte)
+
+
+    # 执行查询
+    with get_engine().begin() as conn:
+        data = conn.execute(final_query).mappings().all()
+        
+    id_to_node = {item["pipeline_id"]: {**item, "content": json.loads(item["content"])} for item in data}
+    children_map = defaultdict(list)
+    for item in data:
+        pid = item.get("parent_pipeline_id")
+        if pid:
+            children_map[pid].append(item["pipeline_id"])
+    # 获取根 pipeline_id
+    root_id = next(item["pipeline_id"] for item in data if item["pipeline_type"] == "pipeline")
+    result = build_pipeline_structure(id_to_node,children_map,root_id)
+    return result
+
+
+
+def build_pipeline_structure(id_to_node,children_map,pid):
+    node = id_to_node[pid]
+    result = {**node["content"]}
+    items = []
+    for child_id in children_map.get(pid, []):
+        child = id_to_node[child_id]
+        content = child["content"]
+        if child["pipeline_type"] == "analysis_software":
+            item = {**content}
+            input_files = []
+            output_files = []
+            for sub_id in children_map.get(child_id, []):
+                sub = id_to_node[sub_id]
+                sub_content = sub["content"]
+                if sub["relation_type"] == "software_input_file":
+                    input_files.append(sub_content)
+                elif sub["relation_type"] == "software_ouput_file":
+                    sub_out = {**sub_content, "downstreamAnalysis": []}
+                    for ds_id in children_map.get(sub["pipeline_id"], []):
+                        downstream = id_to_node[ds_id]["content"]
+                        sub_out["downstreamAnalysis"].append(downstream)
+                    output_files.append(sub_out)
+            if input_files:
+                item["inputFile"] = input_files
+            if output_files:
+                item["outputFile"] = output_files
+            if "upstreamFormJson" in content:
+                item["upstreamFormJson"] = content["upstreamFormJson"]
+            items.append(item)
+    if items:
+        result["items"] = items
+    return result
+
+
+@pipeline.get("/get-pipeline-v3/{name}",tags=['pipeline'])
+async def get_pipeline_v3(name):
     with get_engine().begin() as conn:
         pipeline_list = conn.execute(t_pipeline.select() 
             .where(t_pipeline.c.pipeline_key==name)).fetchall()
