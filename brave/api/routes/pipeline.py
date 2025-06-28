@@ -182,7 +182,7 @@ async def get_pipeline_v2(name):
         cast(null(), String).label("relation_type"),
         cast(null(), String).label("parent_pipeline_id")
     ).where(
-        t_pipeline.c.pipeline_id == "5533ec6a-7900-4ac6-9650-4e3c4b8f24f8",
+        t_pipeline.c.pipeline_id == name,
         t_pipeline.c.pipeline_type == "pipeline"
     )
 
@@ -212,39 +212,44 @@ async def get_pipeline_v2(name):
     with get_engine().begin() as conn:
         data = conn.execute(final_query).mappings().all()
         
-    id_to_node = {item["pipeline_id"]: {**item, "content": json.loads(item["content"])} for item in data}
+    id_to_node = {item["pipeline_id"]: get_one_data(item) for item in data}
     children_map = defaultdict(list)
     for item in data:
         pid = item.get("parent_pipeline_id")
         if pid:
             children_map[pid].append(item["pipeline_id"])
     # 获取根 pipeline_id
-    root_id = next(item["pipeline_id"] for item in data if item["pipeline_type"] == "pipeline")
+    root_id = next((item["pipeline_id"] for item in data if item["pipeline_type"] == "pipeline"),None)
+    if not root_id:
+        raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
+        
     result = build_pipeline_structure(id_to_node,children_map,root_id)
     return result
 
-
+def get_one_data(item):
+    content = json.loads(item["content"])
+    return {**item, **content }
 
 def build_pipeline_structure(id_to_node,children_map,pid):
     node = id_to_node[pid]
-    result = {**node["content"]}
+    result = {**node}
     items = []
     for child_id in children_map.get(pid, []):
         child = id_to_node[child_id]
-        content = child["content"]
+        content = child
         if child["pipeline_type"] == "analysis_software":
             item = {**content}
             input_files = []
             output_files = []
             for sub_id in children_map.get(child_id, []):
                 sub = id_to_node[sub_id]
-                sub_content = sub["content"]
+                sub_content = sub
                 if sub["relation_type"] == "software_input_file":
                     input_files.append(sub_content)
                 elif sub["relation_type"] == "software_ouput_file":
                     sub_out = {**sub_content, "downstreamAnalysis": []}
                     for ds_id in children_map.get(sub["pipeline_id"], []):
-                        downstream = id_to_node[ds_id]["content"]
+                        downstream = id_to_node[ds_id]
                         sub_out["downstreamAnalysis"].append(downstream)
                     output_files.append(sub_out)
             if input_files:
@@ -369,7 +374,7 @@ def get_pipeline_one_v2(item):
         result = {
             "id":item.id,
             "pipeline_id":item.pipeline_id,
-            "path":item.pipeline_key,
+            "path":item.pipeline_id,
             "name":data['name'],
             "category":data['category'],
             "img":f"/brave-api/img/{data['img']}",
@@ -393,7 +398,7 @@ def get_pipeline_one_v2(item):
 @pipeline.get("/list-pipeline-v2",tags=['pipeline'])
 async def get_pipeline():
     with get_engine().begin() as conn:
-        wrap_pipeline_list = find_db_pipeline(conn, "wrap_pipeline")
+        wrap_pipeline_list = find_db_pipeline(conn, "pipeline")
         pipeline_list = [get_pipeline_one_v2(item) for item in wrap_pipeline_list]
         pipeline_list = sorted(pipeline_list, key=lambda x:x["order"] if x["order"] is not None else x["id"])
     
