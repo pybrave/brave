@@ -150,6 +150,10 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                 {checkAvailable(inputFile) ? <>
                     <UpstreamAnalysisInput
                         {...rest}
+                        software={{
+                            pipeline_id: rest.pipeline_id,
+                            component_id: rest.component_id
+                        }}
                         onClickItem={setRecord}
                         project={project}
                         operatePipeline={operatePipeline}
@@ -254,7 +258,7 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
 export default AnalysisSoftwarePanel
 
 
-export const UpstreamAnalysisInput: FC<any> = ({ operatePipeline, project, markdown, analysisPipline, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra, ...rest }) => {
+export const UpstreamAnalysisInput: FC<any> = ({ software,operatePipeline, project, markdown, analysisPipline, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra, ...rest }) => {
     const [upstreamForm] = Form.useForm();
     const [resultTableList, setResultTableList] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
@@ -327,8 +331,10 @@ export const UpstreamAnalysisInput: FC<any> = ({ operatePipeline, project, markd
         setResultTableList(resultTableList);
     }
     return <>
+    {/* {JSON.stringify(software)} */}
         {contextHolder}
         <ResultList
+            software={software}
             currentAnalysisMethod={currentAnalysisMethod}
             setCurrentAnalysisMethod={setCurrentAnalysisMethod}
             operatePipeline={operatePipeline}
