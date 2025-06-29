@@ -238,7 +238,7 @@ const Pipeline: FC<any> = ({ }) => {
                 <Button color="cyan" variant="solid" onClick={() => {
                     openModal("modalA", {
                         data: undefined, pipelineStructure: {
-                            relation_type: "software",
+                            relation_type: "pipeline_software",
                             parent_component_id: pipeline.component_id,
                             pipeline_id: pipeline.component_id
 

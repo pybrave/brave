@@ -26,6 +26,7 @@ const ResultList = forwardRef<any, any>(({
     cardExtra,
     operatePipeline,
     pipelineType,
+    relation_type,
     currentAnalysisMethod,
     setCurrentAnalysisMethod,
     params
@@ -442,13 +443,17 @@ const ResultList = forwardRef<any, any>(({
                                 // operatePipeline.setPipelineStructure({ pipeline_type: pipelineType })
                                 operatePipeline.openModal("modalA", {
                                     data: currentAnalysisMethod,
-                                    pipelineStructure: { pipeline_type: "pipeline" }
+                                    pipelineStructure: { 
+                                        relation_type: "software_input_file",
+                                        parent_component_id: currentAnalysisMethod.component_id,
+                                        pipeline_id: currentAnalysisMethod.pipeline_id
+                                     }
                                 })
                             }}>更新</Button>
                         </Tooltip>
                         <Tooltip title={currentAnalysisMethod?.label}>
                             <Popconfirm title="确认删除!" onConfirm={() => {
-                                operatePipeline.datelePipeline(currentAnalysisMethod.pipeline_id)
+                                operatePipeline.datelePipeline(currentAnalysisMethod.relation_id)
                             }}>
                                 <Button color="cyan" variant="solid" >删除</Button>
                             </Popconfirm>
@@ -463,6 +468,8 @@ const ResultList = forwardRef<any, any>(({
             activeTabKey={activeTabKey}
             onTabChange={onTabChange}
         >
+    {JSON.stringify(currentAnalysisMethod)}
+
             {/* {JSON.stringify(currentAnalysisMenthod)} */}
             <Table
                 rowKey={(it: any) => it.id}

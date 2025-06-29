@@ -22,7 +22,9 @@ type AnalysisSoftware = {
     inputFile: AnalysisFile[],
     outputFile: any[],
     relation_id: any,
-    pipeline:any
+    pipeline:any,
+    pipeline_id:any,
+    component_id:any
 }
 
 const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
@@ -132,18 +134,18 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                 {/* {analysisName && <SampleAnalysisResult analysisName={analysisName} shouldTrigger={true} setSampleResult={(data: any) => {
                     setSampleResult(data)
                 }}></SampleAnalysisResult>} */}
-                {JSON.stringify(pipeline)}
+                {/* {JSON.stringify(pipeline)}
 
                 <hr />
-                {JSON.stringify(rest)}
+                {JSON.stringify(rest)} */}
 
 
                 <hr />
 
-                {JSON.stringify(inputFile)}
+                {/* {JSON.stringify(inputFile)}
                 <hr />
-                {JSON.stringify(outputFile)}
-
+                {JSON.stringify(outputFile)} */}
+                {rest.component_id}
 
                 {checkAvailable(inputFile) ? <>
                     <UpstreamAnalysisInput
@@ -207,7 +209,7 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                         <Button color="cyan" variant="solid" onClick={() => {
                             operatePipeline.openModal("modalA", {
                                 data: undefined, pipelineStructure: {
-                                    relation_type: "software",
+                                    relation_type: "pipeline_software",
                                     parent_component_id: pipeline.component_id,
                                     pipeline_id: pipeline.pipeline_id
 
@@ -217,7 +219,7 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                         <Button color="cyan" variant="solid" onClick={() => {
                             operatePipeline.openModal("modalA", {
                                 data: rest,
-                                pipelineStructure: { relation_type: "software" }
+                                pipelineStructure: { relation_type: "pipeline_software" }
                             })
                             // setPipelineStructure()
                             // setOperateOpen(true)

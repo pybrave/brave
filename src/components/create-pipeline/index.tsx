@@ -15,9 +15,9 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
     const componentMap: any = {
         wrap_pipeline: WrapPipeline,
         pipeline: WrapPipeline,
-        software: TextAreaContent,
-        input_analysis_method:TextAreaContent,
-        analysis_method:TextAreaContent,
+        pipeline_software: TextAreaContent,
+        software_input_file:TextAreaContent,
+        software_output_file:TextAreaContent,
         downstream_analysis:TextAreaContent
     }
     const ComponentsRender = ({ relation_type, data, form }: any) => {
@@ -196,6 +196,7 @@ export const CreateOrUpdatePipelineComponent: FC<any> = ({ visible, onClose,para
         setLoaidng(false)
         if (callback) {
             callback()
+            // await axios.get("/get-pipeline-v2/d9830ebd-240e-4758-adab-dd3a9d17e414")
         }
         onClose()
     }
