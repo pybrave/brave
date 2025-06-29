@@ -209,7 +209,8 @@ async def get_pipeline_v2(name):
         trp.c.pipeline_id ,
         trp.c.relation_id
     ).join(trp, tp2.c.component_id == trp.c.component_id) \
-    .join(fp, fp.c.component_id == trp.c.parent_component_id)
+    .join(fp, fp.c.component_id == trp.c.parent_component_id) \
+    .where(trp.c.pipeline_id == name) 
 
     # union_all 并组成 CTE
     cte = base.union_all(recursive).cte("full_pipeline", recursive=True)
