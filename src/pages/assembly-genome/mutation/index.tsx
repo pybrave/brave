@@ -1,7 +1,7 @@
 import { FC, useEffect, useState } from "react"
 import axios from "axios"
 import { Table, TableProps, Tabs } from "antd"
-import AnalysisPanel from "@/components/analysis-panel"
+import AnalysisPanel from "@/components/analysis-sotware-panel"
 import Breseq from "./breseq"
 import BreseqMutliSample from './breseq/multi-sample'
 const Mutation: FC<any> = () => {

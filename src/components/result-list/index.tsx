@@ -434,13 +434,16 @@ const ResultList = forwardRef<any, any>(({
         <Card title={title}
             extra={<>{cardExtra}
                 <Flex gap={"small"}>
-                    {/* {operatePipeline.setOperateOpen && <>
+                    {operatePipeline.openModal && <>
                         <Tooltip title={currentAnalysisMethod?.label}>
                             <Button color="cyan" variant="solid" onClick={() => {
-                                operatePipeline.setOperateOpen(true)
-                                operatePipeline.setPipelineRecord(currentAnalysisMethod)
-                                operatePipeline.setPipelineStructure({ pipeline_type: pipelineType })
-
+                                // operatePipeline.setOperateOpen(true)
+                                // operatePipeline.setPipelineRecord(currentAnalysisMethod)
+                                // operatePipeline.setPipelineStructure({ pipeline_type: pipelineType })
+                                operatePipeline.openModal("modalA", {
+                                    data: currentAnalysisMethod,
+                                    pipelineStructure: { pipeline_type: "pipeline" }
+                                })
                             }}>更新</Button>
                         </Tooltip>
                         <Tooltip title={currentAnalysisMethod?.label}>
@@ -450,7 +453,7 @@ const ResultList = forwardRef<any, any>(({
                                 <Button color="cyan" variant="solid" >删除</Button>
                             </Popconfirm>
                         </Tooltip>
-                    </>} */}
+                    </>}
 
                     <Button color="primary" variant="solid" onClick={reload}>刷新</Button>
                 </Flex>

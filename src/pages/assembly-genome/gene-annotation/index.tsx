@@ -1,6 +1,6 @@
 import { Tabs } from "antd"
 import { FC } from "react"
-import AnalysisPanel from '../../../components/analysis-panel'
+import AnalysisPanel from '../../../components/analysis-sotware-panel'
 
 import Eggnog from "./eggnog"
 const GeneAnnotation: FC<any> = () => {

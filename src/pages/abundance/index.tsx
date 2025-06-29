@@ -13,7 +13,7 @@ import Pie from './pie'
 import Venn from './venn'
 import CumulativeAbundance from './cumulative-abundance'
 import Unique from './unique'
-import AnalysisPanel from "../../components/analysis-panel"
+import AnalysisPanel from "../../components/analysis-sotware-panel"
 import AlphaDiversity from './alpha-diversity'
 import { FC } from "react"
 const AbundanceAnalysis = () => {

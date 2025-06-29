@@ -1,7 +1,7 @@
 import { Tabs } from "antd"
 import { FC } from "react"
-import AnalysisPanel from '../../../components/analysis-panel'
-import { UpstreamAnalysisInput } from '../../../components/analysis-panel'
+import AnalysisPanel from '../../../components/analysis-sotware-panel'
+import { UpstreamAnalysisInput } from '../../../components/analysis-sotware-panel'
 import Prokka from "./prokka"
 const GenePrediction: FC<any> = () => {
 

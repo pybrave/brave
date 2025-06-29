@@ -12,6 +12,7 @@ export default defineConfig({
   },
   plugins: [react()],
   server:{
+    allowedHosts:true,
     proxy:{
       // '/api':{
       //   target: `http://localhost:3000`,
@@ -21,7 +22,7 @@ export default defineConfig({
         target: `http://localhost:10100`,
         ws: true
       },'/brave-api':{
-        target: `http://localhost:4000`,
+        target: `http://localhost:5000`,
         ws: true
       },'/api':{
         target: `http://10.110.1.11:11434`,

@@ -1,6 +1,6 @@
 import { Button, Tabs } from "antd"
 import { FC } from "react"
-import AnalysisPanel from '../../../components/analysis-panel'
+import AnalysisPanel from '../../../components/analysis-sotware-panel'
 import { Bowtie2 } from '../../software-components/bowtie2'
 import { formatUrl } from '@/utils/utils'
 

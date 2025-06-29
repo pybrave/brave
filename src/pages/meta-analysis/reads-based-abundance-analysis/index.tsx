@@ -1,6 +1,6 @@
 import { Button, Skeleton, Tabs } from "antd"
 import { FC, useEffect, useState } from "react"
-import AnalysisPanel from '../../../components/analysis-panel'
+import AnalysisPanel from '../../../components/analysis-sotware-panel'
 import { Bowtie2 } from '../../software-components/bowtie2'
 import { Metaphlan } from './metaphlan'
 import axios from "axios"

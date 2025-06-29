@@ -1,6 +1,6 @@
 import { Tabs } from "antd"
 import { FC } from "react"
-import AnalysisPanel from '../../../components/analysis-panel'
+import AnalysisPanel from '../../../components/analysis-sotware-panel'
 import { Bowtie2Paired } from '../../software-components/bowtie2'
 const ReadsBasedAbundanceAnalysis: FC<any> = () => {
 

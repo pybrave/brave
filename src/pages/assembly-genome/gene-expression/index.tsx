@@ -1,6 +1,6 @@
 import { Button, Form, Select, Tabs } from "antd"
 import { FC, useEffect, useState } from "react"
-import AnalysisPanel from '../../../components/analysis-panel'
+import AnalysisPanel from '../../../components/analysis-sotware-panel'
 
 // import Eggnog from "./eggnog"
 const GeneExpressison: FC<any> = () => {

@@ -13,7 +13,23 @@ import AnalysisResultView from '../analysis-result-view'
 import { GroupSelectSampleButton, BaseSelect } from '@/components/form-components'
 import AnalysisForm from '../analysis-form'
 import PipelineMonitor from '@/components/pipeline-monitor'
-const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
+import { listAnalysisFiles } from '@/api/analysis-software'
+type AnalysisFile = {
+    name: string,
+    label: string
+}
+type AnalysisSoftware = {
+    inputFile: AnalysisFile[],
+    outputFile: any[],
+    relation_id: any,
+    pipeline:any
+}
+
+const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
+    inputFile,
+    outputFile,
+    pipeline,
+    wrapAnalysisPipeline,
     analysisPipline,
     inputAnalysisMethod,
     analysisMethod,
@@ -23,14 +39,63 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
     cardExtra,
     upstreamFormJson,
     downstreamAnalysis,
-    // setPipelineStructure,
-    // setOperateOpen,
-    // setPipelineRecord,
     operatePipeline,
     ...rest }) => {
-    const tableRef = useRef<any>(null)
-
     const { project } = useOutletContext<any>()
+
+    const getAnalsyisFiles = async () => {
+        const analysisFileType: any = []
+        analysisFileType.push({
+            type: "input",
+            names: inputFile.map(item => item.name)
+        })
+        analysisFileType.push({
+            type: "output",
+            names: outputFile.map(item => item.name)
+        })
+        console.log(analysisFileType)
+
+        const typeMap: any = {};
+        analysisFileType.forEach(({ names, ...rest }: any) => {
+            names.forEach((value: any) => {
+                typeMap[value] = rest;
+            });
+        });
+
+        const analysisFileNames = analysisFileType.flatMap((it: any) => it.names)
+        const data = await listAnalysisFiles({ project: project, analysisFileNames: analysisFileNames })
+        const groupedData = data.reduce((acc: any, item: any) => {
+            const analysisFileName = item.analysis_method;
+            const key = typeMap[analysisFileName].type
+            // if (!acc[key]) {
+            //     acc[key] = [];
+            // }
+            if (!acc[key][analysisFileName]) {
+                acc[key][analysisFileName] = [];
+            }
+            const { sample_key, id, sample_group, ...rest } = item
+            // debugger
+
+            acc[key][analysisFileName].push({
+                label: sample_key,
+                value: id,
+                sample_group: sample_group ? sample_group : "no_group",
+                sample_key: sample_key,
+                id: id,
+                ...rest
+            });
+            return acc;
+        }, { input: {}, output: {} });
+        console.log(groupedData)
+        console.log(typeMap)
+
+    }
+
+    useEffect(() => {
+        getAnalsyisFiles()
+    }, [])
+
+    const tableRef = useRef<any>(null)
     const [record, setRecord] = useState<any>()
     // inputAnalysisMethod = [
     //     {
@@ -67,10 +132,20 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
                 {/* {analysisName && <SampleAnalysisResult analysisName={analysisName} shouldTrigger={true} setSampleResult={(data: any) => {
                     setSampleResult(data)
                 }}></SampleAnalysisResult>} */}
+                {JSON.stringify(pipeline)}
+
+                <hr />
+                {JSON.stringify(rest)}
 
 
+                <hr />
 
-                {checkAvailable(inputAnalysisMethod) ? <>
+                {JSON.stringify(inputFile)}
+                <hr />
+                {JSON.stringify(outputFile)}
+
+
+                {checkAvailable(inputFile) ? <>
                     <UpstreamAnalysisInput
                         {...rest}
                         onClickItem={setRecord}
@@ -81,7 +156,7 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
                         upstreamFormJson={upstreamFormJson}
                         analysisPipline={analysisPipline}
                         analysisMethod={analysisMethod}
-                        inputAnalysisMethod={inputAnalysisMethod}></UpstreamAnalysisInput>
+                        inputAnalysisMethod={inputFile}></UpstreamAnalysisInput>
                 </> : <>
                     {/* <Flex justify="center" style={{ margin: "2rem" }}>
                         <Button color="cyan" variant="solid" onClick={() => {
@@ -95,24 +170,10 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
                     </Flex> */}
                 </>}
                 {/* {JSON.stringify(rest)} */}
-                <AnalysisList
-                    project={project}
-                    ref={tableRef}
-                    shouldTrigger={true}
-                    analysisMethod={analysisPipline}
-                    setRecord={(record: any) => {
-                        // const param = JSON.parse(record.request_param)
-                        // console.log(param)
-                        // upstreamForm.resetFields()
-                        // upstreamForm.setFieldsValue(param)
-                        // if (record?.id) {
-                        //     upstreamForm.setFieldValue("id", record?.id)
-                        // }
-                        // onClickItem(record)
-                    }}></AnalysisList>
+
                 {/* <PipelineMonitor pipelineId={rest.pipeline_id} ></PipelineMonitor> */}
                 <div style={{ marginBottom: "1rem" }}></div>
-                {checkAvailable(analysisMethod) ? <UpstreamAnalysisOutput
+                {checkAvailable(outputFile) ? <UpstreamAnalysisOutput
                     {...rest}
                     children={children}
                     onClickItem={setRecord}
@@ -120,7 +181,7 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
                     operatePipeline={operatePipeline}
                     project={project}
                     analysisType={analysisType}
-                    analysisMethod={analysisMethod}
+                    analysisMethod={outputFile}
                     appendSampleColumns={appendSampleColumns}></UpstreamAnalysisOutput>
                     : <>
                         {/* {wrapAnalysisPipeline != analysisPipline &&
@@ -142,20 +203,30 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
             </Col>
             <Col lg={4} sm={24} xs={24} style={{ paddingLeft: "1rem" }}>
                 {wrapAnalysisPipeline != analysisPipline && <>
-                    <Flex gap="small" style={{ marginBottom: "1rem" }}>
+                    <Flex gap="small" style={{ marginBottom: "1rem", flexWrap: "wrap"  }}>
+                        <Button color="cyan" variant="solid" onClick={() => {
+                            operatePipeline.openModal("modalA", {
+                                data: undefined, pipelineStructure: {
+                                    relation_type: "software",
+                                    parent_component_id: pipeline.component_id,
+                                    pipeline_id: pipeline.pipeline_id
+
+                                }
+                            })
+                        }}>创建子流程</Button>
                         <Button color="cyan" variant="solid" onClick={() => {
                             operatePipeline.openModal("modalA", {
                                 data: rest,
-                                pipelineStructure: { pipeline_type: "pipeline" }
+                                pipelineStructure: { relation_type: "software" }
                             })
                             // setPipelineStructure()
                             // setOperateOpen(true)
                             // setPipelineRecord(rest)
                         }}>更新子流程</Button>
                         <Popconfirm title="是否删除?" onConfirm={() => {
-                            operatePipeline.datelePipeline(rest.pipeline_id)
+                            operatePipeline.datelePipelineRelation(rest.relation_id)
                         }}>
-                            <Button color="cyan" variant="solid" >删除子流程</Button>
+                            <Button  color="danger" variant="solid" >删除子流程</Button>
                         </Popconfirm>
                         {/* {JSON.stringify(rest)} */}
                     </Flex>
@@ -178,7 +249,7 @@ const AnalysisPanel: FC<any> = ({ wrapAnalysisPipeline,
     </>
 }
 
-export default AnalysisPanel
+export default AnalysisSoftwarePanel
 
 
 export const UpstreamAnalysisInput: FC<any> = ({ operatePipeline, project, markdown, analysisPipline, upstreamFormJson, inputAnalysisMethod, onClickItem, cardExtra, ...rest }) => {
@@ -353,6 +424,22 @@ export const UpstreamAnalysisInput: FC<any> = ({ operatePipeline, project, markd
                                     }
                                 ]} />
 
+
+                                <AnalysisList
+                                    project={project}
+                                    ref={tableRef}
+                                    shouldTrigger={true}
+                                    analysisMethod={analysisPipline}
+                                    setRecord={(record: any) => {
+                                        const param = JSON.parse(record.request_param)
+                                        console.log(param)
+                                        upstreamForm.resetFields()
+                                        upstreamForm.setFieldsValue(param)
+                                        if (record?.id) {
+                                            upstreamForm.setFieldValue("id", record?.id)
+                                        }
+                                        onClickItem(record)
+                                    }}></AnalysisList>
                                 {/* {markdown} */}
                                 <AnalysisResultView
                                     plotLoading={false}

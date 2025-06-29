@@ -1,13 +1,13 @@
-import { Breadcrumb, Button, Flex, message, Modal, Skeleton, Tabs, Tag } from "antd"
+import { Breadcrumb, Button, Empty, Flex, message, Modal, Skeleton, Tabs, Tag } from "antd"
 import { FC, useEffect, useState } from "react"
-import AnalysisPanel from '../analysis-panel'
+import AnalysisPanel from '../analysis-sotware-panel'
 import Meta from "antd/es/card/Meta"
 import { colors } from '@/utils/utils'
 
 import axios from "axios"
 import { useLocation, useNavigate, useOutletContext, useParams } from "react-router"
 import { listPipeline } from "@/api/pipeline"
-import CreatePipeline from "../create-pipeline"
+import { CreateORUpdatePipelineCompnentRelation, CreateOrUpdatePipelineComponent } from "../create-pipeline"
 import ModuleEdit from "../module-edit"
 import { useModal } from '@/hooks/useModal'
 const Pipeline: FC<any> = ({ }) => {
@@ -71,10 +71,13 @@ const Pipeline: FC<any> = ({ }) => {
         })
     }
 
-    const getPipline: any = (wrapAnalysisPipeline: any, pipeline: any[]) => {
+    const getPipline: any = (pipeline: any) => {
         // console.log(pipeline)
-        return pipeline.map((item, index) => {
-            const { downstreamAnalysis, appendSampleColumns, analysisType, ...rest } = item
+        const softwareList: any[] = pipeline.items
+        console.log(pipeline)
+        if (!softwareList) return []
+        return softwareList.map((item, index) => {
+            // const { downstreamAnalysis, appendSampleColumns, analysisType, ...rest } = item
             return {
                 key: index + 1,
                 label: item.name,
@@ -84,28 +87,33 @@ const Pipeline: FC<any> = ({ }) => {
                     // analysisPipline={item.analysisPipline}
                     // analysisMethod={item.analysisMethod}
                     // upstreamFormJson={item.upstreamFormJson}
-                    {...rest}
+                    {...item}
+                    pipeline={{
+                        pipeline_id: pipeline.component_id,
+                        component_id: pipeline.component_id
+
+                    }}
                     // editor={editor}
                     // updateEditor={updateEditor}
                     operatePipeline={
                         {
-                            datelePipeline: datelePipeline,
+                            datelePipelineRelation: datelePipelineRelation,
                             openModal: openModal
                         }
                     }
-                    // datelePipeline={datelePipeline}
-                    // setPipelineStructure={setPipelineStructure}
-                    // setOperateOpen={setCreateOpen}
-                    // setPipelineRecord={setRecord}
-                    // openModal={openModal}
-                    wrapAnalysisPipeline={wrapAnalysisPipeline}
-                    downstreamAnalysis={loadFunction(downstreamAnalysis)}
-                    appendSampleColumns={loadColumnRender(appendSampleColumns)}
-                    // parseAnalysisParams={{
-                    //     parse_analysis_module: parseAnalysisModule,
-                    //     parse_analysis_result_module: parseAnalysisResultModule
-                    // }}
-                    analysisType={analysisType ?? "sample"}>
+                // datelePipeline={datelePipeline}
+                // setPipelineStructure={setPipelineStructure}
+                // setOperateOpen={setCreateOpen}
+                // setPipelineRecord={setRecord}
+                // openModal={openModal}
+                // wrapAnalysisPipeline={wrapAnalysisPipeline}
+                // downstreamAnalysis={loadFunction(downstreamAnalysis)}
+                // appendSampleColumns={loadColumnRender(appendSampleColumns)}
+                // parseAnalysisParams={{
+                //     parse_analysis_module: parseAnalysisModule,
+                //     parse_analysis_result_module: parseAnalysisResultModule
+                // }}
+                >
                 </AnalysisPanel>
             }
         })
@@ -133,43 +141,53 @@ const Pipeline: FC<any> = ({ }) => {
         // console.log(resp.data)
         const data = resp.data
         setPipeline(data)
-        const items = getPipline(data.analysisPipline, data.items)
-        if (resp.data.items && Array.isArray(resp.data.items) && resp.data.items.length > 1) {
-            const item = data.items[0]
-            const upstreamFormList = data.items
-                .filter((item: any) => item.upstreamFormJson && Array.isArray(item.upstreamFormJson))       // 确保 upstreamFormJson 存在并是数组
-                .flatMap((item: any) => item.upstreamFormJson);
-            const parseAnalysisResultModule = data.items
-                .filter((item: any) => item.parseAnalysisResultModule && Array.isArray(item.parseAnalysisResultModule))       // 确保 upstreamFormJson 存在并是数组
-                .flatMap((item: any) => item.parseAnalysisResultModule);
-            const wrapPipeline = {
-                key: 0,
-                label: "总流程",
-                children: <>
-                    <AnalysisPanel
-                        wrapAnalysisPipeline={data.analysisPipline}
-                        inputAnalysisMethod={item.inputAnalysisMethod}
-                        analysisPipline={data.analysisPipline}
-                        upstreamFormJson={upstreamFormList}
-                        appendSampleColumns={loadColumnRender(item.appendSampleColumns)}
-                        parseAnalysisParams={{
-                            parse_analysis_module: data.parseAnalysisModule,
-                            parse_analysis_result_module: parseAnalysisResultModule
-                        }}
-                        analysisType={item.analysisType ? item.analysisType : "sample"}>
-                    </AnalysisPanel>
-                    {/* {data.analysisPipline} */}
-                </>
-            }
-            setItems([wrapPipeline, ...items])
-        } else {
-            setItems(items)
-        }
+        const items = getPipline(data)
+        setItems(items)
+        // if (resp.data.items && Array.isArray(resp.data.items) && resp.data.items.length > 1) {
+        //     const item = data.items[0]
+        //     const upstreamFormList = data.items
+        //         .filter((item: any) => item.upstreamFormJson && Array.isArray(item.upstreamFormJson))       // 确保 upstreamFormJson 存在并是数组
+        //         .flatMap((item: any) => item.upstreamFormJson);
+        //     const parseAnalysisResultModule = data.items
+        //         .filter((item: any) => item.parseAnalysisResultModule && Array.isArray(item.parseAnalysisResultModule))       // 确保 upstreamFormJson 存在并是数组
+        //         .flatMap((item: any) => item.parseAnalysisResultModule);
+        //     const wrapPipeline = {
+        //         key: 0,
+        //         label: "总流程",
+        //         children: <>
+        //             <AnalysisPanel
+        //                 wrapAnalysisPipeline={data.analysisPipline}
+        //                 inputAnalysisMethod={item.inputAnalysisMethod}
+        //                 analysisPipline={data.analysisPipline}
+        //                 upstreamFormJson={upstreamFormList}
+        //                 appendSampleColumns={loadColumnRender(item.appendSampleColumns)}
+        //                 parseAnalysisParams={{
+        //                     parse_analysis_module: data.parseAnalysisModule,
+        //                     parse_analysis_result_module: parseAnalysisResultModule
+        //                 }}
+        //                 analysisType={item.analysisType ? item.analysisType : "sample"}>
+        //             </AnalysisPanel>
+        //             {/* {data.analysisPipline} */}
+        //         </>
+        //     }
+        //     setItems([wrapPipeline, ...items])
+        // } else {
+        //     setItems(items)
+        // }
 
 
 
     }
-
+    const datelePipelineRelation = async (realtionId: any) => {
+        try {
+            const resp = await axios.delete(`/delete-pipeline-relation/${realtionId}`)
+            messageApi.success("删除成功!")
+            loadData()
+        } catch (error: any) {
+            console.log(error)
+            messageApi.error(`删除失败!${error.response.data.detail}`)
+        }
+    }
     const datelePipeline = async (pipelineId: any) => {
         try {
             const resp = await axios.delete(`/delete-pipeline/${pipelineId}`)
@@ -185,29 +203,25 @@ const Pipeline: FC<any> = ({ }) => {
     }, [])
     return <div style={{ maxWidth: "1500px", margin: "0 auto" }}>
         {contextHolder}
+        {/* {JSON.stringify(pipeline)} */}
         <Flex style={{ marginBottom: "1rem" }} justify={"space-between"} align={"center"} gap="small">
             <div >
                 {pipeline ? <>
                     <h2 style={{ margin: 0 }}>{pipeline?.name}</h2>
                     <p style={{ margin: "0", color: "rgba(0, 0, 0, 0.45)" }}>{pipeline?.description}</p>
+                    <p style={{ margin: "0", color: "rgba(0, 0, 0, 0.45)" }}>{pipeline?.component_id}</p>
+
                     {pipeline.tags && Array.isArray(pipeline.tags) && pipeline.tags.map((tag: any, index: any) => (
                         <Tag style={{ marginTop: "0.5rem" }} key={index} color={colors[index]}>{tag}</Tag>
                     ))}
                 </> : <Skeleton active></Skeleton>}
             </div>
             <Flex gap="small" wrap>
+
                 <Button color="cyan" variant="solid" onClick={() => {
-                    openModal("modalA", {
-                        data: undefined, pipelineStructure: {
-                            pipeline_type: "pipeline",
-                            parent_pipeline_id: pipeline.pipeline_id
-                        }
-                    })
-                }}>创建子流程</Button>
-                <Button color="cyan" variant="solid" onClick={() => {
-                    openModal("modalA", {
-                        data: pipeline, pipelineStructure: {
-                            pipeline_type: "wrap_pipeline",
+                    openModal("modalC", {
+                        data: pipeline, structure: {
+                            component_type: "pipeline",
                         }
                     })
                 }}>更新流程</Button>
@@ -218,7 +232,20 @@ const Pipeline: FC<any> = ({ }) => {
 
         </Flex>
 
-        {pipeline && Array.isArray(pipeline?.items) ? <Tabs destroyInactiveTabPane={true} items={items}></Tabs> : <Skeleton active></Skeleton>}
+        {pipeline && Array.isArray(pipeline?.items) ? <Tabs destroyInactiveTabPane={true} items={items}></Tabs> :
+
+            <Empty>
+                <Button color="cyan" variant="solid" onClick={() => {
+                    openModal("modalA", {
+                        data: undefined, pipelineStructure: {
+                            relation_type: "software",
+                            parent_component_id: pipeline.component_id,
+                            pipeline_id: pipeline.component_id
+
+                        }
+                    })
+                }}>创建子流程</Button>
+            </Empty>}
 
         {/* {
                 pipeline_type: "wrap_pipeline",
@@ -232,13 +259,21 @@ const Pipeline: FC<any> = ({ }) => {
             params={modal.params}
         >
         </ModuleEdit>
-        <CreatePipeline
+        <CreateORUpdatePipelineCompnentRelation
             callback={loadData}
             // pipelineStructure={pipelineStructure}
             // data={record}
             visible={modal.key == "modalA" && modal.visible}
             onClose={closeModal}
-            params={modal.params}></CreatePipeline>
+            params={modal.params}></CreateORUpdatePipelineCompnentRelation>
+        <CreateOrUpdatePipelineComponent
+            callback={loadData}
+            // pipelineStructure={pipelineStructure}
+            // data={record}
+            visible={modal.key == "modalC" && modal.visible}
+            onClose={closeModal}
+            params={modal.params}></CreateOrUpdatePipelineComponent>
+
     </div>
 }
 

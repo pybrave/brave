@@ -1,6 +1,6 @@
 import { Button, message, Tabs } from "antd"
 import { FC } from "react"
-import AnalysisPanel from '../../../components/analysis-panel'
+import AnalysisPanel from '../../../components/analysis-sotware-panel'
 import { Bowtie2 } from '../../software-components/bowtie2'
 import axios from "axios"
 import { useOutletContext, useParams } from "react-router"
