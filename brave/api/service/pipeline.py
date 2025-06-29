@@ -7,7 +7,7 @@ import shutil
 from fastapi import HTTPException
 from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline,QueryModule
 from brave.api.config.db import get_engine
-from brave.api.models.core import t_pipeline
+from brave.api.models.core import t_pipeline_components
 import importlib.resources as resources
 
 
@@ -84,7 +84,7 @@ def create_wrap_pipeline_dir(pipeline_key):
 def create_file(pipeline_key,pipeline_type,content):
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{pipeline_key}"
-    if pipeline_type == "wrap_pipeline":
+    if pipeline_type == "pipeline":
         analysisPipline = f"{pipeline_dir}/nextflow/{content['analysisPipline']}.nf"
         parseAnalysisModule = f"{pipeline_dir}/py_parse_analysis/{content['parseAnalysisModule']}.py"
         if not os.path.exists(analysisPipline):
@@ -94,7 +94,7 @@ def create_file(pipeline_key,pipeline_type,content):
             with open(parseAnalysisModule,"w") as f:
                 f.write("")
 
-    if pipeline_type == "pipeline":
+    if pipeline_type == "software":
         analysisPipline = f"{pipeline_dir}/nextflow/{content['analysisPipline']}.nf"
         parseAnalysisModule = f"{pipeline_dir}/py_parse_analysis/{content['parseAnalysisModule']}.py"
         if not os.path.exists(analysisPipline):
@@ -116,12 +116,12 @@ def create_file(pipeline_key,pipeline_type,content):
                         f.write(content)
 
                         
-def find_pipeline_by_id(conn,pipeline_id):
-    stmt = t_pipeline.select().where(t_pipeline.c.pipeline_id ==pipeline_id)
+def find_pipeline_by_id(conn,component_id):
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
     find_pipeine = conn.execute(stmt).fetchone()
     return find_pipeine
 
-def find_pipeline(conn,queryPipeline:QueryPipeline):
-    stmt = t_pipeline.select().where(t_pipeline.c.pipeline_id ==queryPipeline.pipeline_id)
-    find_pipeine = conn.execute(stmt).fetchone()
+def list_pipeline(conn,queryPipeline:QueryPipeline):
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_type ==queryPipeline.component_type)
+    find_pipeine = conn.execute(stmt).fetchall()
     return find_pipeine

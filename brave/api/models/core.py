@@ -94,27 +94,43 @@ relation_literature = Table(
 
 # pipeline_type: pipelne analysis_software analysis_file  downstream_analysis
 # 
-t_pipeline = Table(
-    "pipeline",
+
+# Workflow
+#    |
+#    |  (多个)
+#    v
+# WorkflowPipelineRelation  <-- ordered DAG / parallel execution
+#    |
+#    |  (1 对 1)
+#    v
+# Pipeline
+#    |
+#    +--> InputFiles / OutputFiles / Downstream
+# pipeline,software,file,downstream
+t_pipeline_components = Table(
+    "pipeline_components",
     meta,
     Column("id", Integer, primary_key=True),
-    Column("pipeline_id", String(255)),
+    Column("component_id", String(255)),
     Column("install_key", String(255)),
-    Column("pipeline_order", Integer),
-    Column("pipeline_type", String(255)), 
+    Column("component_type", String(255)), 
     # Column("parent_pipeline_id", String(255)),
-    Column("content", Text)
+    Column("content", Text),
+    Column("order_index", Integer)
 
 )
 # relation_type: pipeline_software software_input_file  software_ouput_file  file_downstream
-t_relation_pipeline = Table(
-    "relation_pipeline",
+t_pipeline_components_relation = Table(
+    "pipeline_components_relation",
     meta,
     Column("relation_id", Integer, primary_key=True),
     Column("relation_type", String(255)), 
     Column("install_key", String(255)),
     Column("pipeline_id", String(255)),
-    Column("parent_pipeline_id", String(255))
+    Column("component_id", String(255)),
+    Column("parent_component_id", String(255)),
+    Column("order_index", Integer)
+
 )
 
 # t_relation_pipeline_software = Table(
