@@ -18,6 +18,10 @@ from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import union_all
 import brave.api.utils.service_utils  as service_utils
+import asyncio
+import time
+from starlette.concurrency import run_in_threadpool
+
 pipeline = APIRouter()
 
 def camel_to_snake(name):
@@ -407,7 +411,7 @@ def get_pipeline_one_v2(item):
             "order":item.order_index
         }       
 @pipeline.get("/list-pipeline-v2",tags=['pipeline'])
-async def get_pipeline():
+async def list_pipeline_v2():
     with get_engine().begin() as conn:
         wrap_pipeline_list = find_db_pipeline(conn, "pipeline")
         pipeline_list = [get_pipeline_one_v2(item) for item in wrap_pipeline_list]
@@ -549,7 +553,7 @@ def get_pipeline_id_by_parent_id(conn, start_id: str) -> str | None:
     return row[0] if row else None
 
 @pipeline.post("/find-pipeline-relation/{relation_id}",tags=['pipeline'])
-async def save_pipeline(relation_id):
+async def find_pipeline_relation(relation_id):
     with get_engine().begin() as conn:    
         stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.relation_id == relation_id)
         return conn.execute(stmt).mappings().first()
@@ -605,21 +609,25 @@ async def save_pipeline(savePipeline:SavePipeline):
             str_uuid = str(uuid.uuid4())  
             save_pipeline_dict['component_id'] = str_uuid
             component_id = str_uuid
-            # if savePipeline.pipeline_type!="pipeline":
-            #     save_pipeline_dict['pipeline_key'] = str_uuid
-            # else:
-            #     stmt = t_pipeline.select().where(t_pipeline.c.pipeline_id ==savePipeline.parent_pipeline_id)
-            #     find_pipeine = conn.execute(stmt).fetchone()
-            #     save_pipeline_dict['pipeline_key'] = find_pipeine.pipeline_key
-            # pipeline_key = save_pipeline_dict['pipeline_key']
+          
             stmt = t_pipeline_components.insert().values(save_pipeline_dict)
         conn.execute(stmt)
-        if savePipeline.component_type=="pipeline":
-            pipeline_service.create_wrap_pipeline_dir(component_id)
-            content = json.loads(savePipeline.content)
-            pipeline_service.create_file(component_id,savePipeline.component_type,content)
+
+    
+    # t0 = time.time()
+    if savePipeline.component_type=="pipeline":
+        await run_in_threadpool(create_pipeline_dir, component_id, savePipeline)
+
+    # await asyncio.sleep(0.5)
+    # print("文件创建耗时", time.time() - t0)
+
     return {"message":"success"}
 
+
+def create_pipeline_dir(component_id,savePipeline):
+    pipeline_service.create_wrap_pipeline_dir(component_id)
+    content = json.loads(savePipeline.content)
+    pipeline_service.create_file(component_id,savePipeline.component_type,content)
 
 
 @pipeline.delete("/delete-pipeline-relation/{relation_id}")
