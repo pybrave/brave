@@ -63,7 +63,7 @@ def get_db_dict(db_field,request_param):
 # 未指定module_dir，从pipeline_key所在目录查找模块
 # pipeline/reads-alignment-based-abundance-analysis/py_plot/abundance_alpha_diversity.py
 def parse_result(request_param,module_name):
-    module_dir = request_param['pipeline_key']
+    module_dir = request_param['pipeline_id']
     if "module_dir" in request_param:
         module_dir = request_param['module_dir']
     py_module = find_module("py_plot",module_dir,module_name)['module']

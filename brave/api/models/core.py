@@ -29,8 +29,8 @@ analysis = Table(
     meta,
     Column("id", Integer, primary_key=True),
     Column("project", String(255)),
-    Column("analysis_key", String(255)),
-    Column("pipeline_id", String(255)),
+    Column("analysis_id", String(255)),
+    Column("component_id", String(255)),
     Column("analysis_name", String(255)),
     Column("input_file", String(255)),
     Column("analysis_method", String(255)),
@@ -41,7 +41,10 @@ analysis = Table(
     Column("output_format", Text),
     Column("output_dir", String(255)),
     Column("pipeline_script", String(255)),
-    Column("parse_analysis_module", String(255))
+    Column("parse_analysis_module", String(255)),
+    Column("trace_file", String(255)),
+    Column("workflow_log_file", String(255)),
+    Column("process_id", String(255))
 )
 
 analysis_result = Table(
@@ -126,7 +129,7 @@ t_pipeline_components_relation = Table(
     Column("relation_id", Integer, primary_key=True),
     Column("relation_type", String(255)), 
     Column("install_key", String(255)),
-    Column("pipeline_id", String(255)),
+    # Column("pipeline_id", String(255)),
     Column("component_id", String(255)),
     Column("parent_component_id", String(255)),
     Column("order_index", Integer)

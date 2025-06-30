@@ -15,3 +15,5 @@ dist
 install.sh
 pybrave-pipeline
 test.json
+pipeline-dev/
+nextflow_dev/

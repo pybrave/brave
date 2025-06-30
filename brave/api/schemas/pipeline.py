@@ -37,5 +37,5 @@ class Pipeline(BaseModel):
 class QueryModule(BaseModel):
     module_type: Optional[str]
     module_name: Optional[str]
-    pipeline_key:Optional[str]
+    pipeline_id:Optional[str]
     module_dir: Optional[str]=None

@@ -14,7 +14,7 @@ from sqlalchemy import and_,or_
 import pandas as pd
 from brave.api.models.core import samples
 from brave.api.config.db import get_engine
-from brave.api.schemas.analysis import AnalysisInput,Analysis
+from brave.api.schemas.analysis import AnalysisInput,Analysis,QueryAnalysis
 from typing import Dict, Any
 from brave.api.models.core import analysis
 import json
@@ -33,6 +33,8 @@ import  brave.api.service.pipeline as pipeline_service
 import inspect
 from typing import Optional
 import pandas as pd
+import subprocess
+from brave.api.service.watch_service import queue_process
 analysis_api = APIRouter()
 
 
@@ -128,28 +130,28 @@ def parse_analysis(request_param,params_path,command_path,work_dir,module_name,p
 @analysis_api.post("/fast-api/save-analysis")
 async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any]
     # request_param = analysis_input.model_dump_json()
+    component_id = request_param['component_id']
     pipeline_id = request_param['pipeline_id']
-    
+
 
     with get_engine().begin() as conn:
-        pipeline_ = pipeline_service.find_pipeline_by_id(conn,pipeline_id)
-        pipeline_content = json.loads(pipeline_.content)
-        parse_analysis_module = pipeline_content['parseAnalysisModule']
-        pipeline_key = pipeline_.pipeline_key
-        pipeline_script = pipeline_content['analysisPipline'] # 分析脚本
+        component = pipeline_service.find_pipeline_by_id(conn,component_id)
+        component_content = json.loads(component.content)
+        parse_analysis_module = component_content['parseAnalysisModule']
+        component_script = component_content['analysisPipline'] # 分析脚本
         # parse_analysis_module = request_param['parse_analysis_module']
         # parse_analysis_result_module = json.dumps(request_param['parse_analysis_result_module'])
         new_analysis = {
             "project":request_param['project'],
             "analysis_name":request_param['analysis_name'],
             "request_param":json.dumps(request_param),
-            "analysis_method":pipeline_script,
-            "pipeline_id":pipeline_id
+            "analysis_method":component_script,
+            "component_id":component_id
             # "parse_analysis_module":parse_analysis_module
         }
-        module_dir = pipeline_key
-        if "moduleDir" in pipeline_content:
-            module_dir = pipeline_content['moduleDir']
+        module_dir = pipeline_id
+        if "moduleDir" in component_content:
+            module_dir = component_content['moduleDir']
 
         output_dir=None
         work_dir=None
@@ -180,8 +182,10 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
             # wrap_analysis_pipline = request_param['wrap_analysis_pipeline']
 
             project_dir = f"{base_dir}/{request_param['project']}"
+            trace_file = f"{base_dir}/monitor/{str_uuid}.trace.log"
+            workflow_log_file = f"{base_dir}/monitor/{str_uuid}.workflow.log"
             cache_dir = f"{project_dir}/.nextflow"
-            output_dir = f"{project_dir}/{pipeline_key}/{pipeline_script}/{str_uuid}"
+            output_dir = f"{project_dir}/{pipeline_id}/{component_script}/{str_uuid}"
             # /data/wangyang/nf_work/
             work_dir = f"{work_dir}/{request_param['project']}"
             params_path = f"{output_dir}/params.json"
@@ -192,21 +196,22 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
                 os.makedirs(work_dir)
             # 写入脚本
         
-            script_dir = pipeline_key
-            if "scriptDir" in pipeline_content:
-                script_dir = pipeline_content['scriptDir']
-            pipeline_script = find_module("nextflow",script_dir,pipeline_script)['path']
+            script_dir = pipeline_id
+            if "scriptDir" in component_content:
+                script_dir = component_content['scriptDir']
+            component_script = find_module("nextflow",script_dir,component_script)['path']
 
             # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
-            new_analysis['pipeline_script'] = pipeline_script
+            new_analysis['pipeline_script'] = component_script
 
             command =  textwrap.dedent(f"""
             export NXF_CACHE_DIR={cache_dir}
             nextflow run -offline -resume  \\
-                {pipeline_script} \\
+                -ansi-log false \\
+                {component_script} \\
                 -params-file {params_path} \\
                 -w {work_dir} \\
-                -with-trace trace.txt | tee .workflow.log
+                -with-trace {trace_file} | tee {workflow_log_file}
             """)
             with open(command_path, "w") as f:
                 f.write(command)
@@ -216,9 +221,10 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
             new_analysis['output_dir'] = output_dir
             new_analysis['params_path'] = params_path
             new_analysis['command_path'] = command_path
-            new_analysis['analysis_key'] = str_uuid
-
-            parse_analysis(request_param,params_path, command_path,work_dir,parse_analysis_module,pipeline_key,module_dir)
+            new_analysis['analysis_id'] = str_uuid
+            new_analysis['trace_file'] = trace_file
+            new_analysis['workflow_log_file'] = workflow_log_file
+            parse_analysis(request_param,params_path, command_path,work_dir,parse_analysis_module,pipeline_id,module_dir)
             # new_analysis['output_format'] = parse_analysis_result_module
       
             stmt = analysis.insert().values(new_analysis)
@@ -233,17 +239,26 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
     return {"msg":"success"}
 
 
-@analysis_api.get(
-    "/fast-api/analysis",
+@analysis_api.post(
+    "/list-analysis",
     response_model=List[Analysis],
 )
-async def get_analysis(analysis_method,project):
+async def list_analysis(query:QueryAnalysis):
+    conditions = []
+    if query.analysis_id:
+        conditions.append(analysis.c.analysis_id == query.analysis_id)
+    if query.analysis_method:
+        conditions.append(analysis.c.analysis_method == query.analysis_method)
+    if query.component_id:
+        conditions.append(analysis.c.component_id == query.component_id)
+    if query.project:
+        conditions.append(analysis.c.project == query.project)
+
+    stmt = select(analysis)
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
     with get_engine().begin() as conn:
-        return conn.execute(analysis.select().where(
-            and_(analysis.c.analysis_method==analysis_method,
-            analysis.c.project==project,
-            )
-        )).fetchall()
+        return conn.execute(stmt).fetchall()
 
 
 @analysis_api.delete("/fast-api/analysis/{id}",  status_code=HTTP_204_NO_CONTENT)
@@ -254,7 +269,7 @@ def delete_user(id: int):
 
 
 @analysis_api.post("/fast-api/parse-analysis-result/{id}")
-def parse_analysis_result(id,save:Optional[bool]=False):
+async def parse_analysis_result(id,save:Optional[bool]=False):
     with get_engine().begin() as conn:
         stmt = select(analysis).where(analysis.c.id == id)
         result = conn.execute(stmt).fetchone()
@@ -300,23 +315,65 @@ def parse_analysis_result(id,save:Optional[bool]=False):
             parse_result_oneV2(res,item['analysisMethod'],result.project,"V1.0",id)
     return result_dict
 
-@analysis_api.get("/monitor-pipeline/{pipeline_id}")
-async def pipeline_monitor(pipeline_id,analysis_id:Optional[int]=None):
+@analysis_api.get("/monitor-analysis/{analysis_id}")
+async def pipeline_monitor(analysis_id):
     with get_engine().begin() as conn:
-        stmt = select(analysis).where(analysis.c.pipeline_id == pipeline_id)
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
         result = conn.execute(stmt)
-        rows = result.mappings().all()
-    analysis_ = rows[len(rows)-1]
-    output_dir = analysis_['output_dir']
-    trace_file = f"{output_dir}/trace.txt"
-    if os.path.exists(trace_file):
+        analysis_ = result.mappings().first()
+    # analysis_ = rows[len(rows)-1]
+    # output_dir = analysis_['output_dir']
+    trace_file = analysis_.trace_file
+    trace =[]
+    total = 0
+    if trace_file and os.path.exists(trace_file):
         df = pd.read_csv(trace_file,sep="\t")
+        total = df.shape[0]
         trace = df.to_dict(orient="records")
-    return {
-        "analysis":rows,
-        "trace":trace
-    }
 
+    # print(f"主事件循环线程: {threading.current_thread().name}")
+    # await asyncio.to_thread(blocking_task)
+    # # blocking_task()
+    # print("阻塞任务await结束，继续事件循环")
+    
+    return {
+        "traceTable":trace,
+        "total":total
+        
+    }
+# import asyncio
+# import time
+# import threading
+# def blocking_task():
+#     print(f"开始阻塞任务，线程: {threading.current_thread().name}")
+#     time.sleep(5)
+#     print("阻塞任务完成")
+
+def start_background( cwd,cmd):
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd, 
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+
+    return proc.pid
+
+@analysis_api.post("/run-analysis/{analysis_id}")
+async def pipeline_monitor(analysis_id):
+    with get_engine().begin() as conn:
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        result = conn.execute(stmt)
+        analysis_ = result.mappings().first()
+        pid = start_background(analysis_.output_dir, ["bash","run.sh"])
+        stmt = analysis.update().values({"process_id":pid}).where(analysis.c.analysis_id==analysis_id)
+        conn.execute(stmt)
+    analysis_dict = dict(analysis_)
+
+    analysis_dict['process_id'] = pid
+    await queue_process.put(analysis_dict)
+    return {"pid":pid}
 
 # @analysis_api.get("/monitor-analysis/{analysis_id}")
 # async def pipeline_monitor(analysis_id):

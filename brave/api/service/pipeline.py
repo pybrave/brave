@@ -32,10 +32,10 @@ def find_module(module_type,module_dir,module_name):
     all_module = get_all_module(module_type)
 
     if module_dir not in all_module:
-        raise HTTPException(status_code=500, detail=f"{module_type}: 目录{module_dir}没有找到!")
+        raise HTTPException(status_code=500, detail=f"目录{module_type}: {module_dir}/{module_type}/{module_name}没有找到!")
     py_module_dir = all_module[module_dir]
     if module_name not in py_module_dir:
-        raise HTTPException(status_code=500, detail=f"{py_plot}: 目录{module_dir}文件{module_name}没有找到!")
+        raise HTTPException(status_code=500, detail=f"文件{py_plot}:  {module_dir}/{module_type}/{module_name}没有找到!!")
     py_module = py_module_dir[module_name]
     return py_module
 

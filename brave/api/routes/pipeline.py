@@ -21,6 +21,7 @@ import brave.api.utils.service_utils  as service_utils
 import asyncio
 import time
 from starlette.concurrency import run_in_threadpool
+from typing import List
 
 pipeline = APIRouter()
 
@@ -44,8 +45,8 @@ async def get_pipeline():
             if install_key in db_pipeline_key_list:
                 continue
             pipeline_item = {k:v for k,v in json_data.items() if  k !="items"}
-            pipeline_components_id = str(uuid.uuid4())
-            pipeline_id  = pipeline_components_id
+            pipeline_components_id =install_key# str(uuid.uuid4())
+            # pipeline_id  = pipeline_components_id
             new_pipeline_components_list.append({
                 "component_id":pipeline_components_id,
                 "install_key":install_key,
@@ -72,10 +73,10 @@ async def get_pipeline():
                     "install_key":install_key,
                     "component_id":analysis_software_uuid,
                     "parent_component_id":pipeline_components_id,
-                    "pipeline_id":pipeline_id
+                    # "pipeline_id":pipeline_id
                 })
                 for key in keys_to_remove:
-                    add_analysis_file(pipeline_id, analysis_software_uuid,install_key,analysis_software,key,new_pipeline_components_list,new_pipeline_components_relation_list)
+                    add_analysis_file( analysis_software_uuid,install_key,analysis_software,key,new_pipeline_components_list,new_pipeline_components_relation_list)
                 # key= "parseAnalysisResultModule"
         insert_stmt = insert(t_pipeline_components).values(new_pipeline_components_list)
         conn.execute(insert_stmt)
@@ -87,7 +88,7 @@ async def get_pipeline():
         }
         
 
-def add_analysis_file(pipeline_id,analysis_software_uuid,install_key,pipeline_item,key,new_pipeline_components_list,new_pipeline_components_relation_list):
+def add_analysis_file(analysis_software_uuid,install_key,pipeline_item,key,new_pipeline_components_list,new_pipeline_components_relation_list):
     if key in pipeline_item:
               
         for analysis_file in pipeline_item[key]:
@@ -107,7 +108,7 @@ def add_analysis_file(pipeline_id,analysis_software_uuid,install_key,pipeline_it
                     "relation_type":"software_input_file",
                     "install_key":install_key,
                     "component_id":analysis_file_uuid,
-                    "pipeline_id":pipeline_id,
+                    # "pipeline_id":pipeline_id,
                     "parent_component_id":analysis_software_uuid
                 }) 
             elif  key=="outputFile":
@@ -115,7 +116,7 @@ def add_analysis_file(pipeline_id,analysis_software_uuid,install_key,pipeline_it
                     "relation_type":"software_ouput_file",
                     "install_key":install_key,
                     "component_id":analysis_file_uuid,
-                    "pipeline_id":pipeline_id,
+                    # "pipeline_id":pipeline_id,
                     "parent_component_id":analysis_software_uuid
                 })
             if "downstreamAnalysis" in analysis_file:
@@ -131,7 +132,7 @@ def add_analysis_file(pipeline_id,analysis_software_uuid,install_key,pipeline_it
                     })
                     new_pipeline_components_relation_list.append({
                         "relation_type":"file_downstream",
-                        "pipeline_id":pipeline_id,
+                        # "pipeline_id":pipeline_id,
                         "install_key":install_key,
                         "component_id":downstream_analysis_uuid,
                         "parent_component_id":analysis_file_uuid
@@ -191,7 +192,7 @@ async def get_pipeline_v2(name):
         t_pipeline_components.c.content,
         cast(null(), String).label("relation_type"),
         cast(null(), String).label("parent_component_id"),
-        cast(null(), String).label("pipeline_id"),
+        # cast(null(), String).label("pipeline_id"),
         cast(null(), String).label("relation_id")
     ).where(
         t_pipeline_components.c.component_id == name,
@@ -210,11 +211,11 @@ async def get_pipeline_v2(name):
         tp2.c.content,
         trp.c.relation_type,
         trp.c.parent_component_id,
-        trp.c.pipeline_id ,
+        # trp.c.pipeline_id ,
         trp.c.relation_id
     ).join(trp, tp2.c.component_id == trp.c.component_id) \
-    .join(fp, fp.c.component_id == trp.c.parent_component_id) \
-    .where(trp.c.pipeline_id == name) 
+    .join(fp, fp.c.component_id == trp.c.parent_component_id) 
+    # .where(trp.c.pipeline_id == name) 
 
     # union_all 并组成 CTE
     cte = base.union_all(recursive).cte("full_pipeline", recursive=True)
@@ -243,6 +244,7 @@ async def get_pipeline_v2(name):
 
 def get_one_data(item):
     content = json.loads(item["content"])
+    item = {k:v for k,v in item.items() if k!="content"}
     return {**item, **content }
 
 def build_pipeline_structure(id_to_node,children_map,pid):
@@ -263,10 +265,12 @@ def build_pipeline_structure(id_to_node,children_map,pid):
                     input_files.append(sub_content)
                 elif sub["relation_type"] == "software_ouput_file":
                     sub_out = {**sub_content, "downstreamAnalysis": []}
-                    for ds_id in children_map.get(sub["pipeline_id"], []):
+                    for ds_id in children_map.get(sub["component_id"], []):
                         downstream = id_to_node[ds_id]
                         sub_out["downstreamAnalysis"].append(downstream)
                     output_files.append(sub_out)
+
+
             if input_files:
                 item["inputFile"] = input_files
             if output_files:
@@ -342,7 +346,7 @@ async def get_pipeline_v3(name):
     
 @pipeline.post("/get-module-content",tags=['pipeline'])
 async def get_module_content(queryModule:QueryModule):
-    module_dir = queryModule.pipeline_key
+    module_dir = queryModule.pipeline_id
     if queryModule.module_dir:
         module_dir = queryModule.module_dir
     py_module = pipeline_service.find_module(queryModule.module_type,module_dir,queryModule.module_name)
@@ -517,10 +521,10 @@ async def find_pipeline_by_id(queryPipeline:QueryPipeline):
     with get_engine().begin() as conn:
         return pipeline_service.find_pipeline_by_id(conn,queryPipeline.component_id)
 
-@pipeline.post("/list-pipeline",tags=['pipeline'],response_model=Pipeline)
+@pipeline.post("/list-pipeline-components",tags=['pipeline'],response_model=list[Pipeline])
 async def list_pipeline(queryPipeline:QueryPipeline):
     with get_engine().begin() as conn:
-        return pipeline_service.list_pipeline(conn,queryPipeline.pipeline_id)
+        return pipeline_service.list_pipeline(conn,queryPipeline)
 
 
 def get_pipeline_id_by_parent_id(conn, start_id: str) -> str | None:
@@ -562,6 +566,7 @@ async def find_pipeline_relation(relation_id):
 @pipeline.post("/save-pipeline-relation",tags=['pipeline'])
 async def save_pipeline(savePipelineRelation:SavePipelineRelation):
     save_pipeline_relation_dict = savePipelineRelation.dict()
+    save_pipeline_relation_dict = {k:v for k,v in save_pipeline_relation_dict.items() if k!="pipeline_id"}
     with get_engine().begin() as conn:  
         # if not savePipelineRelation.relation_id:
             
