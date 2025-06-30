@@ -241,6 +241,7 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                             operatePipeline.openModal("modalA", {
                                 data: undefined, pipelineStructure: {
                                     relation_type: "pipeline_software",
+                                    component_type: "software",
                                     parent_component_id: pipeline.component_id,
                                     pipeline_id: pipeline.component_id
 
@@ -252,6 +253,7 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                                 data: rest,
                                 pipelineStructure: {
                                     relation_type: "pipeline_software",
+                                    component_type: "software",
                                     pipeline_id: pipeline.component_id,
 
                                 }

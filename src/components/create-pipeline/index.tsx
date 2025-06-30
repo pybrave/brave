@@ -1,4 +1,4 @@
-import { Collapse, Form, Input, Modal, Select, Typography } from "antd"
+import { Button, Collapse, Form, Input, Modal, Select, Typography } from "antd"
 import TextArea from "antd/es/input/TextArea"
 import axios from "axios"
 import { FC, use, useEffect, useState } from "react"
@@ -10,7 +10,7 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
     const [form] = Form.useForm()
     const [pipeline, setPipeline] = useState<any>()
     const [pipelineRelation, setPipelineRelation] = useState<any>()
-    const [components,setComponents] = useState<any>([])
+    const [components, setComponents] = useState<any>([])
     const [loading, setLoaidng] = useState<any>(false)
     const componentMap: any = {
         // wrap_pipeline: WrapPipeline,
@@ -28,11 +28,11 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
         const resp = await listPipelineComponentsApi({
             component_type: componentType
         })
-        const data = resp.data.map((item:any)=>{
+        const data = resp.data.map((item: any) => {
             const content = JSON.parse(item.content)
-            return{
-                label:content.name,
-                value:item.component_id
+            return {
+                label: content.name,
+                value: item.component_id
             }
         })
         setComponents(data)
@@ -55,13 +55,13 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
     // }
 
     useEffect(() => {
-     
+
         if (visible) {
             if (pipelineStructure.relation_type == "pipeline_software") {
                 listPipelineComponents("software")
-            }else if(pipelineStructure.relation_type == "software_input_file" || pipelineStructure.relation_type == "software_output_file"){
+            } else if (pipelineStructure.relation_type == "software_input_file" || pipelineStructure.relation_type == "software_output_file") {
                 listPipelineComponents("file")
-            }else if(pipelineStructure.relation_type == "file_downstream"){
+            } else if (pipelineStructure.relation_type == "file_downstream") {
                 listPipelineComponents("downstream")
             }
             if (data) {
@@ -115,14 +115,27 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
             okText={data ? "更新" : "新增"}
             onOk={savePipeline}
             open={visible}
+            footer={(_, { OkBtn, CancelBtn }) => (
+                <>
+                    <Button>编辑组件</Button>
+                    <CancelBtn />
+                    <OkBtn />
+                </>
+            )}
             onClose={() => onClose()}
             onCancel={() => onClose()}>
             <Form form={form}>
-                {/* {JSON.stringify(components)} */}
-                
+
+
                 <Form.Item name={"component_id"} label="组件">
                     <Select options={components}></Select>
                 </Form.Item>
+
+                {pipelineRelation && <>
+                    {JSON.stringify(pipelineRelation)}
+                    <hr />
+                    {/*  */}
+                </>}
                 {/* <ComponentsRender {...pipelineStructure} data={pipeline} form={form}></ComponentsRender> */}
                 <Collapse ghost items={[
                     {
