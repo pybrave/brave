@@ -5,6 +5,7 @@ import { FC, forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useParams } from "react-router"
 import ResultParse from "../result-parse"
 import { useModal } from "@/hooks/useModal"
+import PipelineMonitor from "../pipeline-monitor"
 
 export const readHdfsAPi = (contentPath: any) => axios.get(`/api/read-hdfs?path=${contentPath}`)
 export const readJsonAPi = (contentPath: any) => axios.get(`/fast-api/read-json?path=${contentPath}`)
@@ -16,7 +17,7 @@ const ResultList = forwardRef<any, any>(({
     setResultTableList,
     cleanDom,
     analysisType,
-    setRecord,
+    setRecord: setRecord_,
     setTableLoading,
     setTabletData,
     shouldTrigger,
@@ -27,15 +28,26 @@ const ResultList = forwardRef<any, any>(({
     useImperativeHandle(ref, () => ({
         reload: loadData
     }))
+    const [record, setRecord0] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
     const { modal, openModal, closeModal } = useModal();
+    const setRecord = (record: any) => {
+        if (setRecord_) {
+            setRecord_(record)
+        }
 
+        setRecord0(record)
+    }
     const [data, setData] = useState<any>([])
     // const [content,setContent] = useState<any>()
     const [loading, setLoading] = useState(false)
     const loadData = async () => {
         setLoading(true)
-        let resp: any = await axios.get(`/fast-api/analysis?analysis_method=${analysisMethod}&project=${project}`);
+        // ?analysis_method=${analysisMethod}&project=${project}
+        let resp: any = await axios.post(`/list-analysis`, {
+            analysisMethod: analysisMethod,
+            project: project
+        });
         // if (analysisMethod) {
         //     resp = await axios.get(`/api/analysis-result?project=${project}&analysis_method=${analysisMethod}`)
         // } else {
@@ -68,9 +80,15 @@ const ResultList = forwardRef<any, any>(({
 
     let columns: any = [
         {
-            title: 'id',
-            dataIndex: 'id',
-            key: 'id',
+            title: 'analysis_id',
+            dataIndex: 'analysis_id',
+            key: 'analysis_id',
+            ellipsis: true,
+
+        }, {
+            title: 'process_id',
+            dataIndex: 'process_id',
+            key: 'process_id',
             ellipsis: true,
 
         }, {
@@ -127,22 +145,28 @@ const ResultList = forwardRef<any, any>(({
                         <Button color="cyan" variant="solid" onClick={() => {
                             // record.content = JSON.parse(record.content)
                             setRecord(record)
+
                             // if (cleanDom) {
                             //     cleanDom(undefined)
                             // }
                         }}>查看</Button>
                     </Popover>
                     <Popconfirm title={"是否运行!"} onConfirm={async () => {
+                        await axios.post(`/run-analysis/${record.analysis_id}`)
+                        setRecord(record)
+                        loadData()
                     }}>
                         <Button color="cyan" variant="solid">运行</Button>
                     </Popconfirm>
                     <Popconfirm title={"是否删除!"} onConfirm={async () => {
                         await deleteById(record.id)
+                        loadData()
                     }}>
                         <Button color="cyan" variant="solid">删除</Button>
                     </Popconfirm>
                     <Button color="cyan" variant="solid" onClick={() => {
                         openModal("modalA", record)
+
                     }}>解析</Button>
                     {/* <Popconfirm title={"是否解析!"} onConfirm={async () => {
                         try {
@@ -161,7 +185,7 @@ const ResultList = forwardRef<any, any>(({
         },
     ]
 
- 
+
 
     useEffect(() => {
         loadData()
@@ -179,6 +203,10 @@ const ResultList = forwardRef<any, any>(({
                 dataSource={data} />
 
         </Card>
+        <div style={{ marginBottom: "1rem" }}></div>
+
+        {record && <PipelineMonitor analysisId={record.analysis_id} ></PipelineMonitor>}
+
         <ResultParse
             visible={modal.key == "modalA" && modal.visible}
             onClose={closeModal}

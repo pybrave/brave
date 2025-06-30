@@ -48,7 +48,7 @@ const FunctionAnalysis = lazy(() => import('@/pages/meta-analysis/function-analy
 const PipelineCard = lazy(() => import('@/pages/pipeline-card'));
 const AnalysisResult = lazy(() => import('@/pages/analysis-result'));
 const Literature = lazy(() => import('@/pages/literature'));
-
+const PielineMonitorPanal = lazy(() => import('@/pages/pipeline-monitor-panal'));
 import Pipeline from '@/components/pipeline'
 import axios from "axios";
 import { Skeleton } from "antd";
@@ -77,8 +77,11 @@ const childern = [
     }, {
         path: "/pipeline/:pipelineId",
         element: <Pipeline />
+    }, {
+        path: "/pipeline-monitor-panal",
+        element: <PielineMonitorPanal />
     },
-
+    
     {
         path: "/:project/meta_genome/reads-based-abundance-analysis",
         element: <ReadsBasedAbundanceAnalysis />

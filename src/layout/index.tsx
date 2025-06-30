@@ -49,12 +49,12 @@ const App: React.FC = () => {
     const dispatch = useDispatch()
     const [notificationApi, notificationContextHolder] = notification.useNotification();
 
-    const openNotification = ({type,message="",description=""}:{type:NotificationType,message:string,description?:string}) => {
+    const openNotification = ({ type, message = "", description = "" }: { type: NotificationType, message: string, description?: string }) => {
         notificationApi[type]({
-        message: message,
-        description:description,
-        placement:"bottomRight"
-      });
+            message: message,
+            description: description,
+            placement: "bottomRight"
+        });
     };
     const { projectKey: project } = useSelector((state: any) => state.project.currenct)
     console.log(project)
@@ -72,15 +72,21 @@ const App: React.FC = () => {
             }
         }))
     }
+    const [eventSource, setEventSource] = useState<EventSource | null>(null);
+
     useEffect(() => {
         const eventSource = new EventSource('/brave-api/sse');
-
-        eventSource.onmessage = (event) => {
-            //   setMessages(prev => [...prev, event.data]);
+        setEventSource(eventSource);
+        eventSource.addEventListener('message', (event) => {
             console.log(event.data)
-            openNotification({type:"info",message:event.data})
+            openNotification({ type: "info", message: event.data })
             dispatch(setSseData(event.data))
-        };
+        });
+
+        // eventSource.onmessage = (event) => {
+        //     //   setMessages(prev => [...prev, event.data]);
+
+        // };
 
         eventSource.onerror = (err) => {
             console.error('SSE connection error:', err);
@@ -108,7 +114,10 @@ const App: React.FC = () => {
             label: "检测样本"
         }, {
             key: `/pipeline-card`,
-            label: "流程管道"
+            label: "分析管道"
+        }, {
+            key: `/pipeline-monitor-panal`,
+            label: "管道监控"
         }, {
             key: `/analysis-result`,
             label: "分析结果"
@@ -249,7 +258,7 @@ const App: React.FC = () => {
 
                 <Content style={{ padding: '0 24px', minHeight: "100vh" }}>
                     <Suspense key={location.key} fallback={<Test></Test>}>
-                        <Outlet context={{ project }} />
+                        <Outlet context={{ project,eventSource }} />
                     </Suspense>
                 </Content>
             </Layout>

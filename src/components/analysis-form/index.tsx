@@ -5,6 +5,7 @@ import FormJsonComp from "../form-components";
 import { listAnalysisFiles } from '@/api/analysis-software'
 
 export const AnalysisForm: FC<any> = ({
+    pipeline,
     form,
     resultTableList,
     // activeTabKey,
@@ -126,7 +127,7 @@ export const AnalysisForm: FC<any> = ({
                 imgType: imgType,
                 ...downstreamInput,
                 software: "python",
-                pipeline_key:rest.pipeline_key
+                pipeline_id:pipeline.component_id
             }
             if(rest?.moduleDir){
                 reqParams['module_dir'] = rest.moduleDir
@@ -226,7 +227,7 @@ export const AnalysisForm: FC<any> = ({
     }, [JSON.stringify(resultTableList)])
     return <>
         {contextHolder}
-        {JSON.stringify(rest)}
+        {/* {JSON.stringify(pipeline)} */}
         <Form form={form}   >
             <Form.Item name={"id"} style={{ display: "none" }}>
                 <Input></Input>

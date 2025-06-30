@@ -6,3 +6,8 @@ export const listPipeline  = async (dispatch:any)=>{
     dispatch(setMenuItems(resp.data))
     return resp.data
 }
+
+export const listPipelineComponents  = async (params:any)=>{
+    const resp: any = await axios.post(`/list-pipeline-components`,params)
+    return resp
+}

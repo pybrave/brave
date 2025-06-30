@@ -24,7 +24,7 @@ const PipelineCard: FC<any> = () => {
     const { modal, openModal, closeModal } = useModal();
 
     // const menuItems = useSelector((state: any) => state.menu.items)
-    const sseData = useSelector((state: any) => state.global.sseData)
+    // const sseData = useSelector((state: any) => state.global.sseData)
 
     const menu1: any[] = [
         {
@@ -140,7 +140,7 @@ const PipelineCard: FC<any> = () => {
     // indivi
     return <div style={{ maxWidth: "1500px", margin: "1rem auto" }}>
         {contextHolder}
-        {JSON.stringify(sseData)}
+        {/* {JSON.stringify(sseData)} */}
         <Flex justify="flex-end" gap="small">
             <Button color="cyan" variant="solid" onClick={() => {
                

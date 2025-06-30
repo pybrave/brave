@@ -2,29 +2,42 @@ import { Collapse, Form, Input, Modal, Select, Typography } from "antd"
 import TextArea from "antd/es/input/TextArea"
 import axios from "axios"
 import { FC, use, useEffect, useState } from "react"
-
-export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClose,params, callback }) => {
+import { listPipelineComponents as listPipelineComponentsApi } from '@/api/pipeline'
+export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClose, params, callback }) => {
     if (!visible) return null;
-    
-    const { data, pipelineStructure} = params
+
+    const { data, pipelineStructure } = params
     const [form] = Form.useForm()
     const [pipeline, setPipeline] = useState<any>()
     const [pipelineRelation, setPipelineRelation] = useState<any>()
-
+    const [components,setComponents] = useState<any>([])
     const [loading, setLoaidng] = useState<any>(false)
     const componentMap: any = {
-        wrap_pipeline: WrapPipeline,
-        pipeline: WrapPipeline,
+        // wrap_pipeline: WrapPipeline,
+        // pipeline: WrapPipeline,
         pipeline_software: TextAreaContent,
-        software_input_file:TextAreaContent,
-        software_output_file:TextAreaContent,
-        downstream_analysis:TextAreaContent
+        software_input_file: TextAreaContent,
+        software_output_file: TextAreaContent,
+        file_downstream: TextAreaContent
     }
     const ComponentsRender = ({ relation_type, data, form }: any) => {
         const Component = componentMap[relation_type] || (() => <div>未知类型 {JSON.stringify(data)}</div>);
         return <Component data={data} form={form}></Component>
     }
-    
+    const listPipelineComponents = async (componentType: any) => {
+        const resp = await listPipelineComponentsApi({
+            component_type: componentType
+        })
+        const data = resp.data.map((item:any)=>{
+            const content = JSON.parse(item.content)
+            return{
+                label:content.name,
+                value:item.component_id
+            }
+        })
+        setComponents(data)
+        console.log(resp)
+    }
     const getPipeleineRelation = async (relationId: any) => {
         const resp = await axios.post(`/find-pipeline-relation/${relationId}`)
 
@@ -32,20 +45,29 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
         setPipelineRelation(data)
         form.setFieldsValue(data)
     }
-    const getPipeleine = async (componentId: any) => {
-        const resp = await axios.post("/find-pipeline", { component_id: componentId })
+    // const getPipeleine = async (componentId: any) => {
+    //     const resp = await axios.post("/find-pipeline", { component_id: componentId })
 
-        const data = resp.data
-        data['content'] = JSON.parse(data['content']) //JSON.stringify(JSON.parse(data['content']), null, 2)
-        setPipeline(data)
-        // form.setFieldsValue(data)
-    }
+    //     const data = resp.data
+    //     data['content'] = JSON.parse(data['content']) //JSON.stringify(JSON.parse(data['content']), null, 2)
+    //     setPipeline(data)
+    //     // form.setFieldsValue(data)
+    // }
 
     useEffect(() => {
-
+     
         if (visible) {
+            if (pipelineStructure.relation_type == "pipeline_software") {
+                listPipelineComponents("software")
+            }else if(pipelineStructure.relation_type == "software_input_file" || pipelineStructure.relation_type == "software_output_file"){
+                listPipelineComponents("file")
+            }else if(pipelineStructure.relation_type == "file_downstream"){
+                listPipelineComponents("downstream")
+            }
             if (data) {
                 getPipeleineRelation(data.relation_id)
+
+                // 
             } else {
                 form.resetFields()
             }
@@ -58,12 +80,9 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
             ...pipelineStructure,
 
         }
-        if(data){
+        if (data) {
             params['relation_id'] = pipelineRelation.relation_id
             params['parent_component_id'] = pipelineRelation.parent_component_id
-            params['pipeline_id'] = pipelineRelation.pipeline_id
-
-        
         }
         // if (data) {
         //     params['parent_component_id'] =data.componemt_id
@@ -92,15 +111,19 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
     return <>
         <Modal
             loading={loading}
-            title={`${data ? "更新" : "新增"}流程(${pipelineStructure?.pipeline_type})`}
+            title={`${data ? "更新" : "新增"}流程(${pipelineStructure?.relation_type})`}
             okText={data ? "更新" : "新增"}
             onOk={savePipeline}
             open={visible}
             onClose={() => onClose()}
             onCancel={() => onClose()}>
             <Form form={form}>
-
-                <ComponentsRender {...pipelineStructure} data={pipeline} form={form}></ComponentsRender>
+                {/* {JSON.stringify(components)} */}
+                
+                <Form.Item name={"component_id"} label="组件">
+                    <Select options={components}></Select>
+                </Form.Item>
+                {/* <ComponentsRender {...pipelineStructure} data={pipeline} form={form}></ComponentsRender> */}
                 <Collapse ghost items={[
                     {
                         key: "1",
@@ -123,10 +146,10 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
     </>
 }
 
-export const CreateOrUpdatePipelineComponent: FC<any> = ({ visible, onClose,params, callback }) => {
+export const CreateOrUpdatePipelineComponent: FC<any> = ({ visible, onClose, params, callback }) => {
     if (!visible) return null;
-    
-    const { data, structure} = params
+
+    const { data, structure } = params
     const [form] = Form.useForm()
     const [component, setComponent] = useState<any>()
 
@@ -135,16 +158,16 @@ export const CreateOrUpdatePipelineComponent: FC<any> = ({ visible, onClose,para
         pipeline: WrapPipeline,
         // pipeline: WrapPipeline,
         software: TextAreaContent,
-        input_analysis_method:TextAreaContent,
-        analysis_method:TextAreaContent,
-        downstream_analysis:TextAreaContent
+        input_analysis_method: TextAreaContent,
+        analysis_method: TextAreaContent,
+        downstream_analysis: TextAreaContent
     }
     const ComponentsRender = ({ component_type, data, form }: any) => {
         const Component = componentMap[component_type] || (() => <div>未知类型 {JSON.stringify(data)}</div>);
         return <Component data={data} form={form}></Component>
     }
-    
- 
+
+
     const getPipeleine = async (componentId: any) => {
         const resp = await axios.post("/find-pipeline", { component_id: componentId })
 
@@ -171,14 +194,14 @@ export const CreateOrUpdatePipelineComponent: FC<any> = ({ visible, onClose,para
             ...structure,
 
         }
-        if(data){
+        if (data) {
             // params['relation_id'] = pipelineRelation.relation_id
             // params['parent_component_id'] = pipelineRelation.parent_component_id
             params['component_id'] = component.component_id
 
-        
+
         }
-     
+
 
         return params
     }
@@ -243,17 +266,17 @@ const TextAreaContent: FC<any> = ({ data, form }) => {
         </Form.Item>
     </>
 }
-const TextAreaComp:FC<any> = ({value,onChange})=>{
-    const [data,setData] = useState<any>(JSON.stringify(value))
+const TextAreaComp: FC<any> = ({ value, onChange }) => {
+    const [data, setData] = useState<any>(JSON.stringify(value))
     // useEffect(()=>{
     //     setData(JSON.stringify(value))
     // },[value])
     return <>
-          <TextArea value={data} onChange={(e:any)=>{
+        <TextArea value={data} onChange={(e: any) => {
             setData(e.target.value)
             onChange(e.target.value)
             // console.log(e.target.value)
-          }}></TextArea>
+        }}></TextArea>
     </>
 }
 

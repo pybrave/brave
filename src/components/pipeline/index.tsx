@@ -89,7 +89,6 @@ const Pipeline: FC<any> = ({ }) => {
                     // upstreamFormJson={item.upstreamFormJson}
                     {...item}
                     pipeline={{
-                        pipeline_id: pipeline.component_id,
                         component_id: pipeline.component_id
 
                     }}
@@ -97,7 +96,7 @@ const Pipeline: FC<any> = ({ }) => {
                     // updateEditor={updateEditor}
                     operatePipeline={
                         {
-                            datelePipelineRelation: datelePipelineRelation,
+                            deletePipelineRelation: deletePipelineRelation,
                             openModal: openModal
                         }
                     }
@@ -178,7 +177,7 @@ const Pipeline: FC<any> = ({ }) => {
 
 
     }
-    const datelePipelineRelation = async (realtionId: any) => {
+    const deletePipelineRelation = async (realtionId: any) => {
         try {
             const resp = await axios.delete(`/delete-pipeline-relation/${realtionId}`)
             messageApi.success("删除成功!")

@@ -9,6 +9,7 @@ export const readJsonAPi = (contentPath: any) => axios.get(`/fast-api/read-json?
 
 
 const ResultList = forwardRef<any, any>(({
+    pipeline,
     software,
     title,
     form,
@@ -26,8 +27,7 @@ const ResultList = forwardRef<any, any>(({
     setActiveTabKey,
     cardExtra,
     operatePipeline,
-    pipelineType,
-    relation_type,
+    relationType,
     currentAnalysisMethod,
     setCurrentAnalysisMethod,
     params
@@ -96,7 +96,7 @@ const ResultList = forwardRef<any, any>(({
         reload()
 
         // initData(currentAnalysisMethod)
-    }, [JSON.stringify(params)])
+    }, [JSON.stringify(params),JSON.stringify(analysisMethod)])
 
     const onTabChange = (key: any) => {
         setData(groupedData[key])
@@ -436,15 +436,15 @@ const ResultList = forwardRef<any, any>(({
         <Card title={title}
             extra={<>{cardExtra}
                 <Flex gap={"small"}>
-                    {operatePipeline.openModal && <>
+                    {operatePipeline?.openModal && <>
                         <Tooltip title={currentAnalysisMethod?.label}>
                             <Button color="cyan" variant="solid" onClick={() => {
                                 operatePipeline.openModal("modalA", {
                                     data: undefined,
                                     pipelineStructure: {
-                                        relation_type: "software_input_file",
+                                        relation_type: relationType, //"software_input_file",
                                         parent_component_id: software.component_id,
-                                        pipeline_id: software.pipeline_id
+                                        pipeline_id: pipeline.component_id
                                     }
                                 })
                             }}>新增</Button>
@@ -457,7 +457,8 @@ const ResultList = forwardRef<any, any>(({
                                 operatePipeline.openModal("modalA", {
                                     data: currentAnalysisMethod,
                                     pipelineStructure: {
-                                        relation_type: "software_input_file",
+                                        relation_type: relationType,// "software_input_file",
+                                        pipeline_id: pipeline.component_id
                                         // parent_component_id: currentAnalysisMethod.component_id,
                                         // pipeline_id: currentAnalysisMethod.pipeline_id
                                     }
@@ -466,9 +467,9 @@ const ResultList = forwardRef<any, any>(({
                         </Tooltip>
                         <Tooltip title={currentAnalysisMethod?.label}>
                             <Popconfirm title="确认删除!" onConfirm={() => {
-                                operatePipeline.datelePipelineRelation(currentAnalysisMethod.relation_id)
+                                operatePipeline.deletePipelineRelation(currentAnalysisMethod.relation_id)
                             }}>
-                                <Button color="cyan" variant="solid" >删除</Button>
+                                <Button  color="danger" variant="solid" >删除</Button>
                             </Popconfirm>
                         </Tooltip>
                     </>}
@@ -481,7 +482,14 @@ const ResultList = forwardRef<any, any>(({
             activeTabKey={activeTabKey}
             onTabChange={onTabChange}
         >
-            {JSON.stringify(software)}
+            {import.meta.env.MODE == "development" && <>
+                <ul>
+                    <li>pipeline:{pipeline?.component_id}</li>
+                    <li>software:{software?.component_id}</li>
+                    <li>file:{currentAnalysisMethod?.component_id}</li>
+                </ul>
+            </>}
+
 
             {/* {JSON.stringify(currentAnalysisMenthod)} */}
             <Table
