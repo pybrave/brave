@@ -31,7 +31,7 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
         const data = resp.data.map((item: any) => {
             const content = JSON.parse(item.content)
             return {
-                label: content.name,
+                label: `${content.label}(${content.name})`,
                 value: item.component_id
             }
         })
@@ -325,12 +325,12 @@ const WrapPipeline: FC<any> = ({ data, form }) => {
         <Form.Item name={["content", "name"]} label="name">
             <Input></Input>
         </Form.Item>
-        <Form.Item name={["content", "analysisPipline"]} label="analysisPipline">
+        {/* <Form.Item name={["content", "analysisPipline"]} label="analysisPipline">
             <Input></Input>
-        </Form.Item>
-        <Form.Item name={["content", "parseAnalysisModule"]} label="parseAnalysisModule">
+        </Form.Item> */}
+        {/* <Form.Item name={["content", "parseAnalysisModule"]} label="parseAnalysisModule">
             <Input></Input>
-        </Form.Item>
+        </Form.Item> */}
         <Form.Item name={["content", "img"]} label="img">
             <Input></Input>
         </Form.Item>

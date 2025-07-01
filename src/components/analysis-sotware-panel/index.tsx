@@ -20,25 +20,25 @@ type AnalysisFile = {
     label: string
 }
 type AnalysisSoftware = {
-    inputFile: AnalysisFile[],
-    outputFile: any[],
-    relation_id: any,
-    pipeline: any,
-    pipeline_id: any,
-    component_id: any,
+    inputFile?: AnalysisFile[],
+    outputFile?: any[],
+    relation_id?: any,
+    pipeline?: any,
+    pipeline_id?: any,
+    component_id?: any,
 
 
-    wrapAnalysisPipeline: any,
-    analysisPipline: any,
-    inputAnalysisMethod: any,
-    analysisMethod: any,
-    appendSampleColumns: any,
-    analysisType: any,
-    children: any,
-    cardExtra: any,
-    upstreamFormJson: any,
-    downstreamAnalysis: any,
-    operatePipeline: any,
+    wrapAnalysisPipeline?: any,
+    analysisPipline?: any,
+    inputAnalysisMethod?: any,
+    analysisMethod?: any,
+    appendSampleColumns?: any,
+    analysisType?: any,
+    children?: any,
+    cardExtra?: any,
+    upstreamFormJson?: any,
+    downstreamAnalysis?: any,
+    operatePipeline?: any,
 }
 
 const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
@@ -59,53 +59,53 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
     ...rest }) => {
     const { project } = useOutletContext<any>()
 
-    const getAnalsyisFiles = async () => {
-        const analysisFileType: any = []
-        analysisFileType.push({
-            type: "input",
-            names: inputFile.map(item => item.name)
-        })
-        analysisFileType.push({
-            type: "output",
-            names: outputFile.map(item => item.name)
-        })
-        console.log(analysisFileType)
+    // const getAnalsyisFiles = async () => {
+    //     const analysisFileType: any = []
+    //     analysisFileType.push({
+    //         type: "input",
+    //         names: inputFile.map(item => item.name)
+    //     })
+    //     analysisFileType.push({
+    //         type: "output",
+    //         names: outputFile.map(item => item.name)
+    //     })
+    //     console.log(analysisFileType)
 
-        const typeMap: any = {};
-        analysisFileType.forEach(({ names, ...rest }: any) => {
-            names.forEach((value: any) => {
-                typeMap[value] = rest;
-            });
-        });
+    //     const typeMap: any = {};
+    //     analysisFileType.forEach(({ names, ...rest }: any) => {
+    //         names.forEach((value: any) => {
+    //             typeMap[value] = rest;
+    //         });
+    //     });
 
-        const analysisFileNames = analysisFileType.flatMap((it: any) => it.names)
-        const data = await listAnalysisFiles({ project: project, analysisFileNames: analysisFileNames })
-        const groupedData = data.reduce((acc: any, item: any) => {
-            const analysisFileName = item.analysis_method;
-            const key = typeMap[analysisFileName].type
-            // if (!acc[key]) {
-            //     acc[key] = [];
-            // }
-            if (!acc[key][analysisFileName]) {
-                acc[key][analysisFileName] = [];
-            }
-            const { sample_key, id, sample_group, ...rest } = item
-            // debugger
+    //     const analysisFileNames = analysisFileType.flatMap((it: any) => it.names)
+    //     const data = await listAnalysisFiles({ project: project, analysisFileNames: analysisFileNames })
+    //     const groupedData = data.reduce((acc: any, item: any) => {
+    //         const analysisFileName = item.analysis_method;
+    //         const key = typeMap[analysisFileName].type
+    //         // if (!acc[key]) {
+    //         //     acc[key] = [];
+    //         // }
+    //         if (!acc[key][analysisFileName]) {
+    //             acc[key][analysisFileName] = [];
+    //         }
+    //         const { sample_key, id, sample_group, ...rest } = item
+    //         // debugger
 
-            acc[key][analysisFileName].push({
-                label: sample_key,
-                value: id,
-                sample_group: sample_group ? sample_group : "no_group",
-                sample_key: sample_key,
-                id: id,
-                ...rest
-            });
-            return acc;
-        }, { input: {}, output: {} });
-        console.log(groupedData)
-        console.log(typeMap)
+    //         acc[key][analysisFileName].push({
+    //             label: sample_key,
+    //             value: id,
+    //             sample_group: sample_group ? sample_group : "no_group",
+    //             sample_key: sample_key,
+    //             id: id,
+    //             ...rest
+    //         });
+    //         return acc;
+    //     }, { input: {}, output: {} });
+    //     console.log(groupedData)
+    //     console.log(typeMap)
 
-    }
+    // }
 
     useEffect(() => {
         // getAnalsyisFiles()

@@ -140,7 +140,7 @@ const Pipeline: FC<any> = ({ }) => {
         // console.log(resp.data)
         const data = resp.data
         const content = JSON.parse(data['content'])
-        const pipeline = {...data,...content}
+        const pipeline = { ...data, ...content }
         setPipeline(pipeline)
         // console.log(content)
         const items = getPipline(data)
@@ -238,6 +238,16 @@ const Pipeline: FC<any> = ({ }) => {
         {pipeline && Array.isArray(pipeline?.items) ? <Tabs destroyInactiveTabPane={true} items={items}></Tabs> :
 
             <Empty>
+                <Button style={{marginRight:"0.5rem"}} color="cyan" variant="solid" onClick={() => {
+                    openModal("modalC", {
+                        data: undefined, structure: {
+                            component_type: "software",
+                            relation_type: "pipeline_software",
+                            parent_component_id: pipeline.component_id,
+                            pipeline_id: pipeline.component_id
+                        }
+                    })
+                }}>新增软件</Button>
                 <Button color="cyan" variant="solid" onClick={() => {
                     openModal("modalA", {
                         data: undefined, pipelineStructure: {
@@ -247,7 +257,7 @@ const Pipeline: FC<any> = ({ }) => {
 
                         }
                     })
-                }}>创建子流程</Button>
+                }}>添加软件</Button>
             </Empty>}
 
         {/* {
