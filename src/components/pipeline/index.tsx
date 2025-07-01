@@ -74,7 +74,7 @@ const Pipeline: FC<any> = ({ }) => {
     const getPipline: any = (pipeline: any) => {
         // console.log(pipeline)
         const softwareList: any[] = pipeline.items
-        console.log(pipeline)
+        // console.log(pipeline)
         if (!softwareList) return []
         return softwareList.map((item, index) => {
             // const { downstreamAnalysis, appendSampleColumns, analysisType, ...rest } = item
@@ -139,7 +139,10 @@ const Pipeline: FC<any> = ({ }) => {
         const resp = await axios.get(`/get-pipeline-v2/${name}`)
         // console.log(resp.data)
         const data = resp.data
-        setPipeline(data)
+        const content = JSON.parse(data['content'])
+        const pipeline = {...data,...content}
+        setPipeline(pipeline)
+        // console.log(content)
         const items = getPipline(data)
         setItems(items)
         // if (resp.data.items && Array.isArray(resp.data.items) && resp.data.items.length > 1) {
@@ -208,7 +211,8 @@ const Pipeline: FC<any> = ({ }) => {
                 {pipeline ? <>
                     <h2 style={{ margin: 0 }}>{pipeline?.name}</h2>
                     <p style={{ margin: "0", color: "rgba(0, 0, 0, 0.45)" }}>{pipeline?.description}</p>
-                    <p style={{ margin: "0", color: "rgba(0, 0, 0, 0.45)" }}>{pipeline?.component_id}</p>
+                    {import.meta.env.MODE == "development" && <>
+                        <p style={{ margin: "0", color: "rgba(0, 0, 0, 0.45)" }}>{pipeline?.component_id}</p></>}
 
                     {pipeline.tags && Array.isArray(pipeline.tags) && pipeline.tags.map((tag: any, index: any) => (
                         <Tag style={{ marginTop: "0.5rem" }} key={index} color={colors[index]}>{tag}</Tag>

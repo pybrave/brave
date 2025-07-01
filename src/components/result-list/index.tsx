@@ -96,7 +96,7 @@ const ResultList = forwardRef<any, any>(({
         reload()
 
         // initData(currentAnalysisMethod)
-    }, [JSON.stringify(params),JSON.stringify(analysisMethod)])
+    }, [JSON.stringify(params), JSON.stringify(analysisMethod)])
 
     const onTabChange = (key: any) => {
         setData(groupedData[key])
@@ -301,7 +301,7 @@ const ResultList = forwardRef<any, any>(({
                             {/* <Typography >
                                     <pre>{JSON.stringify(JSON.parse(record.content), null, 2)}</pre>
                                 </Typography> */}
-                            {record.analysis_name}
+                            {/* {record.analysis_name} */}
                         </>} >
                             <a onClick={() => {
                                 // record.content = JSON.parse(record.content)
@@ -398,7 +398,7 @@ const ResultList = forwardRef<any, any>(({
                 render: (_: any, record: any) => (
                     <Space size="middle">
                         <Popover content={<>
-                            {record.content}
+                            {/* {record.content} */}
                         </>} >
                             <a onClick={() => {
                                 const param = JSON.parse(record.request_param)
@@ -439,6 +439,28 @@ const ResultList = forwardRef<any, any>(({
                     {operatePipeline?.openModal && <>
                         <Tooltip title={currentAnalysisMethod?.label}>
                             <Button color="cyan" variant="solid" onClick={() => {
+                                operatePipeline.openModal("modalC", {
+                                    data: undefined,
+                                    structure: {
+                                        relation_type: relationType, //"software_input_file",
+                                        parent_component_id: software.component_id,
+                                        pipeline_id: pipeline.component_id,
+                                        component_type: "file"
+                                    }
+                                })
+                            }}>新增文件</Button>
+                        </Tooltip>
+                        <Tooltip title={currentAnalysisMethod?.label}>
+                            <Button color="cyan" variant="solid" onClick={() => {
+                                operatePipeline.openModal("modalC", {
+                                    data: currentAnalysisMethod, structure: {
+                                        component_type: "file",
+                                    }
+                                })
+                            }}>更新文件</Button>
+                        </Tooltip>
+                        <Tooltip title={currentAnalysisMethod?.label}>
+                            <Button color="cyan" variant="solid" onClick={() => {
                                 operatePipeline.openModal("modalA", {
                                     data: undefined,
                                     pipelineStructure: {
@@ -447,8 +469,9 @@ const ResultList = forwardRef<any, any>(({
                                         pipeline_id: pipeline.component_id
                                     }
                                 })
-                            }}>新增</Button>
+                            }}>添加文件</Button>
                         </Tooltip>
+
                         <Tooltip title={currentAnalysisMethod?.label}>
                             <Button color="cyan" variant="solid" onClick={() => {
                                 // operatePipeline.setOperateOpen(true)
@@ -463,13 +486,14 @@ const ResultList = forwardRef<any, any>(({
                                         // pipeline_id: currentAnalysisMethod.pipeline_id
                                     }
                                 })
-                            }}>更新</Button>
+                            }}>替换文件</Button>
                         </Tooltip>
+
                         <Tooltip title={currentAnalysisMethod?.label}>
-                            <Popconfirm title="确认删除!" onConfirm={() => {
+                            <Popconfirm title="是否移除文件!" onConfirm={() => {
                                 operatePipeline.deletePipelineRelation(currentAnalysisMethod.relation_id)
                             }}>
-                                <Button  color="danger" variant="solid" >删除</Button>
+                                <Button color="cyan" variant="solid" >移除文件</Button>
                             </Popconfirm>
                         </Tooltip>
                     </>}

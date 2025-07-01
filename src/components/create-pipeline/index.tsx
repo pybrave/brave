@@ -117,7 +117,7 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
             open={visible}
             footer={(_, { OkBtn, CancelBtn }) => (
                 <>
-                    <Button>编辑组件</Button>
+                    {/* <Button>编辑组件</Button> */}
                     <CancelBtn />
                     <OkBtn />
                 </>
@@ -132,8 +132,8 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
                 </Form.Item>
 
                 {pipelineRelation && <>
-                    {JSON.stringify(pipelineRelation)}
-                    <hr />
+                    {/* {JSON.stringify(pipelineRelation)}
+                    <hr /> */}
                     {/*  */}
                 </>}
                 {/* <ComponentsRender {...pipelineStructure} data={pipeline} form={form}></ComponentsRender> */}
@@ -171,8 +171,8 @@ export const CreateOrUpdatePipelineComponent: FC<any> = ({ visible, onClose, par
         pipeline: WrapPipeline,
         // pipeline: WrapPipeline,
         software: TextAreaContent,
-        input_analysis_method: TextAreaContent,
-        analysis_method: TextAreaContent,
+        file: TextAreaContent,
+        downstream: TextAreaContent,
         downstream_analysis: TextAreaContent
     }
     const ComponentsRender = ({ component_type, data, form }: any) => {
@@ -271,12 +271,12 @@ export const CreateOrUpdatePipelineComponent: FC<any> = ({ visible, onClose, par
 export default CreateORUpdatePipelineCompnentRelation
 const TextAreaContent: FC<any> = ({ data, form }) => {
     return <>
-        {/* <Form.Item name={"content"} label="content">
+        <Form.Item name={"content"} label="content">
             <TextAreaComp></TextAreaComp>
-        </Form.Item> */}
-        <Form.Item name={"component_id"} label="component_id">
-            <Input></Input>
         </Form.Item>
+        {/* <Form.Item name={"component_id"} label="component_id">
+            <Input></Input>
+        </Form.Item> */}
     </>
 }
 const TextAreaComp: FC<any> = ({ value, onChange }) => {
@@ -285,11 +285,14 @@ const TextAreaComp: FC<any> = ({ value, onChange }) => {
     //     setData(JSON.stringify(value))
     // },[value])
     return <>
-        <TextArea value={data} onChange={(e: any) => {
+        <TextArea rows={10} value={data} onChange={(e: any) => {
             setData(e.target.value)
             onChange(e.target.value)
             // console.log(e.target.value)
         }}></TextArea>
+        <Button onClick={()=>{
+            setData(JSON.stringify(value,null,2))
+        }}>格式化</Button>
     </>
 }
 

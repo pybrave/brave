@@ -154,7 +154,6 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                 {JSON.stringify(rest)} */}
 
 
-                <hr />
 
                 {/* {JSON.stringify(inputFile)}
                 <hr />
@@ -194,11 +193,36 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                             setOperateOpen(true)
                         }}>添加管道输入</Button>
                     </Flex> */}
+
+                    <Flex justify="center" style={{ margin: "2rem" }} gap={"small"}>
+                        <Button color="cyan" variant="solid" onClick={() => {
+                            operatePipeline.openModal("modalC", {
+                                data: undefined,
+                                structure: {
+                                    relation_type: "software_input_file", //"software_input_file",
+                                    parent_component_id: rest.component_id,
+                                    pipeline_id: pipeline.component_id,
+                                    component_type: "file"
+                                }
+                            })
+                        }}>新增文件</Button>
+                        <Button color="cyan" variant="solid" onClick={() => {
+                            operatePipeline.openModal("modalA", {
+                                data: undefined,
+                                pipelineStructure: {
+                                    relation_type: "software_input_file", //"software_input_file",
+                                    parent_component_id: rest.component_id,
+                                    pipeline_id: pipeline.component_id
+                                }
+                            })
+                        }}>添加文件</Button>
+                    </Flex>
                 </>}
                 {/* {JSON.stringify(rest)} */}
 
                 {/* <PipelineMonitor pipelineId={rest.pipeline_id} ></PipelineMonitor> */}
                 <div style={{ marginBottom: "1rem" }}></div>
+
                 {checkAvailable(outputFile) ? <UpstreamAnalysisOutput
                     {...rest}
                     pipeline={pipeline}
@@ -218,17 +242,30 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                     appendSampleColumns={appendSampleColumns}></UpstreamAnalysisOutput>
                     : <>
                         {/* {wrapAnalysisPipeline != analysisPipline &&
-                            <Flex justify="center" style={{ margin: "2rem" }}>
-                                <Button color="cyan" variant="solid" onClick={() => {
-                                    setPipelineRecord(undefined);
-                                    setPipelineStructure({
-                                        pipeline_type: "analysis_method",
-                                        parent_pipeline_id: rest.pipeline_id
-                                    })
-                                    setOperateOpen(true)
-                                }}>添加管道输出</Button>
-                            </Flex>} */}
-
+                            */}
+                        <Flex justify="center" style={{ margin: "2rem" }} gap={"small"}>
+                            <Button color="cyan" variant="solid" onClick={() => {
+                                operatePipeline.openModal("modalC", {
+                                    data: undefined,
+                                    structure: {
+                                        relation_type: "software_output_file", //"software_input_file",
+                                        parent_component_id: rest.component_id,
+                                        pipeline_id: pipeline.component_id,
+                                        component_type: "file"
+                                    }
+                                })
+                            }}>新增文件</Button>
+                            <Button color="cyan" variant="solid" onClick={() => {
+                                operatePipeline.openModal("modalA", {
+                                    data: undefined,
+                                    pipelineStructure: {
+                                        relation_type: "software_output_file", //"software_input_file",
+                                        parent_component_id: rest.component_id,
+                                        pipeline_id: pipeline.component_id
+                                    }
+                                })
+                            }}>添加文件</Button>
+                        </Flex>
                     </>}
 
 
@@ -238,34 +275,50 @@ const AnalysisSoftwarePanel: FC<AnalysisSoftware> = ({
                 {wrapAnalysisPipeline != analysisPipline && <>
                     <Flex gap="small" style={{ marginBottom: "1rem", flexWrap: "wrap" }}>
                         <Button color="cyan" variant="solid" onClick={() => {
+                            operatePipeline.openModal("modalC", {
+                                data: undefined, structure: {
+                                    component_type: "software",
+                                    relation_type: "pipeline_software",
+                                    parent_component_id: pipeline.component_id,
+                                    pipeline_id: pipeline.component_id
+                                }
+                            })
+                        }}>新增软件</Button>
+
+                        <Button color="cyan" variant="solid" onClick={() => {
+                            operatePipeline.openModal("modalC", {
+                                data: rest, structure: {
+                                    component_type: "software",
+                                }
+                            })
+                        }}>更新软件</Button>
+
+                        <Button color="cyan" variant="solid" onClick={() => {
                             operatePipeline.openModal("modalA", {
                                 data: undefined, pipelineStructure: {
                                     relation_type: "pipeline_software",
-                                    component_type: "software",
                                     parent_component_id: pipeline.component_id,
                                     pipeline_id: pipeline.component_id
 
                                 }
                             })
-                        }}>创建子流程</Button>
+                        }}>添加软件</Button>
                         <Button color="cyan" variant="solid" onClick={() => {
                             operatePipeline.openModal("modalA", {
                                 data: rest,
                                 pipelineStructure: {
                                     relation_type: "pipeline_software",
-                                    component_type: "software",
                                     pipeline_id: pipeline.component_id,
 
                                 }
                             })
-                            // setPipelineStructure()
-                            // setOperateOpen(true)
-                            // setPipelineRecord(rest)
-                        }}>更新子流程</Button>
-                        <Popconfirm title="是否删除?" onConfirm={() => {
+                        }}>替换软件</Button>
+
+
+                        <Popconfirm title="是否移除文件?" onConfirm={() => {
                             operatePipeline.deletePipelineRelation(rest.relation_id)
                         }}>
-                            <Button color="danger" variant="solid" >删除子流程</Button>
+                            <Button color="cyan" variant="solid" >移除软件</Button>
                         </Popconfirm>
                         {/* {JSON.stringify(rest)} */}
                     </Flex>
@@ -312,7 +365,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ record, pipeline, software, ope
             // analysis_pipline: analysisPipline,
             // parse_analysis_module: rest.parse_analysis_module,
             component_id: rest.component_id,
-            pipeline_id:pipeline.component_id
+            pipeline_id: pipeline.component_id
             // parse_analysis_result_module: rest.parseAnalysisResultModule
         }
         return requestParams
@@ -367,6 +420,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ record, pipeline, software, ope
     return <>
         {/* {JSON.stringify(software)} */}
         {contextHolder}
+
         <ResultList
             pipeline={pipeline}
             software={software}
@@ -384,6 +438,33 @@ export const UpstreamAnalysisInput: FC<any> = ({ record, pipeline, software, ope
             setRecord={(record: any) => onClickItem(record)}
             setResultTableList={setResultTableListHandle}></ResultList>
         <div style={{ marginBottom: "1rem" }}></div>
+
+        <Flex gap={"small"} style={{ marginBottom: "1rem" }}>
+            <Button color="cyan" variant="solid" onClick={() => {
+                operatePipeline.openModal("modalB", {
+                    module_type: "py_parse_analysis",
+                    module_name: rest.parseAnalysisModule,
+                    component_id: rest.component_id,
+                })
+            }}>输入解析模块</Button>
+            <Button color="cyan" variant="solid" onClick={() => {
+                operatePipeline.openModal("modalB", {
+                    module_type: "nextflow",
+                    module_name: analysisPipline,
+                    component_id: rest.component_id,
+                })
+            }}>软件脚本</Button>
+            {rest.parseAnalysisResultModule && <>
+                {rest.parseAnalysisResultModule.map((item: any, index: any) =>
+                    <Button  key={index} color="cyan" variant="solid" onClick={() => {
+                        operatePipeline.openModal("modalB", {
+                            module_type: "py_parse_analysis_result",
+                            module_name: item.module,
+                            component_id: rest.component_id,
+                        })
+                    }}>输出解析模块({item.module})</Button>)}
+            </>}
+        </Flex>
         <Form form={upstreamForm}>
             <Form.Item name={"id"} style={{ display: "none" }}>
                 <Input></Input>
@@ -400,28 +481,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ record, pipeline, software, ope
                         children: <>
                             <Spin spinning={loading}>
                                 {/* {JSON.stringify(rest.parseAnalysisResultModule)} */}
-                                <Flex gap={"samll"} style={{ marginBottom: "1rem" }}>
-                                    <Button color="cyan" variant="solid" onClick={() => {
-                                        operatePipeline.openModal("modalB", {
-                                            module_type: "py_parse_analysis",
-                                            module_name: rest.parseAnalysisModule,
-                                            pipeline_id: pipeline.component_id,
-                                            module_dir: rest.moduleDir
-                                        })
-                                    }}>输入解析</Button>
 
-                                    {rest.parseAnalysisResultModule && <>
-                                        {rest.parseAnalysisResultModule.map((item: any, index: any) =>
-                                            <Button style={{ marginLeft: "0.5rem" }} key={index} color="cyan" variant="solid" onClick={() => {
-                                                operatePipeline.openModal("modalB", {
-                                                    module_type: "py_parse_analysis_result",
-                                                    module_name: item.module,
-                                                    pipeline_id: pipeline.component_id,
-                                                    module_dir: item.moduleDir
-                                                })
-                                            }}>输出解析({item.module})</Button>)}
-                                    </>}
-                                </Flex>
                                 <Form.Item name={"analysis_name"} label={"分析名称"} rules={[{ required: true, message: '该字段不能为空!' }]}>
                                     <Input></Input>
                                 </Form.Item>
@@ -487,7 +547,7 @@ export const UpstreamAnalysisInput: FC<any> = ({ record, pipeline, software, ope
 
                                 {/* {record && record.dataType == 'analysis' && <PipelineMonitor analysisId={record.analysis_id} ></PipelineMonitor>} */}
 
-                        
+
                                 {/* {markdown} */}
                                 <AnalysisResultView
                                     plotLoading={false}
@@ -735,7 +795,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ pipeline, software, operatePipeline, 
             activeTabKey={activeTabKey}
             setActiveTabKey={setActiveTabKey}
             cleanDom={cleanDom}
-            analysisType={analysisType}
+            analysisType={"sample"}
             analysisMethod={analysisMethod}
             shouldTrigger={true}
             form={form}
@@ -765,6 +825,17 @@ const UpstreamAnalysisOutput: FC<any> = ({ pipeline, software, operatePipeline, 
 
                 </span>
             })}
+            <Button style={{ marginRight: "0.5rem" }} color="cyan" variant="solid" onClick={() => {
+                operatePipeline.openModal("modalC", {
+                    data: undefined,
+                    structure: {
+                        relation_type: "file_downstream",
+                        pipeline_id: pipeline.component_id,
+                        parent_component_id: currentAnalysisMethod.component_id,
+                        component_type: "downstream"
+                    }
+                })
+            }}>新增分析</Button>
             <Button color="cyan" variant="solid" onClick={() => {
                 operatePipeline.openModal("modalA", {
                     data: undefined,
@@ -775,7 +846,7 @@ const UpstreamAnalysisOutput: FC<any> = ({ pipeline, software, operatePipeline, 
                     }
                 })
 
-            }}>新增下游分析</Button>
+            }}>添加分析</Button>
         </div>
 
 
@@ -811,45 +882,56 @@ const UpstreamAnalysisOutput: FC<any> = ({ pipeline, software, operatePipeline, 
                             key: '1',
                             label: <>执行分析{btnName ? `(${btnName})` : ""}</>,
                             children: <>
+                                {import.meta.env.MODE == "development" && <>
+                                    <ul>
+                                        <li>pipeline:{pipeline.component_id}</li>
+                                        <li>software:{software.component_id}</li>
+                                        <li>file:{currentAnalysisMethod?.component_id}</li>
+                                        <li>downstream:{downstreamData?.component_id}</li>
+                                        {JSON.stringify(downstreamData)}
+                                    </ul>
+                                </>}
+
+                                <Flex gap={"small"}>
+                                    <Button color="cyan" variant="solid" onClick={() => {
+                                        operatePipeline.openModal("modalB", {
+                                            module_type: "py_plot",
+                                            module_name: downstreamData.moduleName,
+                                            component_id: downstreamData.component_id,
+                                            // module_dir: downstreamData.moduleDir
+                                        })
+                                    }}>查看模块</Button>
+                                    <Button color="cyan" variant="solid" onClick={() => {
+                                        operatePipeline.openModal("modalC", {
+                                            data: downstreamData, structure: {
+                                                component_type: "downstream",
+                                            }
+                                        })
+                                    }}>更新分析</Button>
+
+                                    <Button color="cyan" variant="solid" onClick={() => {
+                                        operatePipeline.openModal("modalA", {
+                                            data: downstreamData,
+                                            pipelineStructure: {
+                                                relation_type: "file_downstream",
+                                                pipeline_id: pipeline.component_id
+                                            }
+                                        })
+
+                                    }}>替换分析</Button>
+                                    <Popconfirm title="确认删除!" onConfirm={() => {
+                                        operatePipeline.deletePipelineRelation(downstreamData.relation_id)
+                                        setBtnName(undefined)
+                                    }}>
+                                        <Button color="danger" variant="solid" >删除分析</Button>
+                                    </Popconfirm>
+
+                                </Flex>
                                 {!origin && <>
-                                    {import.meta.env.MODE == "development" && <>
-                                        <ul>
-                                            <li>pipeline:{pipeline.component_id}</li>
-                                            <li>software:{software.component_id}</li>
-                                            <li>file:{currentAnalysisMethod?.component_id}</li>
-                                            <li>downstream:{downstreamData?.component_id}</li>
-                                            {JSON.stringify(downstreamData)}
-                                        </ul>
-                                    </>}
+
                                     <Tabs
                                         tabBarExtraContent={<>
-                                            <Flex gap={"small"}>
-                                                <Button color="cyan" variant="solid" onClick={() => {
-                                                    operatePipeline.openModal("modalB", {
-                                                        module_type: "py_plot",
-                                                        module_name: downstreamData.moduleName,
-                                                        pipeline_id: pipeline.component_id,
-                                                        module_dir: downstreamData.moduleDir
-                                                    })
-                                                }}>查看模块</Button>
-                                                <Button color="cyan" variant="solid" onClick={() => {
-                                                    operatePipeline.openModal("modalA", {
-                                                        data: downstreamData,
-                                                        pipelineStructure: {
-                                                            relation_type: "file_downstream",
-                                                            pipeline_id: pipeline.component_id
-                                                        }
-                                                    })
 
-                                                }}>更新</Button>
-                                                <Popconfirm title="确认删除!" onConfirm={() => {
-                                                    operatePipeline.deletePipelineRelation(downstreamData.relation_id)
-                                                    setBtnName(undefined)
-                                                }}>
-                                                    <Button color="danger" variant="solid" >删除</Button>
-                                                </Popconfirm>
-
-                                            </Flex>
                                         </>}
                                         items={[
                                             {
