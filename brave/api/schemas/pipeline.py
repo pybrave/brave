@@ -3,8 +3,9 @@ from pydantic import BaseModel
 
 class SavePipeline(BaseModel):
     component_id: Optional[str]=None
-    # parent_component_id:Optional[str]=None
-    # pipeline_key: Optional[str]=None
+    parent_component_id:Optional[str]=None
+    pipeline_id: Optional[str]=None
+    relation_type: Optional[str]=None
     component_type: Optional[str]
     content: Optional[str]=None
 
@@ -37,5 +38,5 @@ class Pipeline(BaseModel):
 class QueryModule(BaseModel):
     module_type: Optional[str]
     module_name: Optional[str]
-    pipeline_id:Optional[str]
-    module_dir: Optional[str]=None
+    component_id:Optional[str]
+    # module_dir: Optional[str]=None

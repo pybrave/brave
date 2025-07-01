@@ -9,6 +9,7 @@ from brave.api.models.core import analysis
 import psutil
 import logging
 from sqlalchemy import  select, update
+import inspect
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,8 +30,12 @@ async def watch_folder(path: str):
                     full_module = f"brave.api.listener.{name}"
                     mod = import_module(full_module)
                     if hasattr(mod, "run"):
-                        await mod.run(change.name.upper(),file_path)
-
+                        # await mod.run(change.name.upper(),file_path)
+                        run_func = mod.run
+                        if inspect.iscoroutinefunction(run_func):
+                            asyncio.create_task(run_func(change.name.upper(), file_path))
+                        else:
+                            await asyncio.to_thread(run_func, change.name.upper(), file_path)
 
             # await global_queue.put(msg)
 

@@ -29,6 +29,7 @@ def camel_to_snake(name):
     s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
+
 # pipeline,software,file,downstream
 # BASE_DIR = os.path.dirname(__file__)
 @pipeline.post("/import-pipeline",tags=['pipeline'])
@@ -113,7 +114,7 @@ def add_analysis_file(analysis_software_uuid,install_key,pipeline_item,key,new_p
                 }) 
             elif  key=="outputFile":
                 new_pipeline_components_relation_list.append({
-                    "relation_type":"software_ouput_file",
+                    "relation_type":"software_output_file",
                     "install_key":install_key,
                     "component_id":analysis_file_uuid,
                     # "pipeline_id":pipeline_id,
@@ -228,18 +229,20 @@ async def get_pipeline_v2(name):
     with get_engine().begin() as conn:
         data = conn.execute(final_query).mappings().all()
         
-    id_to_node = {item["component_id"]: get_one_data(item) for item in data}
+    id_to_node = {(item["component_id"], item["relation_type"]): get_one_data(item) for item in data}
     children_map = defaultdict(list)
     for item in data:
-        pid = item.get("parent_component_id")
-        if pid:
-            children_map[pid].append(item["component_id"])
+        parent_id = item.get("parent_component_id")
+        if parent_id:
+            # parent_key = (parent_id, item["relation_id"])  # parent 的唯一标识
+            child_key = (item["component_id"], item["relation_type"])
+            children_map[parent_id].append(child_key)
     # 获取根 pipeline_id
-    root_id = next((item["component_id"] for item in data if item["component_type"] == "pipeline"),None)
-    if not root_id:
+    root_item  = next((item for item in data if item["component_type"] == "pipeline"),None)
+    if not root_item:
         raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
-        
-    result = build_pipeline_structure(id_to_node,children_map,root_id)
+    # root_key = (root_item["component_id"], None)
+    result = build_pipeline_structure(id_to_node,children_map,root_item)
     return result
 
 def get_one_data(item):
@@ -247,23 +250,23 @@ def get_one_data(item):
     item = {k:v for k,v in item.items() if k!="content"}
     return {**item, **content }
 
-def build_pipeline_structure(id_to_node,children_map,pid):
-    node = id_to_node[pid]
-    result = {**node}
+def build_pipeline_structure(id_to_node,children_map,root_item):
+    # node = id_to_node[pid]
+    result = {**root_item}
     items = []
-    for child_id in children_map.get(pid, []):
+    for child_id in children_map.get(root_item["component_id"], []):
         child = id_to_node[child_id]
         content = child
         if child["component_type"] == "software":
             item = {**content}
             input_files = []
             output_files = []
-            for sub_id in children_map.get(child_id, []):
+            for sub_id in children_map.get(child_id[0], []):
                 sub = id_to_node[sub_id]
                 sub_content = sub
                 if sub["relation_type"] == "software_input_file":
                     input_files.append(sub_content)
-                elif sub["relation_type"] == "software_ouput_file":
+                elif sub["relation_type"] == "software_output_file":
                     sub_out = {**sub_content, "downstreamAnalysis": []}
                     for ds_id in children_map.get(sub["component_id"], []):
                         downstream = id_to_node[ds_id]
@@ -283,73 +286,18 @@ def build_pipeline_structure(id_to_node,children_map,pid):
     return result
 
 
-@pipeline.get("/get-pipeline-v3/{name}",tags=['pipeline'])
-async def get_pipeline_v3(name):
-    with get_engine().begin() as conn:
-        pipeline_list = conn.execute(t_pipeline.select() 
-            .where(t_pipeline.c.pipeline_key==name)).fetchall()
-        # wrap_pipeline = [item for item in pipeline_list if item.pipeline_type=='wrap_pipeline']
-        data = [get_pipeline_item(item) for item in pipeline_list]
-   
-        wrap = next(d for d in data if d["pipeline_type"] == "wrap_pipeline")
-        sub_pipelines = [d for d in data if d["pipeline_type"] == "pipeline" and d["parent_pipeline_id"] == wrap["pipeline_id"]]
-        items = []
-        for sub in sub_pipelines:
-            parent_id = sub["pipeline_id"]
-            # parseAnalysisResultModule = [
-            #     d for d in data if d["pipeline_type"] == "parse_analysis_result_module" and d["parent_pipeline_id"] == parent_id
-            # ]
-            # inputAnalysisMethod = [
-            #     d for d in data if d["pipeline_type"] == "input_analysis_method" and d["parent_pipeline_id"] == parent_id
-            # ]
-            # # upstreamFormJson = [
-            # #     d for d in data if d["pipeline_type"] == "upstream_form_json" and d["parent_pipeline_id"] == parent_id
-            # # ]
-            # analysisMethod = [
-            #     d for d in data if d["pipeline_type"] == "analysis_method" and d["parent_pipeline_id"] == parent_id
-            # ]
-
-            # downstreamAnalysis 有 formJson 嵌套，要特殊处理
-            downstreamAnalysis = [
-                d for d in data if d["pipeline_type"] == "downstream_analysis" and d["parent_pipeline_id"] == parent_id
-            ]
-            # downstreamAnalysis = []
-            # for d in downstream_raw:
-            #     entry = {k: d[k] for k in d if k != "formJson"}
-            #     # 查找 formJson 子项
-            #     children = [
-            #         f for f in data if f.get("pipeline_type") == "form_json" and f["parent_pipeline_id"] == d["pipeline_id"]
-            #     ]
-            #     if children:
-            #         entry["formJson"] = children
-            #     downstreamAnalysis.append(entry)
-            
-            items.append({
-                # "name": sub["name"],
-                # "analysisPipline": sub.get("analysisPipline"),
-                # "parseAnalysisModule": sub.get("parseAnalysisModule"),
-                **sub,
-                # "parseAnalysisResultModule": parseAnalysisResultModule,
-                # "inputAnalysisMethod": inputAnalysisMethod,
-                # # "upstreamFormJson": upstreamFormJson,
-                # "analysisMethod": analysisMethod,
-                "downstreamAnalysis": downstreamAnalysis
-            })
-
-    result = {
-        **wrap,
-        "items": items
-    }
-    return result
-     # with open("test/file.json","w") as f:
-        #     f.write(json.dumps(pipeline_list))
-    
+  
 @pipeline.post("/get-module-content",tags=['pipeline'])
 async def get_module_content(queryModule:QueryModule):
-    module_dir = queryModule.pipeline_id
-    if queryModule.module_dir:
-        module_dir = queryModule.module_dir
+    module_dir = queryModule.component_id
+    # if queryModule.module_dir:
+    #     module_dir = queryModule.module_dir
     py_module = pipeline_service.find_module(queryModule.module_type,module_dir,queryModule.module_name)
+    py_module_path = py_module['path']
+    if os.path.exists(py_module_path):
+        with open(py_module_path,"r") as f:
+            py_module_content = f.read()
+    py_module['content'] = py_module_content
     return py_module
     
 
@@ -564,39 +512,36 @@ async def find_pipeline_relation(relation_id):
 
 
 @pipeline.post("/save-pipeline-relation",tags=['pipeline'])
-async def save_pipeline(savePipelineRelation:SavePipelineRelation):
+async def save_pipeline_relation(savePipelineRelation:SavePipelineRelation):
+    with get_engine().begin() as conn:  
+        await save_pipeline_relation(conn,savePipelineRelation)
+
+        
+        return {"message":"success"}
+
+async def save_pipeline_relation(conn,savePipelineRelation):
     save_pipeline_relation_dict = savePipelineRelation.dict()
     save_pipeline_relation_dict = {k:v for k,v in save_pipeline_relation_dict.items() if k!="pipeline_id"}
-    with get_engine().begin() as conn:  
-        # if not savePipelineRelation.relation_id:
-            
+  
+    if savePipelineRelation.relation_id:
+        stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
+    else:
+        stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
+    conn.execute(stmt)
 
-        # if savePipelineRelation.relation_type == 'pipeline_software':
-        #     # stmt = t_relation_pipeline.select().where(t_relation_pipeline.c.parent_pipeline_id == savePipelineRelation.parent_pipeline_id )
-        #     # find_relation = conn.execute(stmt).fetchone()
-        #     first_pipeline_id =  savePipelineRelation.parent_component_id
-
-        # else:
-        #     first_pipeline_id = get_pipeline_id_by_parent_id(conn, savePipelineRelation.parent_component_id)
-
-        if savePipelineRelation.relation_id:
-            stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
-        else:
-            stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
-        conn.execute(stmt)
-
-        stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipelineRelation.component_id)
-        find_pipeine = conn.execute(stmt).fetchone()
-        pipeline_service.create_wrap_pipeline_dir(savePipelineRelation.pipeline_id)
-        content = json.loads(find_pipeine.content)
-        # pipeline_service.create_file(savePipelineRelation.pipeline_id, find_pipeine.component_type,content)
-        return {"message":"success"}
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipelineRelation.component_id)
+    find_pipeine = conn.execute(stmt).fetchone()
+    # await run_in_threadpool(create_pipeline_dir, savePipelineRelation.pipeline_id, find_pipeine.content ,find_pipeine.component_type)
+    # pipeline_service.create_wrap_pipeline_dir(savePipelineRelation.pipeline_id)
+    # pipeline_service.create_file(savePipelineRelation.pipeline_id, find_pipeine.component_type,content)
+    # content = json.loads(find_pipeine.content)
 
 @pipeline.post("/save-pipeline",tags=['pipeline'])
 async def save_pipeline(savePipeline:SavePipeline):
     
  
     save_pipeline_dict = savePipeline.dict()
+    save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="parent_component_id" and k!="pipeline_id" and k!='relation_type' }
     
     with get_engine().begin() as conn:
         find_pipeine = None
@@ -604,24 +549,37 @@ async def save_pipeline(savePipeline:SavePipeline):
             stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipeline.component_id)
             find_pipeine = conn.execute(stmt).fetchone()
             component_id = find_pipeine.component_id
+            component_type = find_pipeine.component_type
             if not find_pipeine:
                 raise HTTPException(status_code=500, detail=f"根据{savePipeline.component_id}不能找到记录!")
 
         if find_pipeine:
             save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="component_id" and v is not  None} 
             stmt = t_pipeline_components.update().values(save_pipeline_dict).where(t_pipeline_components.c.component_id==savePipeline.component_id)
+            conn.execute(stmt)
         else:
             str_uuid = str(uuid.uuid4())  
             save_pipeline_dict['component_id'] = str_uuid
             component_id = str_uuid
-          
             stmt = t_pipeline_components.insert().values(save_pipeline_dict)
-        conn.execute(stmt)
+            conn.execute(stmt)
+            component_type = save_pipeline_dict['component_type']
+            # if savePipeline.component_type=="pipeline":
+            
+            # else:
+            if savePipeline.relation_type:
+                await save_pipeline_relation(conn, SavePipelineRelation(
+                    component_id=component_id,
+                    parent_component_id= savePipeline.parent_component_id,
+                    relation_type=savePipeline.relation_type,
+                    pipeline_id=savePipeline.pipeline_id
+                ))
+        content = json.loads(save_pipeline_dict['content'])
+        await run_in_threadpool(pipeline_service.create_file, component_id,content ,component_type)
 
     
     # t0 = time.time()
-    if savePipeline.component_type=="pipeline":
-        await run_in_threadpool(create_pipeline_dir, component_id, savePipeline)
+    
 
     # await asyncio.sleep(0.5)
     # print("文件创建耗时", time.time() - t0)
@@ -629,10 +587,10 @@ async def save_pipeline(savePipeline:SavePipeline):
     return {"message":"success"}
 
 
-def create_pipeline_dir(component_id,savePipeline):
-    pipeline_service.create_wrap_pipeline_dir(component_id)
-    content = json.loads(savePipeline.content)
-    pipeline_service.create_file(component_id,savePipeline.component_type,content)
+# def create_pipeline_dir(pipeline_id,content,component_type):
+#     # pipeline_service.create_wrap_pipeline_dir(pipeline_id)
+#     # content = json.loads(content)
+#     pipeline_service.create_file(pipeline_id,component_type,content)
 
 
 @pipeline.delete("/delete-pipeline-relation/{relation_id}")

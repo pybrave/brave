@@ -9,6 +9,7 @@ from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline,Query
 from brave.api.config.db import get_engine
 from brave.api.models.core import t_pipeline_components
 import importlib.resources as resources
+from sqlalchemy import select, and_, join, func,insert,update
 
 
 def get_pipeline_dir():
@@ -35,7 +36,7 @@ def find_module(module_type,module_dir,module_name):
         raise HTTPException(status_code=500, detail=f"目录{module_type}: {module_dir}/{module_type}/{module_name}没有找到!")
     py_module_dir = all_module[module_dir]
     if module_name not in py_module_dir:
-        raise HTTPException(status_code=500, detail=f"文件{py_plot}:  {module_dir}/{module_type}/{module_name}没有找到!!")
+        raise HTTPException(status_code=500, detail=f"文件{module_type}:  {module_dir}/{module_type}/{module_name}没有找到!!")
     py_module = py_module_dir[module_name]
     return py_module
 
@@ -69,24 +70,23 @@ def delete_wrap_pipeline_dir(pipeline_key):
     if os.path.exists(src):
         shutil.move(src,dst)
 
-def create_wrap_pipeline_dir(pipeline_key):
-    pipeline_dir = get_pipeline_dir()
-    img = f"{pipeline_dir}/{pipeline_key}/img"
-    nextflow = f"{pipeline_dir}/{pipeline_key}/nextflow"
-    py_parse_analysis = f"{pipeline_dir}/{pipeline_key}/py_parse_analysis"
-    py_parse_analysis_result = f"{pipeline_dir}/{pipeline_key}/py_parse_analysis_result"
-    py_plot = f"{pipeline_dir}/{pipeline_key}/py_plot"
-    dir_list = [img, nextflow,py_parse_analysis,py_parse_analysis_result,py_plot]
-    for item in dir_list:
-        if not os.path.exists(item):
-            os.makedirs(item) 
+# def create_wrap_pipeline_dir(pipeline_key):
+#     pipeline_dir = get_pipeline_dir()
+#     img = f"{pipeline_dir}/{pipeline_key}/img"
+#     nextflow = f"{pipeline_dir}/{pipeline_key}/nextflow"
+#     py_parse_analysis = f"{pipeline_dir}/{pipeline_key}/py_parse_analysis"
+#     py_parse_analysis_result = f"{pipeline_dir}/{pipeline_key}/py_parse_analysis_result"
+#     py_plot = f"{pipeline_dir}/{pipeline_key}/py_plot"
+    # dir_list = [img, nextflow,py_parse_analysis,py_parse_analysis_result,py_plot]
+    # for item in dir_list:
+    #     if not os.path.exists(item):
+    #         os.makedirs(item) 
 
-def create_file(pipeline_key,pipeline_type,content):
+def create_file(component_id,content,component_type):
     pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{pipeline_key}"
-    if pipeline_type == "pipeline":
+    pipeline_dir = f"{pipeline_dir}/{component_id}"
+    if component_type == "pipeline":
         analysisPipline = f"{pipeline_dir}/nextflow/{content['analysisPipline']}.nf"
-        parseAnalysisModule = f"{pipeline_dir}/py_parse_analysis/{content['parseAnalysisModule']}.py"
         if not os.path.exists(analysisPipline):
             with open(analysisPipline,"w") as f:
                 f.write("")
@@ -94,27 +94,49 @@ def create_file(pipeline_key,pipeline_type,content):
             with open(parseAnalysisModule,"w") as f:
                 f.write("")
 
-    if pipeline_type == "software":
-        analysisPipline = f"{pipeline_dir}/nextflow/{content['analysisPipline']}.nf"
+    if component_type == "software":
         parseAnalysisModule = f"{pipeline_dir}/py_parse_analysis/{content['parseAnalysisModule']}.py"
+        analysisPipline = f"{pipeline_dir}/nextflow/{content['analysisPipline']}.nf"
+        dir_list = [parseAnalysisModule,analysisPipline]
+        for item in dir_list:
+            dir_ = os.path.dirname(item)
+            if not os.path.exists(dir_):
+                os.makedirs(dir_) 
+        
         if not os.path.exists(analysisPipline):
+            with resources.files("brave.templete").joinpath("nextflow.nf").open("r") as f:
+                content_text = f.read()
             with open(analysisPipline,"w") as f:
-                f.write("")
+                f.write(content_text)
         if not os.path.exists(parseAnalysisModule):
             with resources.files("brave.templete").joinpath("py_parse_analysis.py").open("r") as f:
-                content = f.read()
+                content_text = f.read()
             with open(parseAnalysisModule,"w") as f:
-                f.write(content)
+                f.write(content_text)
+        
         if "parseAnalysisResultModule" in  content:
             parseAnalysisResultModule = content['parseAnalysisResultModule']
             for item in parseAnalysisResultModule:
-                module = f"{pipeline_dir}/py_parse_analysis_result/{item['module']}.py"
-                if not os.path.exists(module):
+                item_file = f"{pipeline_dir}/py_parse_analysis_result/{item['module']}.py"
+                dir_ = os.path.dirname(item_file)
+                if not os.path.exists(dir_):
+                    os.makedirs(dir_) 
+                if not os.path.exists(item_file):
                     with resources.files("brave.templete").joinpath("py_parse_analysis_result.py").open("r") as f:
-                        content = f.read()
-                    with open(module,"w") as f:
-                        f.write(content)
+                        content_text = f.read()
+                    with open(item_file,"w") as f:
+                        f.write(content_text)
 
+    if component_type == "downstream":
+        py_plot = f"{pipeline_dir}/py_plot/{content['moduleName']}.py"
+        py_plot_dir = os.path.dirname(py_plot)
+        if not os.path.exists(py_plot):
+            if not os.path.exists(py_plot_dir):
+                os.makedirs(py_plot_dir)
+            with resources.files("brave.templete").joinpath("py_plot.py").open("r") as f:
+                content_text = f.read()
+            with open(py_plot,"w") as f:
+                f.write(content_text)
                         
 def find_pipeline_by_id(conn,component_id):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
@@ -122,6 +144,20 @@ def find_pipeline_by_id(conn,component_id):
     return find_pipeine
 
 def list_pipeline(conn,queryPipeline:QueryPipeline):
-    stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_type ==queryPipeline.component_type)
+
+    stmt = t_pipeline_components.select() 
+  
+    conditions = []
+    if queryPipeline.component_type is not None:
+        conditions.append(t_pipeline_components.c.component_type == queryPipeline.component_type)
+    # if analysisResultQuery.ids is not None:
+    #     conditions.append(analysis_result.c.id.in_(analysisResultQuery.ids))
+    # if analysisResultQuery.analysis_method is not None:
+    #     conditions.append(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method))
+    # if analysisResultQuery.analysis_type is not None:
+    #     conditions.append(analysis_result.c.analysis_type == analysisResultQuery.analysis_type)
+    stmt= stmt.where(and_( *conditions))
+
+    # stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_type ==queryPipeline.component_type)
     find_pipeine = conn.execute(stmt).fetchall()
     return find_pipeine
