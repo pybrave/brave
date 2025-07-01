@@ -86,13 +86,17 @@ def create_file(component_id,content,component_type):
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{component_id}"
     if component_type == "pipeline":
-        analysisPipline = f"{pipeline_dir}/nextflow/{content['analysisPipline']}.nf"
+        analysisPipline = f"{pipeline_dir}/nextflow/main.nf"
+        # pipelinieJson = f"{pipeline_dir}/main.json"
         if not os.path.exists(analysisPipline):
+            dir_ = os.path.dirname(analysisPipline)
+            if not os.path.exists(dir_):
+                os.makedirs(dir_) 
             with open(analysisPipline,"w") as f:
                 f.write("")
-        if not os.path.exists(parseAnalysisModule):
-            with open(parseAnalysisModule,"w") as f:
-                f.write("")
+        # if not os.path.exists(parseAnalysisModule):
+        #     with open(parseAnalysisModule,"w") as f:
+        #         f.write("")
 
     if component_type == "software":
         parseAnalysisModule = f"{pipeline_dir}/py_parse_analysis/{content['parseAnalysisModule']}.py"

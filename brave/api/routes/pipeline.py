@@ -14,7 +14,7 @@ from sqlalchemy import select, and_, join, func,insert,update
 import re
 from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline,QueryModule,SavePipelineRelation
 import brave.api.service.pipeline  as pipeline_service
-from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text
+from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import union_all
 import brave.api.utils.service_utils  as service_utils
@@ -194,6 +194,7 @@ async def get_pipeline_v2(name):
         cast(null(), String).label("relation_type"),
         cast(null(), String).label("parent_component_id"),
         # cast(null(), String).label("pipeline_id"),
+        cast(null(), String).label("order_index"),
         cast(null(), String).label("relation_id")
     ).where(
         t_pipeline_components.c.component_id == name,
@@ -212,7 +213,7 @@ async def get_pipeline_v2(name):
         tp2.c.content,
         trp.c.relation_type,
         trp.c.parent_component_id,
-        # trp.c.pipeline_id ,
+        trp.c.order_index ,
         trp.c.relation_id
     ).join(trp, tp2.c.component_id == trp.c.component_id) \
     .join(fp, fp.c.component_id == trp.c.parent_component_id) 
@@ -220,9 +221,11 @@ async def get_pipeline_v2(name):
 
     # union_all 并组成 CTE
     cte = base.union_all(recursive).cte("full_pipeline", recursive=True)
-
     # 查询最终结果
-    final_query = select(cte)
+    final_query = select(cte).order_by(
+        case((cte.c.order_index == None, 1), else_=0),
+        func.coalesce(cte.c.order_index, cte.c.relation_id)
+    )
 
 
     # 执行查询
