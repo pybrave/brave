@@ -127,7 +127,7 @@ export const AnalysisForm: FC<any> = ({
                 imgType: imgType,
                 ...downstreamInput,
                 software: "python",
-                pipeline_id:pipeline.component_id
+                component_id:rest.component_id
             }
             if(rest?.moduleDir){
                 reqParams['module_dir'] = rest.moduleDir
@@ -227,7 +227,7 @@ export const AnalysisForm: FC<any> = ({
     }, [JSON.stringify(resultTableList)])
     return <>
         {contextHolder}
-        {/* {JSON.stringify(pipeline)} */}
+        {/* {JSON.stringify(rest)} */}
         <Form form={form}   >
             <Form.Item name={"id"} style={{ display: "none" }}>
                 <Input></Input>

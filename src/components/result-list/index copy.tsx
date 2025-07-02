@@ -134,8 +134,8 @@ const ResultList = forwardRef<any, any>(({
             const keyMap = getKeyMap()
             // console.log(keyMap)
             const groupedData = resp.data.reduce((acc: any, item: any) => {
-                const key = item.analysis_method;
-                // const key = keyMap[item.analysis_method]
+                // const key = item.analysis_method;
+                const key = keyMap[item.analysis_method]
                 if (!acc[key]) {
                     acc[key] = [];
                 }

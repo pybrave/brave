@@ -3,7 +3,7 @@ import TextArea from "antd/es/input/TextArea";
 import axios from "axios";
 import { Component, FC, useEffect, useState, memo } from "react";
 import { data } from "react-router";
-const FormJsonComp: FC<any> = memo(({ formJson, dataMap}) => {
+const FormJsonComp: FC<any> = memo(({ formJson, dataMap }) => {
     const componentMap: any = {
         GroupSelect: {
             Component: BaseSelect,
@@ -47,14 +47,19 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap}) => {
             dataKey: "sample_group_list"
         }
     };
-    const ComponentsRender =  ({ type, dataMap:dataMap_,inputAnalysisMethod, dataKey: dataKey_, data: data_, name, inputKey, ...rest }: any) => {
+    const ComponentsRender = ({ type, dataMap, inputAnalysisMethod, dataKey: dataKey_, data: data_, name, inputKey, ...rest }: any) => {
+        if(!dataMap) return  (() => <div>加载中....</div>)
         const componentObj = componentMap[type] //|| (() => <div>未知类型</div>);
-        const {first_data_key, ...dataMap} = dataMap_
+        // if (first_data_key in dataMap_)
+        // if(!dataMap_ && !dataMap_.first_data_key){
+        //     dataMap_.first_data_key  =""
+        // }
+        // const { first_data_key, ...dataMap } = dataMap_
         if (!componentObj) {
             return <div>未知类型 {type}</div>
         }
         // debugger
-        const { Component,  ...crest } = componentObj
+        const { Component, ...crest } = componentObj
         // debugger
 
 
@@ -62,10 +67,10 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap}) => {
         if (data_) {
             data = data_
 
-        //下游分析从数据库加载其它数据
-        }else if(inputAnalysisMethod){
-            
-           
+            //下游分析从数据库加载其它数据
+        } else if (inputAnalysisMethod) {
+
+
             data = dataMap[inputAnalysisMethod]
 
         } else {
@@ -74,16 +79,21 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap}) => {
                     data = dataMap[dataKey_]
                 }
             } else {
-                // 上游分析的key
-                if (inputKey) {
-                    data = dataMap[name]
-
+                if ("first_data_key" in dataMap) {
+                    data = dataMap[dataMap['first_data_key']]
                 } else {
-                    if (first_data_key in dataMap) {
-                        data = dataMap[first_data_key]
+                    // 上游分析的key
+                    if (name in dataMap) {
+                        data = dataMap[name]
                     }
-
                 }
+                // if (inputKey) {
+
+
+                // } else {
+
+
+                // }
 
             }
         }
@@ -99,6 +109,8 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap}) => {
     };
 
     return <>
+        {/* {JSON.stringify(formJson)} */}
+
         {formJson.map((it: any, index: any) => (
             <ComponentsRender key={index} {...it} dataMap={dataMap}></ComponentsRender>
         ))}
@@ -225,7 +237,7 @@ export const GroupCompareSelect: FC<any> = ({ label, name, data, initialValue, r
         </Form.Item>
     </>
 }
-const BaseInput: FC<any> = ({label, name, data, initialValue, rules, ...rest}) => {
+const BaseInput: FC<any> = ({ label, name, data, initialValue, rules, ...rest }) => {
     return <>
         <Form.Item initialValue={initialValue} label={label} name={name} rules={rules}>
             <TextArea {...rest} />

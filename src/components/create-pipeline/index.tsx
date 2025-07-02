@@ -30,10 +30,23 @@ export const CreateORUpdatePipelineCompnentRelation: FC<any> = ({ visible, onClo
         })
         const data = resp.data.map((item: any) => {
             const content = JSON.parse(item.content)
-            return {
-                label: `${content.label}(${content.name})`,
-                value: item.component_id
+            if (pipelineStructure.relation_type == "pipeline_software" ) {
+                return {
+                    label: `${content.name}`,
+                    value: item.component_id
+                }
+            } else if(pipelineStructure.relation_type == "file_downstream"){
+                return {
+                    label: `${content.name}(${content.moduleName})`,
+                    value: item.component_id
+                }
+            }else {
+                return {
+                    label: `${content.label}(${content.name})`,
+                    value: item.component_id
+                }
             }
+
         })
         setComponents(data)
         console.log(resp)
@@ -290,8 +303,8 @@ const TextAreaComp: FC<any> = ({ value, onChange }) => {
             onChange(e.target.value)
             // console.log(e.target.value)
         }}></TextArea>
-        <Button onClick={()=>{
-            setData(JSON.stringify(value,null,2))
+        <Button onClick={() => {
+            setData(JSON.stringify(value, null, 2))
         }}>格式化</Button>
     </>
 }

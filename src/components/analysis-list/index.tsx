@@ -1,11 +1,11 @@
 import { Venn } from "@ant-design/plots"
-import { Button, Card, message, Popconfirm, Popover, Space, Table } from "antd"
+import { Button, Card, Flex, message, Popconfirm, Popover, Space, Table } from "antd"
 import axios from "axios"
 import { FC, forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useParams } from "react-router"
 import ResultParse from "../result-parse"
 import { useModal } from "@/hooks/useModal"
-import PipelineMonitor from "../pipeline-monitor"
+import PipelineInfo from "../pipeline-monitor"
 
 export const readHdfsAPi = (contentPath: any) => axios.get(`/api/read-hdfs?path=${contentPath}`)
 export const readJsonAPi = (contentPath: any) => axios.get(`/fast-api/read-json?path=${contentPath}`)
@@ -21,9 +21,11 @@ const ResultList = forwardRef<any, any>(({
     setTableLoading,
     setTabletData,
     shouldTrigger,
-    analysisMethod,
+    // analysisMethod,
     columnsParamsALL,
-    project
+    project,
+    software,
+    operatePipeline
 }, ref) => {
     useImperativeHandle(ref, () => ({
         reload: loadData
@@ -31,6 +33,8 @@ const ResultList = forwardRef<any, any>(({
     const [record, setRecord0] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
     const { modal, openModal, closeModal } = useModal();
+    const [openMonitor, setOpenMonitor] = useState<any>(false)
+
     const setRecord = (record: any) => {
         if (setRecord_) {
             setRecord_(record)
@@ -45,7 +49,8 @@ const ResultList = forwardRef<any, any>(({
         setLoading(true)
         // ?analysis_method=${analysisMethod}&project=${project}
         let resp: any = await axios.post(`/list-analysis`, {
-            analysisMethod: analysisMethod,
+            // analysisMethod: analysisMethod,
+            component_id: software?.component_id,
             project: project
         });
         // if (analysisMethod) {
@@ -74,7 +79,7 @@ const ResultList = forwardRef<any, any>(({
         setTableLoading(false)
         // reset()
         // console.log(resp.data)
-        // setData(resp.data)
+        // setData(resp.datafv)
     }
 
 
@@ -83,6 +88,12 @@ const ResultList = forwardRef<any, any>(({
             title: 'analysis_id',
             dataIndex: 'analysis_id',
             key: 'analysis_id',
+            ellipsis: true,
+
+        }, {
+            title: 'component_id',
+            dataIndex: 'component_id',
+            key: 'component_id',
             ellipsis: true,
 
         }, {
@@ -145,6 +156,7 @@ const ResultList = forwardRef<any, any>(({
                         <Button color="cyan" variant="solid" onClick={() => {
                             // record.content = JSON.parse(record.content)
                             setRecord(record)
+                            setOpenMonitor(true)
 
                             // if (cleanDom) {
                             //     cleanDom(undefined)
@@ -167,7 +179,7 @@ const ResultList = forwardRef<any, any>(({
                     <Button color="cyan" variant="solid" onClick={() => {
                         openModal("modalA", record)
 
-                    }}>解析</Button>
+                    }}>结果解析</Button>
                     {/* <Popconfirm title={"是否解析!"} onConfirm={async () => {
                         try {
                             await parseAnalysisResultAPi(record.id, true)
@@ -192,7 +204,32 @@ const ResultList = forwardRef<any, any>(({
     }, [])
     return <>
         {contextHolder}
-        <Card title={title} extra={<Button onClick={loadData}>刷新</Button>} >
+        <Card title={title} extra={
+            <Flex gap={"small"}>
+                {software && <>
+                    {software.parseAnalysisResultModule && <>
+                        {software.parseAnalysisResultModule.map((item: any, index: any) =>
+                            <Button key={index} color="cyan" variant="solid" onClick={() => {
+                                operatePipeline.openModal("modalB", {
+                                    module_type: "py_parse_analysis_result",
+                                    module_name: item.module,
+                                    component_id: software.component_id,
+                                })
+                            }}>输出解析模块({item.module})</Button>)}
+                    </>}
+                </>}
+                <Button type="primary" onClick={loadData}>刷新</Button>
+            </Flex>
+        } >
+            {software && <ul style={{ marginBottom: "0.5rem" }}>
+                {software.parseAnalysisResultModule && <>
+                    {software.parseAnalysisResultModule.map((item: any, index: any) => <li key={index}>
+                            模块: {item.module} 输出文件: {item.analysisMethod} 输出路径: {item.dir}
+                    </li>
+                    )}
+                </>}
+            </ul>}
+
             <Table
                 size="small"
                 pagination={false}
@@ -205,7 +242,7 @@ const ResultList = forwardRef<any, any>(({
         </Card>
         <div style={{ marginBottom: "1rem" }}></div>
 
-        {record && <PipelineMonitor analysisId={record.analysis_id} ></PipelineMonitor>}
+        {record && openMonitor && <PipelineInfo analysisId={record.analysis_id} onClose={() => setOpenMonitor(false)}></PipelineInfo>}
 
         <ResultParse
             visible={modal.key == "modalA" && modal.visible}

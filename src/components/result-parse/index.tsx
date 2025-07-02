@@ -9,7 +9,7 @@ const ResultParse: FC<any> = ({ visible, onClose, params, callback }) => {
     const [loading, setLoading] = useState<any>()
     const loadData = async (save:boolean) => {
         setLoading(true)
-        const resp = await parseAnalysisResultAPi(params.id, save)
+        const resp = await parseAnalysisResultAPi(params.analysis_id, save)
         setData(resp.data)
         setLoading(false)
         if(callback && save){
