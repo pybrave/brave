@@ -35,6 +35,8 @@ def find_module(module_type,module_dir,module_name):
     if module_dir not in all_module:
         raise HTTPException(status_code=500, detail=f"目录{module_type}: {module_dir}/{module_type}/{module_name}没有找到!")
     py_module_dir = all_module[module_dir]
+    if module_name is None:
+        module_name = "main"
     if module_name not in py_module_dir:
         raise HTTPException(status_code=500, detail=f"文件{module_type}:  {module_dir}/{module_type}/{module_name}没有找到!!")
     py_module = py_module_dir[module_name]
@@ -100,7 +102,7 @@ def create_file(component_id,content,component_type):
 
     if component_type == "software":
         parseAnalysisModule = f"{pipeline_dir}/py_parse_analysis/{content['parseAnalysisModule']}.py"
-        analysisPipline = f"{pipeline_dir}/nextflow/{content['analysisPipline']}.nf"
+        analysisPipline = f"{pipeline_dir}/nextflow/main.nf"
         dir_list = [parseAnalysisModule,analysisPipline]
         for item in dir_list:
             dir_ = os.path.dirname(item)

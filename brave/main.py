@@ -71,7 +71,7 @@ def create_app() -> FastAPI:
         return FileResponse(favicon)
 
     @app.get("/html/index.html")
-    async def serve_frontend():
+    async def html():
         index_path = os.path.join(frontend_path, "html/index.html")
         return FileResponse(index_path)
 

@@ -14,28 +14,44 @@ import inspect
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+listener_files = files("brave.api.listener")
+listener_files = [
+    item.stem
+    for item in listener_files.iterdir() 
+    if item.is_file() and item.name.endswith(".py") and item.name != "__init__.py" and item.name.startswith("file")     
+]
+
+async def execute_listener(func, args):
+    if isinstance(listener_files, list) and len(listener_files) > 0:
+        for name in listener_files:
+            full_module = f"brave.api.listener.{name}"
+            mod = import_module(full_module)
+            if hasattr(mod, func):
+                run_func = getattr(mod, func)
+                if inspect.iscoroutinefunction(run_func):
+                    asyncio.create_task(run_func(**args))
+                else:
+                    await asyncio.to_thread(run_func, **args)
+
+
 # 文件变更监控任务
 async def watch_folder(path: str):
-    listener_files = files("brave.api.listener")
-    listener_files = [
-        item.stem
-        for item in listener_files.iterdir() 
-        if item.is_file() and item.name.endswith(".py") and item.name != "__init__.py" and item.name.startswith("file")     
-    ]
-    async for changes in awatch(path, recursive=False, step=5000):
+   
+    async for changes in awatch(path, recursive=False, step=3000):
         for change, file_path in changes:
+            await execute_listener("file_change", {"change":change, "file_path":file_path})
             # msg = f"{change.name.upper()} {file_path}"
-            if len(listener_files) >0:
-                for name in listener_files:
-                    full_module = f"brave.api.listener.{name}"
-                    mod = import_module(full_module)
-                    if hasattr(mod, "run"):
-                        # await mod.run(change.name.upper(),file_path)
-                        run_func = mod.run
-                        if inspect.iscoroutinefunction(run_func):
-                            asyncio.create_task(run_func(change.name.upper(), file_path))
-                        else:
-                            await asyncio.to_thread(run_func, change.name.upper(), file_path)
+            # if len(listener_files) >0:
+            #     for name in listener_files:
+            #         full_module = f"brave.api.listener.{name}"
+            #         mod = import_module(full_module)
+            #         if hasattr(mod, "run"):
+            #             # await mod.run(change.name.upper(),file_path)
+            #             run_func = mod.run
+            #             if inspect.iscoroutinefunction(run_func):
+            #                 asyncio.create_task(run_func(change.name.upper(), file_path))
+            #             else:
+            #                 await asyncio.to_thread(run_func, change.name.upper(), file_path)
 
             # await global_queue.put(msg)
 
@@ -80,6 +96,7 @@ async def check_process_worker():
                     conn.execute(stmt)
                     conn.commit()
                 logger.info(f"清理完成 analysis id={analysis_id}")
+                await execute_listener("process_end", {"analysis_id":analysis_id})
                 # 不重新入队，直接丢弃任务
         else:
             # 进程存在且符合，延迟后重新入队

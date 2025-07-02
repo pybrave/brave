@@ -33,7 +33,7 @@ def camel_to_snake(name):
 # pipeline,software,file,downstream
 # BASE_DIR = os.path.dirname(__file__)
 @pipeline.post("/import-pipeline",tags=['pipeline'])
-async def get_pipeline():
+async def import_pipeline():
     pipeline_files = get_pipeline_list()
     new_pipeline_components_list = [] 
     new_pipeline_components_relation_list = []
@@ -515,7 +515,7 @@ async def find_pipeline_relation(relation_id):
 
 
 @pipeline.post("/save-pipeline-relation",tags=['pipeline'])
-async def save_pipeline_relation(savePipelineRelation:SavePipelineRelation):
+async def save_pipeline_relation_controller(savePipelineRelation:SavePipelineRelation):
     with get_engine().begin() as conn:  
         await save_pipeline_relation(conn,savePipelineRelation)
 
@@ -549,13 +549,13 @@ async def save_pipeline(savePipeline:SavePipeline):
     with get_engine().begin() as conn:
         find_pipeine = None
         if savePipeline.component_id:
-            stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipeline.component_id)
+            stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id == savePipeline.component_id)
             find_pipeine = conn.execute(stmt).fetchone()
-            component_id = find_pipeine.component_id
-            component_type = find_pipeine.component_type
+
             if not find_pipeine:
                 raise HTTPException(status_code=500, detail=f"根据{savePipeline.component_id}不能找到记录!")
-
+            component_id = find_pipeine.component_id
+            component_type = find_pipeine.component_type
         if find_pipeine:
             save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="component_id" and v is not  None} 
             stmt = t_pipeline_components.update().values(save_pipeline_dict).where(t_pipeline_components.c.component_id==savePipeline.component_id)
@@ -597,7 +597,7 @@ async def save_pipeline(savePipeline:SavePipeline):
 
 
 @pipeline.delete("/delete-pipeline-relation/{relation_id}")
-async def delete_user(relation_id: str):
+async def delete_pipeline_relation(relation_id: str):
     with get_engine().begin() as conn:
         stmt = t_pipeline_components_relation.delete().where(t_pipeline_components_relation.c.relation_id == relation_id)
         conn.execute(stmt)
@@ -606,15 +606,16 @@ async def delete_user(relation_id: str):
 
 
 @pipeline.delete("/delete-pipeline/{pipeline_id}")
-async def delete_user(pipeline_id: str):
+async def delete_pipeline(component_id: str):
     with get_engine().begin() as conn:
-        stmt = t_pipeline.select().where(t_pipeline.c.parent_pipeline_id ==pipeline_id)
+        stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.parent_component_id ==component_id)
         find_pipeine = conn.execute(stmt).fetchone()
 
         if  find_pipeine:
             raise HTTPException(status_code=500, detail=f"不能删除存在关联!") 
         else:
-            stmt = t_pipeline.delete().where(t_pipeline.c.pipeline_id == pipeline_id)
+            stmt = t_pipeline_components.delete().where(t_pipeline_components.c.pipeline_id == component_id)
             conn.execute(stmt)
-            pipeline_service.delete_wrap_pipeline_dir(pipeline_id)
+            pipeline_service.delete_wrap_pipeline_dir(component_id)
             return {"message":"success"}
+

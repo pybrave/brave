@@ -76,7 +76,7 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
             db.commit()
             print(">>>>新增: ",sample_name, software, content_type)
 
-def parse_result_oneV2(res, analysis_method,project,verison,analysis_id=-1):
+def parse_result_oneV2(res, analysis_method,project,verison,analysis_id):
     
 
     # if hasattr(module,"get_analysis_method"):

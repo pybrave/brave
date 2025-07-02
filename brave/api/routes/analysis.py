@@ -35,6 +35,8 @@ from typing import Optional
 import pandas as pd
 import subprocess
 from brave.api.service.watch_service import queue_process
+import threading
+import psutil
 analysis_api = APIRouter()
 
 
@@ -90,14 +92,14 @@ def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,ve
 
 
 
-def parse_analysis(request_param,params_path,command_path,work_dir,module_name,pipeline_key,module_dir):
+def parse_analysis(request_param,params_path,command_path,work_dir,module_name,component_id):
     # all_module = get_all_module("py_parse_analysis")
     # if module_name not in all_module:
     #     raise HTTPException(status_code=500, detail=f"py_parse_analysis: {module_name}没有找到!")
     # py_module = all_module[module_name]
 
   
-    py_module = find_module("py_parse_analysis",module_dir,module_name)['module']
+    py_module = find_module("py_parse_analysis",component_id,module_name)['module']
 
     # module_name = f'brave.api.parse_analysis.{module_name}'
     # if importlib.util.find_spec(module) is None:
@@ -135,23 +137,27 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
 
 
     with get_engine().begin() as conn:
-        component = pipeline_service.find_pipeline_by_id(conn,component_id)
+        component = pipeline_service.find_pipeline_by_id(conn, component_id)
+        if component is None or not hasattr(component, "content"):
+            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found or missing content.")
         component_content = json.loads(component.content)
-        parse_analysis_module = component_content['parseAnalysisModule']
-        component_script = component_content['analysisPipline'] # 分析脚本
-        # parse_analysis_module = request_param['parse_analysis_module']
-        # parse_analysis_result_module = json.dumps(request_param['parse_analysis_result_module'])
+        parse_analysis_module = component_content.get('parseAnalysisModule')
+        if parse_analysis_module is None:
+            raise HTTPException(status_code=500, detail=f"'parseAnalysisModule' not found in component content.")
+        # component_script = component_content.get('analysisPipline') # 分析脚本
+        # parse_analysis_module = request_param.get('parse_analysis_module')
+        # parse_analysis_result_module = json.dumps(request_param.get('parse_analysis_result_module'))
         new_analysis = {
             "project":request_param['project'],
             "analysis_name":request_param['analysis_name'],
             "request_param":json.dumps(request_param),
-            "analysis_method":component_script,
+            # "analysis_method":component_script,
             "component_id":component_id
             # "parse_analysis_module":parse_analysis_module
         }
-        module_dir = pipeline_id
-        if "moduleDir" in component_content:
-            module_dir = component_content['moduleDir']
+        # module_dir = pipeline_id
+        # if "moduleDir" in component_content:
+        #     module_dir = component_content['moduleDir']
 
         output_dir=None
         work_dir=None
@@ -168,7 +174,7 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
                 os.makedirs(work_dir)
             params_path = result.params_path
             command_path = result.command_path
-            parse_analysis(request_param,params_path,command_path, work_dir,parse_analysis_module,pipeline_key,module_dir)
+            parse_analysis(request_param,params_path,command_path, work_dir,parse_analysis_module,component_id)
             # new_analysis['output_format'] = parse_analysis_result_module
             stmt = analysis.update().values(new_analysis).where(analysis.c.id==request_param['id'])
         else:
@@ -185,28 +191,30 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
             trace_file = f"{base_dir}/monitor/{str_uuid}.trace.log"
             workflow_log_file = f"{base_dir}/monitor/{str_uuid}.workflow.log"
             cache_dir = f"{project_dir}/.nextflow"
-            output_dir = f"{project_dir}/{pipeline_id}/{component_script}/{str_uuid}"
+            output_dir = f"{project_dir}/{pipeline_id}/{component_id}/{str_uuid}"
             # /data/wangyang/nf_work/
             work_dir = f"{work_dir}/{request_param['project']}"
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
+            executor_log = f"{output_dir}/.nextflow.log"
+            script_config_file = f"{output_dir}/nextflow.config"
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             if not os.path.exists(work_dir):
                 os.makedirs(work_dir)
             # 写入脚本
         
-            script_dir = pipeline_id
-            if "scriptDir" in component_content:
-                script_dir = component_content['scriptDir']
-            component_script = find_module("nextflow",script_dir,component_script)['path']
+            # script_dir = pipeline_id
+            # if "scriptDir" in component_content:
+            #     script_dir = component_content['scriptDir']
+            component_script = find_module("nextflow",component_id,None)['path']
 
             # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
             new_analysis['pipeline_script'] = component_script
 
             command =  textwrap.dedent(f"""
             export NXF_CACHE_DIR={cache_dir}
-            nextflow run -offline -resume  \\
+            nextflow -log {executor_log} run -offline -resume  \\
                 -ansi-log false \\
                 {component_script} \\
                 -params-file {params_path} \\
@@ -216,6 +224,12 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
             with open(command_path, "w") as f:
                 f.write(command)
             
+            
+            script_config =  textwrap.dedent(f"""
+            trace.overwrite = true
+            """)
+            with open(script_config_file, "w") as f:
+                f.write(script_config)
 
             new_analysis['work_dir'] = work_dir
             new_analysis['output_dir'] = output_dir
@@ -224,7 +238,10 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
             new_analysis['analysis_id'] = str_uuid
             new_analysis['trace_file'] = trace_file
             new_analysis['workflow_log_file'] = workflow_log_file
-            parse_analysis(request_param,params_path, command_path,work_dir,parse_analysis_module,pipeline_id,module_dir)
+            new_analysis['executor_log_file'] = executor_log
+            new_analysis['script_config_file'] = script_config_file
+
+            parse_analysis(request_param,params_path, command_path,work_dir,parse_analysis_module,component_id)
             # new_analysis['output_format'] = parse_analysis_result_module
       
             stmt = analysis.insert().values(new_analysis)
@@ -268,27 +285,42 @@ def delete_user(id: int):
     return {"message":"success"}
 
 
-@analysis_api.post("/fast-api/parse-analysis-result/{id}")
-async def parse_analysis_result(id,save:Optional[bool]=False):
+
+
+def get_all_files_recursive(directory,dir_name,file_dict):
+    file_list=[]
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_list.append(os.path.join(root, file).replace(directory,""))
+    return file_dict.update({dir_name:file_list})
+
+@analysis_api.post("/fast-api/parse-analysis-result/{analysis_id}")
+async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
     with get_engine().begin() as conn:
-        stmt = select(analysis).where(analysis.c.id == id)
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
         result = conn.execute(stmt).fetchone()
-        pipeline_id = result.pipeline_id
-        pipeline_ = pipeline_service.find_pipeline_by_id(conn,pipeline_id)
+        component_id = result.component_id
+        component_ = pipeline_service.find_pipeline_by_id(conn,component_id)
     # output_format = json.loads(pipeline_.output_format)
-    pipeline_content = json.loads(pipeline_.content)
+    pipeline_content = json.loads(component_.content)
     output_format = pipeline_content['parseAnalysisResultModule']
     if len(output_format)==0:
-        raise HTTPException(status_code=500, detail=f"分析{result.analysis_method}没有配置output_format!")
+        raise HTTPException(status_code=500, detail=f"组件{component_id}没有配置output_format!")
     result_dict = {}
+    file_dict={}
     for item in output_format:
 
         dir_path = f"{result.output_dir}/output/{item['dir']}"
-        module_dir = pipeline_.pipeline_key
-        if "moduleDir" in pipeline_content:
-            module_dir = pipeline_content['moduleDir']
+        # module_dir = component_.pipeline_key
+        # if "moduleDir" in pipeline_content:
+        #     module_dir = pipeline_content['moduleDir']
+        # 递归获取dir_path的文件
+     
+     
 
-        py_module = find_module("py_parse_analysis_result",module_dir,item['module'])['module']
+        get_all_files_recursive(dir_path,item['dir'],file_dict)
+
+        py_module = find_module("py_parse_analysis_result",component_id,item['module'])['module']
 
         # all_module = get_all_module("py_parse_analysis_result")
         # if item['module'] not in all_module:
@@ -312,35 +344,67 @@ async def parse_analysis_result(id,save:Optional[bool]=False):
         res = parse(**args)
         result_dict.update({item['module']:res})
         if save:
-            parse_result_oneV2(res,item['analysisMethod'],result.project,"V1.0",id)
-    return result_dict
+            parse_result_oneV2(res,item['analysisMethod'],result.project,"V1.0",analysis_id)
+    return {
+        "result_dict":result_dict,
+        "file_dict":file_dict
+    }
+
+
+
+def pileine_analysis_run_log(result,type):
+    if type == "workflow_log":
+        workflow_log_file = result.workflow_log_file
+        if workflow_log_file and os.path.exists(workflow_log_file):
+            with open(workflow_log_file, "r") as f:
+                params =f.read()
+            return params
+    elif type == "executor_log":
+        executor_log_file = result.executor_log_file
+        if executor_log_file and os.path.exists(executor_log_file):
+            with open(executor_log_file, "r") as f:
+                params =f.read()
+            return params
+    elif type == "params":
+        params_path = result.params_path
+        if params_path and os.path.exists(params_path):
+            with open(params_path, "r") as f:
+                params = json.load(f)
+            return params
+    elif type == "script_config":
+        script_config_file = result.script_config_file
+        if script_config_file and os.path.exists(script_config_file):
+            with open(script_config_file, "r") as f:
+                params = f.read()
+            return params
+    elif type == "trace":
+        trace_file = result.trace_file
+        trace =[]
+        total = 0
+        if trace_file and os.path.exists(trace_file):
+            df = pd.read_csv(trace_file,sep="\t")
+            total = df.shape[0]
+            trace = df.to_dict(orient="records")
+        
+        return {
+            "traceTable":trace,
+            "total":total,
+            "process_id":result.process_id,
+            "status":"running" if result.process_id else "finished"
+        }
+    return ""
+
 
 @analysis_api.get("/monitor-analysis/{analysis_id}")
-async def pipeline_monitor(analysis_id):
+async def pipeline_monitor(analysis_id,type):
     with get_engine().begin() as conn:
         stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
         result = conn.execute(stmt)
-        analysis_ = result.mappings().first()
+        result = result.mappings().first()
+    return pileine_analysis_run_log(result,type)
     # analysis_ = rows[len(rows)-1]
     # output_dir = analysis_['output_dir']
-    trace_file = analysis_.trace_file
-    trace =[]
-    total = 0
-    if trace_file and os.path.exists(trace_file):
-        df = pd.read_csv(trace_file,sep="\t")
-        total = df.shape[0]
-        trace = df.to_dict(orient="records")
-
-    # print(f"主事件循环线程: {threading.current_thread().name}")
-    # await asyncio.to_thread(blocking_task)
-    # # blocking_task()
-    # print("阻塞任务await结束，继续事件循环")
     
-    return {
-        "traceTable":trace,
-        "total":total
-        
-    }
 # import asyncio
 # import time
 # import threading
@@ -357,15 +421,24 @@ def start_background( cwd,cmd):
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
-
+    threading.Thread(target=proc.wait, daemon=True).start() # 处理僵尸进程
     return proc.pid
 
 @analysis_api.post("/run-analysis/{analysis_id}")
-async def pipeline_monitor(analysis_id):
+async def run_analysis(analysis_id):
     with get_engine().begin() as conn:
         stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
         result = conn.execute(stmt)
         analysis_ = result.mappings().first()
+        process_id = analysis_.process_id
+        if process_id is not None:
+            try:
+                proc = psutil.Process(int(process_id))
+                if proc.is_running():
+                    raise Exception(f"Analysis is already running with process_id={process_id}")
+            except (psutil.NoSuchProcess, ValueError):
+                pass  # 进程不存在或 process_id 非法，继续执行
+        
         pid = start_background(analysis_.output_dir, ["bash","run.sh"])
         stmt = analysis.update().values({"process_id":pid}).where(analysis.c.analysis_id==analysis_id)
         conn.execute(stmt)

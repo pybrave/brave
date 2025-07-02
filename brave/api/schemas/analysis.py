@@ -21,6 +21,7 @@ class Analysis(BaseModel):
     id: Optional[int]
     project: Optional[str]
     analysis_id: Optional[str]
+    component_id: Optional[str]
     analysis_method: Optional[str]
     analysis_name: Optional[str]
     input_file: Optional[str]

@@ -44,7 +44,9 @@ analysis = Table(
     Column("parse_analysis_module", String(255)),
     Column("trace_file", String(255)),
     Column("workflow_log_file", String(255)),
-    Column("process_id", String(255))
+    Column("executor_log_file", String(255)),
+    Column("process_id", String(255)),
+    Column("script_config_file", String(255))
 )
 
 analysis_result = Table(
@@ -60,7 +62,7 @@ analysis_result = Table(
     Column("content", String(255)),
     Column("analysis_version", String(255)),
     Column("content_type", String(255)),
-    Column("analysis_id", Integer),
+    Column("analysis_id", String(255)),
     Column("project", String(255)),
     Column("request_param", String(255)),
     Column("analysis_type", String(255)),
