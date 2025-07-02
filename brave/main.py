@@ -10,7 +10,7 @@ from brave.api.routes.pipeline import pipeline
 from brave.api.routes.literature import literature_api
 from brave.api.routes.sse import sseController,broadcast_loop,producer
 import asyncio
-from brave.api.service.watch_service import watch_folder
+from brave.api.service.watch_service import watch_folder,startup_process_event
 
 from brave.api.routes.bio_database import bio_database
 from fastapi.staticfiles import StaticFiles
@@ -52,8 +52,12 @@ def create_app() -> FastAPI:
         print("✅ 启动后台任务")
         global producer_task, broadcast_task
         asyncio.create_task(broadcast_loop())
-        # asyncio.create_task(watch_folder("/workspace/brave/test"))
-        asyncio.create_task(producer())
+        monitor = f"{settings.BASE_DIR}/monitor"
+        if not  os.path.exists(monitor):
+            os.makedirs(monitor)
+        asyncio.create_task(watch_folder(monitor))
+        await startup_process_event()
+        # asyncio.create_task(producer())
 
     @app.on_event("shutdown")
     async def on_shutdown():
@@ -67,7 +71,7 @@ def create_app() -> FastAPI:
         return FileResponse(favicon)
 
     @app.get("/html/index.html")
-    async def serve_frontend():
+    async def html():
         index_path = os.path.join(frontend_path, "html/index.html")
         return FileResponse(index_path)
 

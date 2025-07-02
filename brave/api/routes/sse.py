@@ -39,6 +39,8 @@ async def event_generator(request: Request, client_queue: asyncio.Queue):
                 yield f"data: {msg}\n\n"
             except asyncio.TimeoutError:
                 yield ": keep-alive\n\n"
+    except asyncio.CancelledError:
+        print("连接被取消")
     finally:
         print("finally请求关闭!")
         connected_clients.discard(client_queue)

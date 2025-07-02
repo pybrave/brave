@@ -31,7 +31,8 @@ setup(
     package_data={
         "brave": [
             "frontend/**/*",  # 包含静态资源
-            "pipeline/**/*"
+            "pipeline/**/*",
+            "templete/**/*"
         ]
     },
 )

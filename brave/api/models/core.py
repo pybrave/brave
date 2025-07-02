@@ -29,8 +29,8 @@ analysis = Table(
     meta,
     Column("id", Integer, primary_key=True),
     Column("project", String(255)),
-    Column("analysis_key", String(255)),
-    Column("pipeline_id", String(255)),
+    Column("analysis_id", String(255)),
+    Column("component_id", String(255)),
     Column("analysis_name", String(255)),
     Column("input_file", String(255)),
     Column("analysis_method", String(255)),
@@ -41,7 +41,12 @@ analysis = Table(
     Column("output_format", Text),
     Column("output_dir", String(255)),
     Column("pipeline_script", String(255)),
-    Column("parse_analysis_module", String(255))
+    Column("parse_analysis_module", String(255)),
+    Column("trace_file", String(255)),
+    Column("workflow_log_file", String(255)),
+    Column("executor_log_file", String(255)),
+    Column("process_id", String(255)),
+    Column("script_config_file", String(255))
 )
 
 analysis_result = Table(
@@ -57,7 +62,7 @@ analysis_result = Table(
     Column("content", String(255)),
     Column("analysis_version", String(255)),
     Column("content_type", String(255)),
-    Column("analysis_id", Integer),
+    Column("analysis_id", String(255)),
     Column("project", String(255)),
     Column("request_param", String(255)),
     Column("analysis_type", String(255)),
@@ -92,19 +97,93 @@ relation_literature = Table(
     Column("obj_type", String(255))
 )
 
+# pipeline_type: pipelne analysis_software analysis_file  downstream_analysis
+# 
 
-t_pipeline = Table(
-    "pipeline",
+# Workflow
+#    |
+#    |  (多个)
+#    v
+# WorkflowPipelineRelation  <-- ordered DAG / parallel execution
+#    |
+#    |  (1 对 1)
+#    v
+# Pipeline
+#    |
+#    +--> InputFiles / OutputFiles / Downstream
+# pipeline,software,file,downstream
+t_pipeline_components = Table(
+    "pipeline_components",
     meta,
     Column("id", Integer, primary_key=True),
-    Column("pipeline_id", String(255)),
-    Column("pipeline_key", String(255)),
-    Column("pipeline_order", Integer),
-    Column("pipeline_type", String(255)),
-    Column("parent_pipeline_id", String(255)),
-    Column("content", Text)
+    Column("component_id", String(255)),
+    Column("install_key", String(255)),
+    Column("component_type", String(255)), 
+    # Column("parent_pipeline_id", String(255)),
+    Column("content", Text),
+    Column("order_index", Integer)
+
+)
+# relation_type: pipeline_software software_input_file  software_ouput_file  file_downstream
+t_pipeline_components_relation = Table(
+    "pipeline_components_relation",
+    meta,
+    Column("relation_id", Integer, primary_key=True),
+    Column("relation_type", String(255)), 
+    Column("install_key", String(255)),
+    # Column("pipeline_id", String(255)),
+    Column("component_id", String(255)),
+    Column("parent_component_id", String(255)),
+    Column("order_index", Integer)
 
 )
 
-# meta.create_all(engine)
+# t_relation_pipeline_software = Table(
+#     "relation_pipeline_software",
+#     meta,
+#     Column("relation_id", Integer, primary_key=True),
+#     Column("pipeline_id", String(255)),
+#     Column("analysis_software_id", String(255))
+# )
+
+# t_analysis_software = Table(
+#     "analysis_software",
+#     meta,
+#     Column("id", Integer, primary_key=True),
+#     Column("analysis_software_id", String(255)),
+#     Column("content", Text)
+
+# )
+# t_relation_software_file = Table(
+#     "relation_software_file",
+#     meta,
+#     Column("relation_id", Integer, primary_key=True),
+#     Column("analysis_software_id", String(255)),
+#     Column("analysis_file_id", String(255)),
+#     Column("file_type", String(255)),
+#     Column("content", Text)
+# )
+
+
+# t_analysis_file = Table(
+#     "analysis_file",
+#     meta,
+#     Column("id", Integer, primary_key=True),
+#     Column("analysis_file_id", String(255))
+
+# )
+# t_relation_file_downstream = Table(
+#     "relation_file_downstream",
+#     mata,
+#     Column("relation_id", Integer, primary_key=True),
+#     Column("analysis_file_id", String(255)),
+#     Column("downstream_analysis_id", String(255))
+# )
+# t_downstream_analysis = Table(
+#     "downstream_analysis",
+#     meta,
+#     Column("id", Integer, primary_key=True),
+#     Column("downstream_analysis_id", String(255))
+# )
+# # meta.create_all(engine)
 
