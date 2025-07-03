@@ -40,4 +40,5 @@ class QueryModule(BaseModel):
     module_type: Optional[str]
     module_name: Optional[str]=None
     component_id:Optional[str]
+    file_type:Optional[str]=None
     # module_dir: Optional[str]=None

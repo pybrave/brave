@@ -1,4 +1,4 @@
-import{j as e,B as t,F as i,P as s,T as r,A as l}from"./index-D8LZcHoA.js";const o=({record:a,plot:n})=>e.jsx(e.Fragment,{children:a?e.jsxs(e.Fragment,{children:[e.jsx(t,{onClick:()=>{n({name:"基因预测统计",saveAnalysisMethod:"prokka_txt_plot",moduleName:"prokka_txt_plot",params:{file_path:a.content.txt}})},children:"基因预测统计"}),e.jsx(t,{onClick:()=>{n({moduleName:"genome_circos_plot_gbk",params:{file_path:a.content.gbk},tableDesc:`
+import{j as e,B as t,F as i,O as s,T as r,A as l}from"./index-BaBKrGkd.js";const o=({record:a,plot:n})=>e.jsx(e.Fragment,{children:a?e.jsxs(e.Fragment,{children:[e.jsx(t,{onClick:()=>{n({name:"基因预测统计",saveAnalysisMethod:"prokka_txt_plot",moduleName:"prokka_txt_plot",params:{file_path:a.content.txt}})},children:"基因预测统计"}),e.jsx(t,{onClick:()=>{n({moduleName:"genome_circos_plot_gbk",params:{file_path:a.content.gbk},tableDesc:`
 + GC skew 是一个用来衡量 DNA 序列中 鸟嘌呤（G）和胞嘧啶（C）含量不对称性 的指标，常用于分析细菌基因组的复制起点（oriC）和终点（terC）。
 + GC skew 通常定义为：
 $$

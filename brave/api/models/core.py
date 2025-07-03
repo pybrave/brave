@@ -138,6 +138,17 @@ t_pipeline_components_relation = Table(
 
 )
 
+
+t_bio_database = Table(
+    "bio_database",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("database_id", String(255)),
+    Column("name", String(255)),
+    Column("path", String(255)),
+    Column("type", String(255))
+)
+
 # t_relation_pipeline_software = Table(
 #     "relation_pipeline_software",
 #     meta,

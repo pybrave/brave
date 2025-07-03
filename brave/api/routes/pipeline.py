@@ -295,7 +295,7 @@ async def get_module_content(queryModule:QueryModule):
     module_dir = queryModule.component_id
     # if queryModule.module_dir:
     #     module_dir = queryModule.module_dir
-    py_module = pipeline_service.find_module(queryModule.module_type,module_dir,queryModule.module_name)
+    py_module = pipeline_service.find_module(queryModule.module_type,module_dir,queryModule.module_name,queryModule.file_type)
     py_module_path = py_module['path']
     if os.path.exists(py_module_path):
         with open(py_module_path,"r") as f:
@@ -478,34 +478,34 @@ async def list_pipeline(queryPipeline:QueryPipeline):
         return pipeline_service.list_pipeline(conn,queryPipeline)
 
 
-def get_pipeline_id_by_parent_id(conn, start_id: str) -> str | None:
-    sql = text("""
-        WITH RECURSIVE ancestor_path AS (
-            SELECT
-                pipeline_id,
-                parent_pipeline_id,
-                relation_type
-            FROM relation_pipeline
-            WHERE pipeline_id = :start_id
+# def get_pipeline_id_by_parent_id(conn, start_id: str) -> str | None:
+#     sql = text("""
+#         WITH RECURSIVE ancestor_path AS (
+#             SELECT
+#                 pipeline_id,
+#                 parent_pipeline_id,
+#                 relation_type
+#             FROM relation_pipeline
+#             WHERE pipeline_id = :start_id
 
-            UNION ALL
+#             UNION ALL
 
-            SELECT
-                rp.pipeline_id,
-                rp.parent_pipeline_id,
-                rp.relation_type
-            FROM relation_pipeline rp
-            JOIN ancestor_path ap ON rp.pipeline_id = ap.parent_pipeline_id
-        )
-        SELECT pipeline_id
-        FROM ancestor_path
-        WHERE relation_type = 'pipeline_software'
-        LIMIT 1;
-    """)
+#             SELECT
+#                 rp.pipeline_id,
+#                 rp.parent_pipeline_id,
+#                 rp.relation_type
+#             FROM relation_pipeline rp
+#             JOIN ancestor_path ap ON rp.pipeline_id = ap.parent_pipeline_id
+#         )
+#         SELECT pipeline_id
+#         FROM ancestor_path
+#         WHERE relation_type = 'pipeline_software'
+#         LIMIT 1;
+#     """)
 
-    result = conn.execute(sql, {"start_id": start_id})
-    row = result.first()
-    return row[0] if row else None
+#     result = conn.execute(sql, {"start_id": start_id})
+#     row = result.first()
+#     return row[0] if row else None
 
 @pipeline.post("/find-pipeline-relation/{relation_id}",tags=['pipeline'])
 async def find_pipeline_relation(relation_id):

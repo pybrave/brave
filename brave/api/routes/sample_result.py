@@ -21,7 +21,7 @@ import inspect
 from fastapi import HTTPException
 from brave.api.service.pipeline  import get_all_module,get_pipeline_dir
 import threading
-
+import brave.api.service.analysis_result_service as analysis_result_service
 
 sample_result = APIRouter()
 # key = Fernet.generate_key()
@@ -126,7 +126,7 @@ def parse_result(dir_path,project,verison):
     # pipeline_dir = get_pipeline_dir()
     # py_files = [f for f in os.listdir(f"{pipeline_dir}/*/py_sample_result_parse/*") if f.endswith('.py')]
     # py_files = glob.glob(f"{pipeline_dir}/*/py_sample_result_parse/*.py")
-    py_files = get_all_module("py_sample_result_parse")
+    py_files ={} # get_all_module("py_sample_result_parse")
     for key,py_module in py_files.items():
         # module_name = py_file[:-3]  # 去掉 `.py` 后缀，获取模块名
 
@@ -218,55 +218,13 @@ async def parse_result_restful(base_path,verison,project):
     return {"msg":"success"}
 
 def find_analyais_result_by_ids( value):
-    ids = value
-    if not isinstance(value,list):
-        ids = [value]
-    analysis_result = find_analyais_result(AnalysisResultQuery(ids=ids))
-
-    # analysis_result =  session.query(SampleAnalysisResult) \
-    #             .filter(SampleAnalysisResult.id.in_(ids)) \
-    #                 .all()
-                    
-    # for item in analysis_result:
-    #     if item.content_type=="json" and not isinstance(item.content, dict):
-    #         item.content = json.loads(item.content)
-
-    if len(analysis_result)!=len(ids):
-        raise HTTPException(status_code=500, detail="数据存在问题!")
-    if not isinstance(value,list) and len(analysis_result)==1:
-        return analysis_result[0]
-    else:
-        return analysis_result
-    
+    with get_engine().begin() as conn:
+        result_dict = analysis_result_service.find_analyais_result_by_ids(conn,value)
+    return result_dict
 
 def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
     with get_engine().begin() as conn:
-        stmt = analysis_result.select() 
-        if analysisResultQuery.querySample:
-            stmt =  select(analysis_result, samples).select_from(analysis_result.outerjoin(samples,samples.c.sample_key==analysis_result.c.sample_key))
-        
-        conditions = []
-        if analysisResultQuery.project is not None:
-            conditions.append(analysis_result.c.project == analysisResultQuery.project)
-        if analysisResultQuery.ids is not None:
-            conditions.append(analysis_result.c.id.in_(analysisResultQuery.ids))
-        if analysisResultQuery.analysis_method is not None:
-            conditions.append(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method))
-        if analysisResultQuery.analysis_type is not None:
-            conditions.append(analysis_result.c.analysis_type == analysisResultQuery.analysis_type)
-        stmt= stmt.where(and_( *conditions))
-        
-        result  = conn.execute(stmt)
-        # result = result.fetchall()
-        rows = result.mappings().all()
-        result_dict = [AnalysisResult(**row) for row in rows]
-        # result_dict = []
-        for item in result_dict:
-            if item.content_type=="json" and not isinstance(item.content, dict):
-                item.content = json.loads(item.content)
-        #     result.append(row)
-        # # rows = result.mappings().all()
-        # pass
+        result_dict = analysis_result_service.find_analyais_result(conn,analysisResultQuery)
     return result_dict
 
 @sample_result.post(

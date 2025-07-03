@@ -66,7 +66,7 @@ def parse_result(request_param,module_name):
     module_dir = request_param['component_id']
     # if "module_dir" in request_param:
     #     module_dir = request_param['module_dir']
-    py_module = find_module("py_plot",module_dir,module_name)['module']
+    py_module = find_module("py_plot",module_dir,module_name,'py')['module']
     # if module_dir not in all_module:
     #     raise HTTPException(status_code=500, detail=f"py_plot: 目录{module_dir}没有找到!")
     # py_module_dir = all_module[module_dir]

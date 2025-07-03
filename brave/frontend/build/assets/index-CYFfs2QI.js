@@ -1,1 +1,0 @@
-import{z as s,j as t,ay as r}from"./index-D8LZcHoA.js";const i=()=>{const{project:e}=s();return t.jsx("div",{style:{maxWidth:"1500px",margin:"1rem auto"},children:t.jsx(r,{project:e,setRecord:o=>{}})})};export{i as default};

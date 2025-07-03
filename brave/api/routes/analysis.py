@@ -1,6 +1,7 @@
 from fastapi import APIRouter,Depends,HTTPException
 from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
+from brave.api.schemas.bio_database import QueryBiodatabase
 from brave.api.schemas.sample import Sample
 from typing import List
 from starlette.status import HTTP_204_NO_CONTENT
@@ -28,8 +29,9 @@ from brave.api.routes.pipeline import get_pipeline_file
 import textwrap
 from brave.api.routes.sample_result import find_analyais_result_by_ids
 from brave.api.routes.sample_result import parse_result_one,parse_result_oneV2
-from brave.api.service.pipeline  import get_all_module,find_module
+from brave.api.service.pipeline  import find_module
 import  brave.api.service.pipeline as pipeline_service
+import brave.api.service.bio_database_service as bio_database_service
 import inspect
 from typing import Optional
 import pandas as pd
@@ -37,6 +39,7 @@ import subprocess
 from brave.api.service.watch_service import queue_process
 import threading
 import psutil
+import brave.api.service.analysis_result_service as analysis_result_service
 analysis_api = APIRouter()
 
 
@@ -92,32 +95,52 @@ def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,ve
 
 
 
-def parse_analysis(request_param,params_path,command_path,work_dir,module_name,component_id):
-    # all_module = get_all_module("py_parse_analysis")
-    # if module_name not in all_module:
-    #     raise HTTPException(status_code=500, detail=f"py_parse_analysis: {module_name}没有找到!")
-    # py_module = all_module[module_name]
-
+def parse_analysis(conn,request_param,module_name,component_id,component_content,component_file_list):
+    
+    
   
-    py_module = find_module("py_parse_analysis",component_id,module_name)['module']
+    py_module = find_module("py_parse_analysis",component_id,module_name,'py')['module']
 
     # module_name = f'brave.api.parse_analysis.{module_name}'
     # if importlib.util.find_spec(module) is None:
     #     print(f"{module_name}不存在!")
     # else:
     module = importlib.import_module(py_module)
-    get_db_field = getattr(module, "get_db_field")
-    db_field = get_db_field()
 
-    db_ids_dict = {key: get_ids(request_param[key]) for key in db_field if key in request_param}
-    # with get_db_session() as session:
-        # get_db_value
-    db_dict = { key:find_analyais_result_by_ids(value) for key,value in  db_ids_dict.items()}
+    
+
+    ## 查找分析结果
+    component_file_name_list = [json.loads(item.content)['name'] for item in component_file_list]
+    # if hasattr(module,"get_db_field"):
+    #     get_db_field = getattr(module, "get_db_field")
+    #     db_field = get_db_field()
+    db_ids_dict = {key: get_ids(request_param[key]) for key in component_file_name_list if key in request_param}
+    db_dict = { key:analysis_result_service.find_analyais_result_by_ids(conn,value) for key,value in  db_ids_dict.items()}
+    extra_dict={}
+    if "upstreamFormJson" in component_content:
+        upstream_form_json = component_content['upstreamFormJson']
+        upstream_form_json_names = [item['name'] for item in upstream_form_json]
+        extra_dict = {key: request_param[key] for key in upstream_form_json_names if key in request_param}
+
+    
+    database_dict={}
+    if "databases" in component_content:
+        bio_database = component_content['databases']
+        bio_database_data_type_list = [item['name'] for item in bio_database]
+        db_ids_dict = {key: request_param[key] for key in bio_database_data_type_list if key in request_param}
+        database_dict = { key:bio_database_service.get_bio_database_by_id(conn,value)['path'] for key,value in  db_ids_dict.items()}
+
+    args = {
+        "analysis_dict":db_dict,
+        "database_dict":database_dict,
+        "extra_dict":extra_dict
+    }
+
     parse_data = getattr(module, "parse_data")
 
-    result = parse_data(request_param,db_dict)
-    with open(params_path, "w") as f:
-        json.dump(result,f)
+    result = parse_data(**args)
+    return result
+ 
 
         # get_script = getattr(module, "get_script")
         # script = get_script()
@@ -130,10 +153,12 @@ def parse_analysis(request_param,params_path,command_path,work_dir,module_name,c
 
 # ,response_model=List[Sample]
 @analysis_api.post("/fast-api/save-analysis")
-async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[str, Any]
+async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False): # request_param: Dict[str, Any]
     # request_param = analysis_input.model_dump_json()
     component_id = request_param['component_id']
     pipeline_id = request_param['pipeline_id']
+    if component_id is None:
+        raise HTTPException(status_code=500, detail=f"component_id is None")
 
 
     with get_engine().begin() as conn:
@@ -142,11 +167,11 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
             raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found or missing content.")
         component_content = json.loads(component.content)
         parse_analysis_module = component_content.get('parseAnalysisModule')
-        if parse_analysis_module is None:
-            raise HTTPException(status_code=500, detail=f"'parseAnalysisModule' not found in component content.")
-        # component_script = component_content.get('analysisPipline') # 分析脚本
-        # parse_analysis_module = request_param.get('parse_analysis_module')
-        # parse_analysis_result_module = json.dumps(request_param.get('parse_analysis_result_module'))
+        component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_input_file")
+        parse_analysis_result = parse_analysis(conn,request_param,parse_analysis_module,component_id,component_content,component_file_list)
+        if not save:
+            return parse_analysis_result
+    
         new_analysis = {
             "project":request_param['project'],
             "analysis_name":request_param['analysis_name'],
@@ -174,7 +199,10 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
                 os.makedirs(work_dir)
             params_path = result.params_path
             command_path = result.command_path
-            parse_analysis(request_param,params_path,command_path, work_dir,parse_analysis_module,component_id)
+
+            with open(params_path, "w") as f:
+                json.dump(parse_analysis_result,f)
+                
             # new_analysis['output_format'] = parse_analysis_result_module
             stmt = analysis.update().values(new_analysis).where(analysis.c.id==request_param['id'])
         else:
@@ -207,7 +235,7 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
             # script_dir = pipeline_id
             # if "scriptDir" in component_content:
             #     script_dir = component_content['scriptDir']
-            component_script = find_module("nextflow",component_id,None)['path']
+            component_script = find_module("nextflow",component_id,None,"nf")['path']
 
             # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
             new_analysis['pipeline_script'] = component_script
@@ -241,9 +269,10 @@ async def save_analysis(request_param: Dict[str, Any]): # request_param: Dict[st
             new_analysis['executor_log_file'] = executor_log
             new_analysis['script_config_file'] = script_config_file
 
-            parse_analysis(request_param,params_path, command_path,work_dir,parse_analysis_module,component_id)
+            # parse_analysis(request_param,params_path, parse_analysis_module,component_id)
             # new_analysis['output_format'] = parse_analysis_result_module
-      
+            with open(params_path, "w") as f:
+                json.dump(parse_analysis_result,f)
             stmt = analysis.insert().values(new_analysis)
         conn.execute(stmt)
         
@@ -298,19 +327,43 @@ def get_all_files_recursive(directory,dir_name,file_dict):
 async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
     with get_engine().begin() as conn:
         stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
-        result = conn.execute(stmt).fetchone()
-        component_id = result.component_id
-        component_ = pipeline_service.find_pipeline_by_id(conn,component_id)
-    # output_format = json.loads(pipeline_.output_format)
-    pipeline_content = json.loads(component_.content)
-    output_format = pipeline_content['parseAnalysisResultModule']
-    if len(output_format)==0:
-        raise HTTPException(status_code=500, detail=f"组件{component_id}没有配置output_format!")
+        result = conn.execute(stmt).mappings().first()
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
+        component_id = result['component_id']
+        component_ = pipeline_service.find_pipeline_by_id(conn, component_id)
+        if not component_:
+            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
+        try:
+            component_content = json.loads(component_.content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
+        parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
+
+
+    output_format = component_content.get('outputFormat')
+
+   
+    # output_format = pipeline_content['parseAnalysisResultModule']
+    if not output_format:
+        raise HTTPException(status_code=500, detail=f"组件{component_id}没有配置outputFormat!")
+        
+    py_module = find_module("py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
+    module = importlib.import_module(py_module)
+    dir_path = f"{result['output_dir']}/output"
+    # args = {
+    #     "dir_path":dir_path,
+    #     "analysis": result,
+    #     "output_format":output_format
+    # }
+    # parse = getattr(module, "parse")
+    # res = parse(**args)
     result_dict = {}
     file_dict={}
+
     for item in output_format:
 
-        dir_path = f"{result.output_dir}/output/{item['dir']}"
+        
         # module_dir = component_.pipeline_key
         # if "moduleDir" in pipeline_content:
         #     module_dir = pipeline_content['moduleDir']
@@ -320,14 +373,12 @@ async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
 
         get_all_files_recursive(dir_path,item['dir'],file_dict)
 
-        py_module = find_module("py_parse_analysis_result",component_id,item['module'])['module']
 
-        # all_module = get_all_module("py_parse_analysis_result")
         # if item['module'] not in all_module:
         #     raise HTTPException(status_code=500, detail=f"py_parse_analysis_result: {module_name}没有找到!")
         # py_module = all_module[]
-        module = importlib.import_module(py_module)
-        # parse_result_one()
+        
+        # # parse_result_one()
         moduleArgs = {}
         if "moduleArgs" in item:
             moduleArgs = item['moduleArgs']
@@ -337,14 +388,18 @@ async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
         params = sig.parameters
         res = None    
         args = {
-            "dir_path":dir_path,
-            "analysis": result,
-            **moduleArgs
+            "dir_path":f"{dir_path}/{item['dir']}",
+            "analysis": dict(result),
+            "output_file_name":item['outputFileName'],
+            # "args":moduleArgs,
+            "pattern":item['pattern'],
+            "replace_map":item['replaceMap'] if 'replaceMap' in item else None,
+            "suffix":item['suffix'] if 'suffix' in item else None
         }
         res = parse(**args)
-        result_dict.update({item['module']:res})
+        result_dict.update({item['outputFileName']:res})
         if save:
-            parse_result_oneV2(res,item['analysisMethod'],result.project,"V1.0",analysis_id)
+            parse_result_oneV2(res,item['outputFileName'],result['project'],"V1.0",analysis_id)
     return {
         "result_dict":result_dict,
         "file_dict":file_dict
