@@ -1,3 +1,4 @@
+from functools import reduce
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 import threading
@@ -14,15 +15,17 @@ import os
 import json
 from brave.api.config.db import get_db_session
 from sqlalchemy import and_,or_
-from brave.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult
+from brave.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult, ImportData, ParseImportData
 from brave.api.models.core import samples,analysis_result
 from brave.api.config.db import get_engine
 import inspect
 from fastapi import HTTPException
-from brave.api.service.pipeline  import get_all_module,get_pipeline_dir
+from brave.api.service.pipeline  import get_default_module, get_all_module,get_pipeline_dir
 import threading
 import brave.api.service.analysis_result_service as analysis_result_service
-
+import brave.api.service.pipeline as pipeline_service
+import re
+from brave.api.utils.from_glob_get_file import from_glob_get_file
 sample_result = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -76,27 +79,6 @@ def update_or_save_result(analysis_key,sample_name, software, content_type, cont
             db.commit()
             print(">>>>新增: ",sample_name, software, content_type)
 
-def parse_result_oneV2(res, analysis_method,project,verison,analysis_id):
-    
-
-    # if hasattr(module,"get_analysis_method"):
-    #     get_analysis_method = getattr(module, "get_analysis_method")
-    #     analysis_method = get_analysis_method()
-    #     print(f">>>>>更改分析名称: {analysis_method}")
-    analysis_name = analysis_method
-    # if hasattr(module,"get_analysis_name"):
-    #     get_analysis_name = getattr(module, "get_analysis_name")
-    #     analysis_name = get_analysis_name()
-        
-    with get_db_session() as db:
-        if len(res) >0:
-            # print(res[0])
-            if len(res[0]) == 4:
-                for analysis_key,software,content_type,content in res:
-                    update_or_save_result(analysis_key,analysis_key, software, content_type, content, db, project, verison, analysis_method,analysis_name,analysis_id)
-            elif len(res[0]) == 5:
-                for analysis_key,sample_name,software,content_type,content in res:
-                    update_or_save_result(analysis_key,sample_name, software, content_type, content, db, project, verison, analysis_method,analysis_name,analysis_id)
 
 
 def parse_result_one(analysis_method,module,dir_path,project,verison,analysis_id=-1):
@@ -166,7 +148,7 @@ def parse_result(dir_path,project,verison):
 
 
 @sample_result.get("/sample-parse-result-test-hexiaoyan",tags=['analsyis_result'])
-async def parse_result_restful():
+async def parse_result_restful_test1():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
     # project="test"
@@ -180,7 +162,7 @@ async def parse_result_restful():
     return {"msg":"success"}
 
 @sample_result.get("/sample-parse-result-test",tags=['analsyis_result'])
-async def parse_result_restful():
+async def parse_result_restful_test2():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
     # project="test"
@@ -194,7 +176,7 @@ async def parse_result_restful():
     return {"msg":"success"}
 
 @sample_result.get("/sample-parse-result-test-leipu-meta",tags=['analsyis_result'])
-async def parse_result_restful():
+async def parse_result_restful_test3():
     # base_path ="/ssd1/wy/workspace2/test/test_workspace/result/V1.0"
     # verison = "V1.0"
     # project="test"
@@ -301,5 +283,60 @@ async def add_sample_analysis(project):
             db.refresh(analysisResult)
 
         return {"message":"success"}
+
+    # component_id:str
+    # project: str
+    # analysis_method: str
+    # content: str
+    # analysis_key: str
+@sample_result.post("/import-data",tags=['analsyis_result'])
+async def import_data(importDataList:List[ImportData]):
+    with get_engine().begin() as conn:
+        for importData in importDataList:
+            component_ = pipeline_service.find_pipeline_by_id(conn,importData.component_id)
+            if not component_:
+                raise HTTPException(status_code=404, detail=f"Component with id {importData.component_id} not found")
+            try:
+                component_content = json.loads(component_.content)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
+            analysis_method = component_content['name']
+            analysis_label = component_content['label']
+            stmt = analysis_result.select().where(and_(
+                analysis_result.c.analysis_key==importData.analysis_key,
+                analysis_result.c.component_id==importData.component_id,
+                analysis_result.c.project==importData.project
+            ))
+            result = conn.execute(stmt).fetchall()
+            if result:
+                raise HTTPException(status_code=500, detail=f"分析结果已存在")
+
+            stmt = analysis_result.insert().values(
+                component_id=importData.component_id,
+                project=importData.project,
+                analysis_method=analysis_method,
+                content=importData.content,
+                analysis_key=importData.analysis_key,
+                sample_name=analysis_label,
+                content_type="json",
+                analysis_type="import_data"
+            )
+            conn.execute(stmt)
+    return {"message":"success"}
+
+
+
+
+
+@sample_result.post("/parse-import-data",tags=['analsyis_result'])
+async def parse_import_data(parseImportData:ParseImportData):
+
+    content = parseImportData.content
+    content = json.loads(content)
+    result = from_glob_get_file(content)
+    return result
+
+
+
 
 

@@ -28,7 +28,7 @@ from brave.api.config.config import get_settings
 from brave.api.routes.pipeline import get_pipeline_file
 import textwrap
 from brave.api.routes.sample_result import find_analyais_result_by_ids
-from brave.api.routes.sample_result import parse_result_one,parse_result_oneV2
+from brave.api.routes.sample_result import parse_result_one
 from brave.api.service.pipeline  import find_module
 import  brave.api.service.pipeline as pipeline_service
 import brave.api.service.bio_database_service as bio_database_service
@@ -109,7 +109,7 @@ def parse_analysis(conn,request_param,module_name,component_id,component_content
 
     
 
-    ## 查找分析结果
+    ## 查找输入字段
     component_file_name_list = [json.loads(item.content)['name'] for item in component_file_list]
     # if hasattr(module,"get_db_field"):
     #     get_db_field = getattr(module, "get_db_field")
@@ -152,6 +152,7 @@ def parse_analysis(conn,request_param,module_name,component_id,component_content
         # return json.dumps(output_format)
 
 # ,response_model=List[Sample]
+#  参数解析
 @analysis_api.post("/fast-api/save-analysis")
 async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False): # request_param: Dict[str, Any]
     # request_param = analysis_input.model_dump_json()
@@ -285,6 +286,105 @@ async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False)
     return {"msg":"success"}
 
 
+
+def get_all_files_recursive(directory,dir_name,file_dict):
+    file_list=[]
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_list.append(os.path.join(root, file).replace(directory,""))
+    return file_dict.update({dir_name:file_list})
+
+# 结果解析
+@analysis_api.post("/fast-api/parse-analysis-result/{analysis_id}")
+async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
+    with get_engine().begin() as conn:
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        result = conn.execute(stmt).mappings().first()
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
+        component_id = result['component_id']
+        component_ = pipeline_service.find_pipeline_by_id(conn, component_id)
+        if not component_:
+            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
+        try:
+            component_content = json.loads(component_.content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
+        parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
+        
+        component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
+        component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
+        file_format_list = [
+            {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
+            for item in component_file_content_list if 'fileFormat' in item
+        ]
+        if not file_format_list:
+            raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
+
+
+        py_module = find_module("py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
+        module = importlib.import_module(py_module)
+        parse = getattr(module, "parse")
+
+
+        result_dict = {}
+        file_dict={}
+        result_list = []
+        for item in file_format_list:
+
+            
+            # module_dir = component_.pipeline_key
+            # if "moduleDir" in pipeline_content:
+            #     module_dir = pipeline_content['moduleDir']
+            # 递归获取dir_path的文件
+        
+        
+            dir_path = f"{result['output_dir']}/output/{item['dir']}"
+            get_all_files_recursive(dir_path,item['dir'],file_dict)
+
+
+            # if item['module'] not in all_module:
+            #     raise HTTPException(status_code=500, detail=f"py_parse_analysis_result: {module_name}没有找到!")
+            # py_module = all_module[]
+            
+            # # parse_result_one()
+            moduleArgs = {}
+            # if "moduleArgs" in item:
+            #     moduleArgs = item['moduleArgs']
+            
+            
+            res = None    
+            args = {
+                "dir_path":dir_path,
+                # "analysis": dict(result),
+                "file_format":item['fileFormat']
+                # "args":moduleArgs,
+            
+            }
+            res = parse(**args)
+            
+            for sub_item in  res:
+                sub_item.update({
+                    "component_id":item['component_id'],
+                    "analysis_name":item['name'],
+                    "analysis_method":item['name'],
+                    "project":result['project'],
+                    "analysis_id":analysis_id,
+                    "analysis_type":"upstream_analysis"
+                    })
+            result_dict.update({item['name']:res})
+            result_list = result_list + res
+            
+        if save:
+            analysis_result_service.save_or_update_analysis_result_list( conn,result_list)
+            # parse_result_oneV2(res,item['name'],result['project'],"V1.0",analysis_id)
+    return {
+        "result_dict":result_dict,
+        "file_dict":file_dict
+    }
+
+
+
 @analysis_api.post(
     "/list-analysis",
     response_model=List[Analysis],
@@ -313,97 +413,6 @@ def delete_user(id: int):
         conn.execute(analysis.delete().where(analysis.c.id == id))
     return {"message":"success"}
 
-
-
-
-def get_all_files_recursive(directory,dir_name,file_dict):
-    file_list=[]
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            file_list.append(os.path.join(root, file).replace(directory,""))
-    return file_dict.update({dir_name:file_list})
-
-@analysis_api.post("/fast-api/parse-analysis-result/{analysis_id}")
-async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
-    with get_engine().begin() as conn:
-        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
-        result = conn.execute(stmt).mappings().first()
-        if not result:
-            raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
-        component_id = result['component_id']
-        component_ = pipeline_service.find_pipeline_by_id(conn, component_id)
-        if not component_:
-            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
-        try:
-            component_content = json.loads(component_.content)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
-        parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
-
-
-    output_format = component_content.get('outputFormat')
-
-   
-    # output_format = pipeline_content['parseAnalysisResultModule']
-    if not output_format:
-        raise HTTPException(status_code=500, detail=f"组件{component_id}没有配置outputFormat!")
-        
-    py_module = find_module("py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
-    module = importlib.import_module(py_module)
-    dir_path = f"{result['output_dir']}/output"
-    # args = {
-    #     "dir_path":dir_path,
-    #     "analysis": result,
-    #     "output_format":output_format
-    # }
-    # parse = getattr(module, "parse")
-    # res = parse(**args)
-    result_dict = {}
-    file_dict={}
-
-    for item in output_format:
-
-        
-        # module_dir = component_.pipeline_key
-        # if "moduleDir" in pipeline_content:
-        #     module_dir = pipeline_content['moduleDir']
-        # 递归获取dir_path的文件
-     
-     
-
-        get_all_files_recursive(dir_path,item['dir'],file_dict)
-
-
-        # if item['module'] not in all_module:
-        #     raise HTTPException(status_code=500, detail=f"py_parse_analysis_result: {module_name}没有找到!")
-        # py_module = all_module[]
-        
-        # # parse_result_one()
-        moduleArgs = {}
-        if "moduleArgs" in item:
-            moduleArgs = item['moduleArgs']
-        
-        parse = getattr(module, "parse")
-        sig = inspect.signature(parse)
-        params = sig.parameters
-        res = None    
-        args = {
-            "dir_path":f"{dir_path}/{item['dir']}",
-            "analysis": dict(result),
-            "output_file_name":item['outputFileName'],
-            # "args":moduleArgs,
-            "pattern":item['pattern'],
-            "replace_map":item['replaceMap'] if 'replaceMap' in item else None,
-            "suffix":item['suffix'] if 'suffix' in item else None
-        }
-        res = parse(**args)
-        result_dict.update({item['outputFileName']:res})
-        if save:
-            parse_result_oneV2(res,item['outputFileName'],result['project'],"V1.0",analysis_id)
-    return {
-        "result_dict":result_dict,
-        "file_dict":file_dict
-    }
 
 
 

@@ -11,6 +11,7 @@ class SampleAnalysisResult(Base):
     sample_key = Column(String(255))
     analysis_name = Column(String(255))
     analysis_key = Column(String(255))
+    component_id = Column(String(255))
     analysis_method = Column(String(255))
     software = Column(String(255))
     content = Column(Text)

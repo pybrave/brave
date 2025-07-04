@@ -619,3 +619,8 @@ async def delete_pipeline(component_id: str):
             pipeline_service.delete_wrap_pipeline_dir(component_id)
             return {"message":"success"}
 
+@pipeline.get("/find-by-component-id/{component_id}",tags=['pipeline'])
+async def find_by_components_id(component_id):
+    with get_engine().begin() as conn:
+        stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id == component_id)
+        return conn.execute(stmt).mappings().first()

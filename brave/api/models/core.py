@@ -57,6 +57,7 @@ analysis_result = Table(
     Column("sample_key", String(255)),
     Column("analysis_name", String(255)),
     Column("analysis_key", String(255)),
+    Column("component_id", String(255)),
     Column("analysis_method", String(255)),
     Column("software", String(255)),
     Column("content", String(255)),
