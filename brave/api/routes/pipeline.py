@@ -367,6 +367,8 @@ def get_pipeline_one_v2(item):
         }       
 @pipeline.get("/list-pipeline-v2",tags=['pipeline'])
 async def list_pipeline_v2():
+    current_loop = asyncio.get_event_loop()
+    print(f"startup 事件循环：{current_loop}")
     with get_engine().begin() as conn:
         wrap_pipeline_list = find_db_pipeline(conn, "pipeline")
         pipeline_list = [get_pipeline_one_v2(item) for item in wrap_pipeline_list]

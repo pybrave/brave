@@ -1,6 +1,8 @@
 # https://github.com/FaztWeb/fastapi-mysql-restapi/blob/main/routes/user.py
 
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
+
 
 from brave.api.routes.file_parse_plot import file_parse_plot
 from brave.api.routes.sample_result import sample_result
@@ -8,18 +10,41 @@ from brave.api.routes.sample import sample
 from brave.api.routes.analysis import analysis_api
 from brave.api.routes.pipeline import pipeline
 from brave.api.routes.literature import literature_api
-from brave.api.routes.sse import sseController,broadcast_loop,producer
+from brave.api.routes.sse import sseController
 import asyncio
-from brave.api.service.watch_service import watch_folder,startup_process_event
-
+# from brave.api.service.watch_service import watch_folder,startup_process_event
+from brave.api.service.file_watcher_service import FileWatcher
+from brave.api.service.process_monitor_service import ProcessMonitor
 from brave.api.routes.bio_database import bio_database
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 from brave.api.config.config import get_settings
+from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    print("✅ 启动后台任务")
+    current_loop = asyncio.get_event_loop()
+    print(f"startup 事件循环：{current_loop}")
+    global producer_task, broadcast_task
+    monitor = f"{settings.BASE_DIR}/monitor"
+    if not  os.path.exists(monitor):
+        os.makedirs(monitor)
 
+    # asyncio.create_task(watch_folder(monitor))
+    sse_service = SSEService()
+    file_watcher = FileWatcher(watch_path=monitor,sse_service=sse_service)
+    process_monitor = ProcessMonitor(sse_service=sse_service)
+    app.state.sse_service = sse_service
+    asyncio.create_task(file_watcher.watch_folder())
+    asyncio.create_task(sse_service.broadcast_loop())
+    # asyncio.create_task(sse_service.producer())
+    asyncio.create_task(process_monitor.check_process_worker())
+    yield
+    
 def create_app() -> FastAPI:
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
     frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "build","assets")), name="assets")
     # frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
@@ -46,25 +71,24 @@ def create_app() -> FastAPI:
     producer_task = None
     broadcast_task = None
 
+    
+    # app.state.sse_service = sse_service
+    
+    
     # 启动后台广播任务
-    @app.on_event("startup")
-    async def start_broadcast():
-        print("✅ 启动后台任务")
-        global producer_task, broadcast_task
-        asyncio.create_task(broadcast_loop())
-        monitor = f"{settings.BASE_DIR}/monitor"
-        if not  os.path.exists(monitor):
-            os.makedirs(monitor)
-        asyncio.create_task(watch_folder(monitor))
-        await startup_process_event()
+    # @app.on_event("startup")
+   
+
+        # asyncio.create_task(broadcast_loop())
+        # await startup_process_event()
         # asyncio.create_task(producer())
 
-    @app.on_event("shutdown")
-    async def on_shutdown():
-        print("✅ 关闭后台任务")
-        for task in [producer_task, broadcast_task]:
-            if task:
-                task.cancel()
+    # @app.on_event("shutdown")
+    # async def on_shutdown():
+    #     print("✅ 关闭后台任务")
+    #     for task in [producer_task, broadcast_task]:
+    #         if task:
+    #             task.cancel()
     @app.get("/favicon.ico")
     async def serve_frontend():
         favicon = os.path.join(frontend_path, "build/favicon.ico")

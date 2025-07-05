@@ -1,5 +1,5 @@
 from watchfiles import awatch
-from brave.api.routes.sse import global_queue
+# from brave.api.routes.sse import global_queue
 from datetime import datetime
 import asyncio
 from importlib.resources import files, as_file
