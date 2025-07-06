@@ -12,7 +12,7 @@ import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import select, and_, join, func,insert,update
 import re
-from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline,QueryModule,SavePipelineRelation
+from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule,SavePipelineRelation
 import brave.api.service.pipeline  as pipeline_service
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
@@ -132,7 +132,7 @@ def add_analysis_file(analysis_software_uuid,install_key,pipeline_item,key,new_p
                         "content":json.dumps(downstream_analysis)
                     })
                     new_pipeline_components_relation_list.append({
-                        "relation_type":"file_downstream",
+                        "relation_type":"file_script",
                         # "pipeline_id":pipeline_id,
                         "install_key":install_key,
                         "component_id":downstream_analysis_uuid,
@@ -367,12 +367,10 @@ def get_pipeline_one_v2(item):
         }       
 @pipeline.get("/list-pipeline-v2",tags=['pipeline'])
 async def list_pipeline_v2():
-    current_loop = asyncio.get_event_loop()
-    print(f"startup 事件循环：{current_loop}")
     with get_engine().begin() as conn:
         wrap_pipeline_list = find_db_pipeline(conn, "pipeline")
         pipeline_list = [get_pipeline_one_v2(item) for item in wrap_pipeline_list]
-        pipeline_list = sorted(pipeline_list, key=lambda x:x["order"] if x["order"] is not None else x["id"])
+        # pipeline_list = sorted(pipeline_list, key=lambda x:x["order"] if x["order"] is not None else x["id"])
     
     grouped = defaultdict(list)
     for item in pipeline_list:
@@ -478,6 +476,11 @@ async def find_pipeline_by_id(queryPipeline:QueryPipeline):
 async def list_pipeline(queryPipeline:QueryPipeline):
     with get_engine().begin() as conn:
         return pipeline_service.list_pipeline(conn,queryPipeline)
+
+@pipeline.post("/page-pipeline-components",tags=['pipeline'])
+async def page_pipeline(query:PagePipelineQuery):
+    with get_engine().begin() as conn:
+        return pipeline_service.page_pipeline(conn,query)
 
 
 # def get_pipeline_id_by_parent_id(conn, start_id: str) -> str | None:

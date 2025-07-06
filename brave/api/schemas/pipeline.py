@@ -27,6 +27,14 @@ class QueryPipeline(BaseModel):
     component_type: Optional[str]=None
     content: Optional[str]=None
 
+
+class PagePipelineQuery(BaseModel):
+    page_number: Optional[int]=1
+    page_size: Optional[int]=10
+    component_type: Optional[str]=None
+    # component_id: Optional[str]=None
+
+
 class Pipeline(BaseModel):
     id:Optional[int]
     component_id: Optional[str]

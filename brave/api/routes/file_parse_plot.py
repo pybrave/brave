@@ -323,7 +323,7 @@ def save_plot_result(result, request_param):
         "project":project, 
         "analysis_method":analysis_method,
         "analysis_name":analysis_name,
-        "analysis_type":"downstream"
+        "analysis_type":"script"
     }
     with get_db_session() as db:
         if "id" in request_param:

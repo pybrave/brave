@@ -5,7 +5,7 @@ from brave.api.config.config import get_settings
 from pathlib import Path
 import shutil
 from fastapi import HTTPException
-from brave.api.schemas.pipeline import SavePipeline,Pipeline,QueryPipeline,QueryModule
+from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule
 from brave.api.config.db import get_engine
 from brave.api.models.core import t_pipeline_components, t_pipeline_components_relation
 import importlib.resources as resources
@@ -159,8 +159,8 @@ def create_file(component_id,content,component_type):
         #             with open(item_file,"w") as f:
         #                 f.write(content_text)
 
-    if component_type == "downstream":
-        py_plot = f"{pipeline_dir}/downstream/{component_id}/{content['moduleName']}.py"
+    if component_type == "script":
+        py_plot = f"{pipeline_dir}/script/{component_id}/{content['moduleName']}.py"
         py_plot_dir = os.path.dirname(py_plot)
         if not os.path.exists(py_plot):
             if not os.path.exists(py_plot_dir):
@@ -215,3 +215,31 @@ def list_pipeline(conn,queryPipeline:QueryPipeline):
     # stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_type ==queryPipeline.component_type)
     find_pipeine = conn.execute(stmt).fetchall()
     return find_pipeine
+
+def format_pipeline_componnet_one(item):
+    content = json.loads(item['content'])
+    item = {**{k:v for k,v in item.items() if k != 'content'},**content}
+    if 'img' in item:
+        item['img'] = f"/brave-api/img/{item['img']}"
+    return item
+
+def page_pipeline(conn,query:PagePipelineQuery):
+    stmt = t_pipeline_components.select() 
+    conditions = []
+    if query.component_type is not None:
+        conditions.append(t_pipeline_components.c.component_type == query.component_type)
+    stmt = stmt.where(and_( *conditions))
+    count_stmt = select(func.count()).select_from(t_pipeline_components).where(and_(*conditions))
+
+    stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
+    find_pipeline = conn.execute(stmt).mappings().all()
+    find_pipeline = [dict(item) for item in find_pipeline]
+    find_pipeline = [format_pipeline_componnet_one(item) for item in find_pipeline]
+
+    total = conn.execute(count_stmt).scalar()
+    return {
+        "items": find_pipeline,
+        "total":total,
+        "page_number":query.page_number,
+        "page_size":query.page_size
+    }

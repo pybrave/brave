@@ -57,11 +57,7 @@ class Settings:
         self.LITERATURE_DIR = Path(literature_dir).resolve()# / "data"
         # self.WORK_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using LITERATURE_DIR: {self.LITERATURE_DIR}")
-        # downstream_analysis_result = self.BASE_DIR / "downstream_analysis_result"
-        # downstream_analysis_result.mkdir(parents=True, exist_ok=True)
-        # self.DOWNSTREAM_ANALYSIS_RESULT_DIR = downstream_analysis_result
-        # print(f"✅ Using DOWNSTREAM_ANALYSIS_RESULT_DIR: {self.DOWNSTREAM_ANALYSIS_RESULT_DIR}")
-
+   
 
         # 读取数据库配置
         self.DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()

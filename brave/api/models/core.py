@@ -98,7 +98,7 @@ relation_literature = Table(
     Column("obj_type", String(255))
 )
 
-# pipeline_type: pipelne analysis_software analysis_file  downstream_analysis
+# pipeline_type: pipelne analysis_software analysis_file  script_analysis
 # 
 
 # Workflow
@@ -120,12 +120,17 @@ t_pipeline_components = Table(
     Column("component_id", String(255)),
     Column("install_key", String(255)),
     Column("component_type", String(255)), 
+    Column("name", String(255)), 
+    Column("description", String(255)), 
+    Column("img", String(255)), 
+    Column("tag", String(255)), 
+    Column("category", String(255)), 
     # Column("parent_pipeline_id", String(255)),
     Column("content", Text),
     Column("order_index", Integer)
 
 )
-# relation_type: pipeline_software software_input_file  software_ouput_file  file_downstream
+# relation_type: pipeline_software software_input_file  software_ouput_file  file_script
 t_pipeline_components_relation = Table(
     "pipeline_components_relation",
     meta,
@@ -184,8 +189,8 @@ t_bio_database = Table(
 #     Column("analysis_file_id", String(255))
 
 # )
-# t_relation_file_downstream = Table(
-#     "relation_file_downstream",
+# t_relation_file_script = Table(
+#     "relation_file_script",
 #     mata,
 #     Column("relation_id", Integer, primary_key=True),
 #     Column("analysis_file_id", String(255)),
