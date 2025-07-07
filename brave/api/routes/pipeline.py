@@ -5,7 +5,7 @@ import json
 import os
 import glob
 from brave.api.config.config import get_settings
-from brave.api.service import context_service
+from brave.api.service import namespace_service
 from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
 from collections import defaultdict
 from brave.api.models.core import t_pipeline_components,t_pipeline_components_relation
@@ -665,16 +665,15 @@ async def import_namespace_component(namespace:str,force:bool=False):
     with get_engine().begin() as conn:
         pipeline_service.import_component(conn,namespace,force)
         pipeline_service.import_component_relation(conn,namespace,force)
-        context_service.import_context(conn,namespace,force)
+        namespace_service.import_namespace(conn,namespace,force)
     return {"message":"success"}
 
 def get_namespace_by_file(file):
     with open(file,"r") as f:
         data = json.load(f)
     return {
-        "namespace":data['context_id'],
+        "namespace_id":data['namespace_id'],
         "name":data['name'],
-        "type":data['type']
     }
 
 

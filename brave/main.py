@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse
 import os
 from brave.api.config.config import get_settings
 from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
-from brave.api.routes.context import context
+from brave.api.routes.namespace import namespace
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
     app.state.sse_service = sse_service
     asyncio.create_task(file_watcher.watch_folder())
     asyncio.create_task(sse_service.broadcast_loop())
-    # asyncio.create_task(sse_service.producer())
+    asyncio.create_task(sse_service.producer())
     asyncio.create_task(process_monitor.check_process_worker())
     yield
     
@@ -67,7 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(pipeline,prefix="/brave-api")
     app.include_router(literature_api,prefix="/brave-api")
     app.include_router(sseController,prefix="/brave-api")
-    app.include_router(context,prefix="/brave-api")
+    app.include_router(namespace,prefix="/brave-api")
 
     producer_task = None
     broadcast_task = None

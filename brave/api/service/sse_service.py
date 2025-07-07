@@ -19,6 +19,8 @@ class SSEService:
 
     async def event_generator(self, request, client_queue):
         try:
+            # 首条立即推送，确保客户端立即建立连接
+            # yield "data: connected\n\n"
             while True:
                 if await request.is_disconnected():
                     print("请求关闭!")

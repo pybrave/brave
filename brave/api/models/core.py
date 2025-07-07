@@ -157,13 +157,12 @@ t_bio_database = Table(
     Column("type", String(255))
 )
 
-t_context = Table(
-    "context",
+t_namespace = Table(
+    "t_namespace",
     meta,
     Column("id", Integer, primary_key=True),
-    Column("context_id", String(255)),
+    Column("namespace_id", String(255)),
     Column("name", String(255)),
-    Column("type", String(255))
 )
 
 # t_relation_pipeline_software = Table(
