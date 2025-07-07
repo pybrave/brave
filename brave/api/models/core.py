@@ -125,6 +125,7 @@ t_pipeline_components = Table(
     Column("img", String(255)), 
     Column("tag", String(255)), 
     Column("category", String(255)), 
+    Column("namespace", String(255)),
     # Column("parent_pipeline_id", String(255)),
     Column("content", Text),
     Column("order_index", Integer)
@@ -140,7 +141,8 @@ t_pipeline_components_relation = Table(
     # Column("pipeline_id", String(255)),
     Column("component_id", String(255)),
     Column("parent_component_id", String(255)),
-    Column("order_index", Integer)
+    Column("order_index", Integer),
+    Column("namespace", String(255))
 
 )
 
@@ -152,6 +154,15 @@ t_bio_database = Table(
     Column("database_id", String(255)),
     Column("name", String(255)),
     Column("path", String(255)),
+    Column("type", String(255))
+)
+
+t_context = Table(
+    "context",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("context_id", String(255)),
+    Column("name", String(255)),
     Column("type", String(255))
 )
 

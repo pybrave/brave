@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse
 import os
 from brave.api.config.config import get_settings
 from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
+from brave.api.routes.context import context
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -66,7 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(pipeline,prefix="/brave-api")
     app.include_router(literature_api,prefix="/brave-api")
     app.include_router(sseController,prefix="/brave-api")
-
+    app.include_router(context,prefix="/brave-api")
 
     producer_task = None
     broadcast_task = None

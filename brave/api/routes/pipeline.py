@@ -5,6 +5,7 @@ import json
 import os
 import glob
 from brave.api.config.config import get_settings
+from brave.api.service import context_service
 from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
 from collections import defaultdict
 from brave.api.models.core import t_pipeline_components,t_pipeline_components_relation
@@ -191,6 +192,7 @@ async def get_pipeline_v2(name):
         t_pipeline_components.c.component_type,
         t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
+        t_pipeline_components.c.namespace,
         cast(null(), String).label("relation_type"),
         cast(null(), String).label("parent_component_id"),
         # cast(null(), String).label("pipeline_id"),
@@ -211,6 +213,7 @@ async def get_pipeline_v2(name):
         tp2.c.component_type,
         tp2.c.install_key,
         tp2.c.content,
+        tp2.c.namespace,
         trp.c.relation_type,
         trp.c.parent_component_id,
         trp.c.order_index ,
@@ -530,19 +533,27 @@ async def save_pipeline_relation_controller(savePipelineRelation:SavePipelineRel
 async def save_pipeline_relation(conn,savePipelineRelation):
     save_pipeline_relation_dict = savePipelineRelation.dict()
     save_pipeline_relation_dict = {k:v for k,v in save_pipeline_relation_dict.items() if k!="pipeline_id"}
-  
+    if savePipelineRelation.parent_component_id:
+        parent_component = pipeline_service.find_pipeline_by_id(conn,savePipelineRelation.parent_component_id)
+        if parent_component:
+            save_pipeline_relation_dict['namespace'] = parent_component.namespace
+            namespace = parent_component.namespace
     if savePipelineRelation.relation_id:
         stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
     else:
         stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
-    conn.execute(stmt)
+        conn.execute(stmt)
+    
+    pipeline_service.write_all_component_relation(conn,namespace)
 
-    stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipelineRelation.component_id)
-    find_pipeine = conn.execute(stmt).fetchone()
+    # stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipelineRelation.component_id)
+    # find_pipeine = conn.execute(stmt).fetchone()
     # await run_in_threadpool(create_pipeline_dir, savePipelineRelation.pipeline_id, find_pipeine.content ,find_pipeine.component_type)
     # pipeline_service.create_wrap_pipeline_dir(savePipelineRelation.pipeline_id)
     # pipeline_service.create_file(savePipelineRelation.pipeline_id, find_pipeine.component_type,content)
     # content = json.loads(find_pipeine.content)
+
+
 
 @pipeline.post("/save-pipeline",tags=['pipeline'])
 async def save_pipeline(savePipeline:SavePipeline):
@@ -562,10 +573,25 @@ async def save_pipeline(savePipeline:SavePipeline):
             component_id = find_pipeine.component_id
             component_type = find_pipeine.component_type
         if find_pipeine:
-            save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="component_id" and v is not  None} 
+            namespace = find_pipeine.namespace
+            save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="component_id" and v is not  None and k!="namespace"} 
             stmt = t_pipeline_components.update().values(save_pipeline_dict).where(t_pipeline_components.c.component_id==savePipeline.component_id)
             conn.execute(stmt)
-        else:
+            
+        # else:
+        #     raise HTTPException(status_code=500, detail=f"根据{savePipeline.component_id}不能找到记录!")
+        if not find_pipeine:
+            if savePipeline.parent_component_id:
+                parent_component = pipeline_service.find_pipeline_by_id(conn,savePipeline.parent_component_id)
+                if parent_component:
+                    save_pipeline_dict['namespace'] = parent_component.namespace
+                    namespace = parent_component.namespace
+                else:
+                    raise HTTPException(status_code=500, detail=f"根据父{savePipeline.parent_component_id}不能找到记录!")
+            else:
+                namespace = savePipeline.namespace
+                if not savePipeline.namespace:
+                    raise HTTPException(status_code=500, detail=f"namespace不能为空!")
             str_uuid = str(uuid.uuid4())  
             save_pipeline_dict['component_id'] = str_uuid
             component_id = str_uuid
@@ -580,11 +606,11 @@ async def save_pipeline(savePipeline:SavePipeline):
                     component_id=component_id,
                     parent_component_id= savePipeline.parent_component_id,
                     relation_type=savePipeline.relation_type,
-                    pipeline_id=savePipeline.pipeline_id
+                    # pipeline_id=savePipeline.pipeline_id
                 ))
         content = json.loads(save_pipeline_dict['content'])
-        await run_in_threadpool(pipeline_service.create_file, component_id,content ,component_type)
-
+        await run_in_threadpool(pipeline_service.create_file,namespace, component_id,content ,component_type)
+        pipeline_service.write_all_component(conn,namespace)
     
     # t0 = time.time()
     
@@ -606,6 +632,8 @@ async def delete_pipeline_relation(relation_id: str):
     with get_engine().begin() as conn:
         stmt = t_pipeline_components_relation.delete().where(t_pipeline_components_relation.c.relation_id == relation_id)
         conn.execute(stmt)
+        component_relation = pipeline_service.find_by_relation_id(conn,relation_id)
+        pipeline_service.write_all_component_relation(conn,component_relation.namespace)
         return {"message":"success"}
 
 
@@ -629,3 +657,31 @@ async def find_by_components_id(component_id):
     with get_engine().begin() as conn:
         stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id == component_id)
         return conn.execute(stmt).mappings().first()
+
+    
+
+@pipeline.post("/import-namespace-component",tags=['pipeline'])
+async def import_namespace_component(namespace:str,force:bool=False):
+    with get_engine().begin() as conn:
+        pipeline_service.import_component(conn,namespace,force)
+        pipeline_service.import_component_relation(conn,namespace,force)
+        context_service.import_context(conn,namespace,force)
+    return {"message":"success"}
+
+def get_namespace_by_file(file):
+    with open(file,"r") as f:
+        data = json.load(f)
+    return {
+        "namespace":data['context_id'],
+        "name":data['name'],
+        "type":data['type']
+    }
+
+
+@pipeline.get("/list-namespace-file",tags=['pipeline'])
+async def list_namespace_file():
+    pipeline_dir = get_pipeline_dir()
+    namespace_list = glob.glob(f"{pipeline_dir}/*/namespace.json")
+    namespace_list = [get_namespace_by_file(item) for item in namespace_list]
+
+    return namespace_list

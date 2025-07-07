@@ -9,7 +9,7 @@ from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,
 from brave.api.config.db import get_engine
 from brave.api.models.core import t_pipeline_components, t_pipeline_components_relation
 import importlib.resources as resources
-from sqlalchemy import select, and_, join, func,insert,update
+from sqlalchemy import delete, select, and_, join, func,insert,update
 
 
 def get_pipeline_dir():
@@ -28,7 +28,7 @@ def get_module_name(item):
     # return {os.path.basename(item).replace(".py",""):item_module} 
     # f'reads-alignment-based-abundance-analysis.py_plot.{module_name}'
 
-def find_module(module_type,module_dir,module_name,file_type):
+def find_module(namespace,module_type,module_dir,module_name,file_type):
     if not module_name:
         if module_type == "nextflow":
             module_name = "main"
@@ -38,7 +38,7 @@ def find_module(module_type,module_dir,module_name,file_type):
         # raise HTTPException(status_code=500, detail=f"模块名称不能为空!")
     # if module_name =="default":
        
-    all_module = get_all_module("*",file_type)
+    all_module = get_all_module(namespace,file_type)
     if module_name is None: 
         module_name = module_type
     if module_dir not in all_module:
@@ -66,14 +66,14 @@ def get_default_module(module_type):
             "path":str(py_parse_analysis_result)
         }
     raise HTTPException(status_code=500, detail=f"{module_type}没有找到默认模块!")
-def get_all_module(module_type,file_type):
+def get_all_module(namespace,file_type):
     suffix = file_type
     # if module_type.startswith("py_"):
     #     suffix = "py"
     # else:
     #     suffix = "nf"
     pipeline_dir =  get_pipeline_dir()
-    nextflow_list = glob.glob(f"{pipeline_dir}/{module_type}/*/*.{suffix}")
+    nextflow_list = glob.glob(f"{pipeline_dir}/{namespace}/*/*/*.{suffix}")
     result = {}
     for item in nextflow_list:
         
@@ -110,9 +110,9 @@ def delete_wrap_pipeline_dir(pipeline_key):
     #     if not os.path.exists(item):
     #         os.makedirs(item) 
 
-def create_file(component_id,content,component_type):
+def create_file(namespace,component_id,content,component_type):
     pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}"
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
     if component_type == "pipeline":
         analysisPipline = f"{pipeline_dir}/pipeline/{component_id}/main.nf"
         # pipelinieJson = f"{pipeline_dir}/main.json"
@@ -204,6 +204,8 @@ def list_pipeline(conn,queryPipeline:QueryPipeline):
     conditions = []
     if queryPipeline.component_type is not None:
         conditions.append(t_pipeline_components.c.component_type == queryPipeline.component_type)
+    if queryPipeline.namespace is not None:
+        conditions.append(t_pipeline_components.c.namespace == queryPipeline.namespace)
     # if analysisResultQuery.ids is not None:
     #     conditions.append(analysis_result.c.id.in_(analysisResultQuery.ids))
     # if analysisResultQuery.analysis_method is not None:
@@ -243,3 +245,63 @@ def page_pipeline(conn,query:PagePipelineQuery):
         "page_number":query.page_number,
         "page_size":query.page_size
     }
+
+
+def write_all_component(conn,namespace):
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
+    find_pipeline = conn.execute(stmt).mappings().all()
+    find_pipeline = [ {k:v for k,v in item.items() if k!="id"} for item in find_pipeline]
+    with open(f"{pipeline_dir}/pipeline_component.json","w") as f:
+        json.dump(find_pipeline,f)
+     
+
+def import_component(conn,namespace,force=False):
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    with open(f"{pipeline_dir}/pipeline_component.json","r") as f:
+        find_pipeline = json.load(f)
+    for item in find_pipeline:
+        find_pipeline_component = find_pipeline_by_id(conn,item['component_id'])
+        if find_pipeline_component:
+            if force:
+                update_stmt = update(t_pipeline_components).where(t_pipeline_components.c.component_id == item['component_id']).values(item)
+                conn.execute(update_stmt)
+        else:
+            conn.execute(insert(t_pipeline_components).values(item))    
+
+def write_all_component_relation(conn,namespace):
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.namespace == namespace)
+    find_pipeline = conn.execute(stmt).mappings().all()
+    find_pipeline = [ {k:v for k,v in item.items() if k!="id"} for item in find_pipeline]
+    with open(f"{pipeline_dir}/pipeline_component_relation.json","w") as f:
+        json.dump(find_pipeline,f)
+
+def import_component_relation(conn,namespace,force=False):
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    with open(f"{pipeline_dir}/pipeline_component_relation.json","r") as f:
+        find_pipeline = json.load(f)
+    for item in find_pipeline:
+        find_pipeline_component_relation = find_by_relation_id(conn,item['relation_id'])
+        if find_pipeline_component_relation:
+            if force:
+                update_stmt = update(t_pipeline_components_relation).where(t_pipeline_components_relation.c.relation_id == item['relation_id']).values(item)
+                conn.execute(update_stmt)
+        else:
+            conn.execute(insert(t_pipeline_components_relation).values(item))   
+
+
+def find_by_relation_id(conn,relation_id):
+    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.relation_id == relation_id)
+    find_pipeline = conn.execute(stmt).mappings().first()
+    return find_pipeline
+
+
+
+def find_component_by_namespace(conn,namespace):
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
+    return conn.execute(stmt).mappings().all()
