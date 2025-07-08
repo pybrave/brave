@@ -135,7 +135,8 @@ t_pipeline_components = Table(
 t_pipeline_components_relation = Table(
     "pipeline_components_relation",
     meta,
-    Column("relation_id", Integer, primary_key=True),
+    Column("id", Integer, primary_key=True),
+    Column("relation_id", String(255)),
     Column("relation_type", String(255)), 
     Column("install_key", String(255)),
     # Column("pipeline_id", String(255)),

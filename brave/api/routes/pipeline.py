@@ -553,6 +553,7 @@ async def save_pipeline_relation(conn,savePipelineRelation):
     if savePipelineRelation.relation_id:
         stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
     else:
+        save_pipeline_relation_dict['relation_id'] = str(uuid.uuid4())
         stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
         conn.execute(stmt)
     
@@ -640,7 +641,7 @@ async def save_pipeline(savePipeline:SavePipeline):
 
 
 @pipeline.delete("/delete-pipeline-relation/{relation_id}")
-async def delete_pipeline_relation(relation_id: int):
+async def delete_pipeline_relation(relation_id: str):
     with get_engine().begin() as conn:
         component_relation = pipeline_service.find_by_relation_id(conn,relation_id)
         if not component_relation:

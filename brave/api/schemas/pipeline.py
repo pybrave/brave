@@ -17,7 +17,7 @@ class SavePipeline(BaseModel):
     img:Optional[str]=None
 
 class SavePipelineRelation(BaseModel):
-    relation_id:Optional[int]=None
+    relation_id:Optional[str]=None
     component_id: Optional[str]=None
     # pipeline_id: Optional[str]=None
     parent_component_id:Optional[str]=None

@@ -36,10 +36,12 @@ def import_namespace(conn,namespace_id,force=False):
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{namespace_id}"
     with open(f"{pipeline_dir}/namespace.json","r") as f:
-        find_namespace = json.load(f)
-    if force:
-        update_stmt = t_namespace.update().where(t_namespace.c.namespace_id == namespace_id).values(find_namespace)
-        conn.execute(update_stmt)
+        namespace_json = json.load(f)
+    find_namespace_db = find_namespace(conn,namespace_id)
+    if find_namespace_db:
+        if force:
+            update_stmt = t_namespace.update().where(t_namespace.c.namespace_id == namespace_id).values(namespace_json)
+            conn.execute(update_stmt)
     else:
-        conn.execute(insert(t_namespace).values(find_namespace))
-    return find_namespace
+        conn.execute(insert(t_namespace).values(namespace_json))
+    return namespace_json

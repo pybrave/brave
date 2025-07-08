@@ -305,7 +305,7 @@ def import_component_relation(conn,namespace,force=False):
             conn.execute(insert(t_pipeline_components_relation).values(item))   
 
 
-def find_by_relation_id(conn,relation_id:int):
+def find_by_relation_id(conn,relation_id:str):
     stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.relation_id == relation_id)
     find_pipeline = conn.execute(stmt).mappings().first()
     return find_pipeline
