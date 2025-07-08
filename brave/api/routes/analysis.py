@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends,HTTPException
+from fastapi import APIRouter,Depends,HTTPException, Request
 from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
 from brave.api.schemas.bio_database import QueryBiodatabase
@@ -27,7 +27,7 @@ from brave.api.utils.get_db_utils import get_ids
 from brave.api.config.config import get_settings
 from brave.api.routes.pipeline import get_pipeline_file
 import textwrap
-from brave.api.routes.sample_result import find_analyais_result_by_ids
+# from brave.api.routes.sample_result import find_analyais_result_by_ids
 from brave.api.routes.sample_result import parse_result_one
 from brave.api.service.pipeline  import find_module
 import  brave.api.service.pipeline as pipeline_service
@@ -95,11 +95,11 @@ def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,ve
 
 
 
-def parse_analysis(conn,request_param,module_name,component_id,component_content,component_file_list):
+def parse_analysis(conn,request_param,module_name,namespace,component_id,component_content,component_file_list):
     
     
   
-    py_module = find_module("py_parse_analysis",component_id,module_name,'py')['module']
+    py_module = find_module(namespace,"py_parse_analysis",component_id,module_name,'py')['module']
 
     # module_name = f'brave.api.parse_analysis.{module_name}'
     # if importlib.util.find_spec(module) is None:
@@ -169,7 +169,7 @@ async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False)
         component_content = json.loads(component.content)
         parse_analysis_module = component_content.get('parseAnalysisModule')
         component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_input_file")
-        parse_analysis_result = parse_analysis(conn,request_param,parse_analysis_module,component_id,component_content,component_file_list)
+        parse_analysis_result = parse_analysis(conn,request_param,parse_analysis_module,component.namespace,component_id,component_content,component_file_list)
         if not save:
             return parse_analysis_result
     
@@ -236,7 +236,7 @@ async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False)
             # script_dir = pipeline_id
             # if "scriptDir" in component_content:
             #     script_dir = component_content['scriptDir']
-            component_script = find_module("nextflow",component_id,None,"nf")['path']
+            component_script = find_module(component.namespace,"nextflow",component_id,None,"nf")['path']
 
             # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
             new_analysis['pipeline_script'] = component_script
@@ -322,7 +322,7 @@ async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
             raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
 
 
-        py_module = find_module("py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
+        py_module = find_module(component_.namespace,"py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
         module = importlib.import_module(py_module)
         parse = getattr(module, "parse")
 
@@ -489,7 +489,9 @@ def start_background( cwd,cmd):
     return proc.pid
 
 @analysis_api.post("/run-analysis/{analysis_id}")
-async def run_analysis(analysis_id):
+async def run_analysis(request: Request,analysis_id):
+    process_monitor = request.app.state.process_monitor
+    
     with get_engine().begin() as conn:
         stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
         result = conn.execute(stmt)
@@ -509,7 +511,8 @@ async def run_analysis(analysis_id):
     analysis_dict = dict(analysis_)
 
     analysis_dict['process_id'] = pid
-    await queue_process.put(analysis_dict)
+    # await queue_process.put(analysis_dict)
+    await process_monitor.add_process(analysis_dict)
     return {"pid":pid}
 
 # @analysis_api.get("/monitor-analysis/{analysis_id}")
@@ -526,3 +529,14 @@ async def run_analysis(analysis_id):
 #     if os.path.exists(trace_file):
 #         df = pd.read_csv(trace_file,sep="\t")
 #     return  df.to_dict(orient="records")   
+
+@analysis_api.get("/find-analysis-by-id/{analysis_id}") 
+async def find_analysis_by_id(analysis_id):
+    with get_engine().begin() as conn:
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        result = conn.execute(stmt)
+        return result.mappings().first()
+
+
+
+

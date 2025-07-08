@@ -15,22 +15,29 @@ async def file_change(change,file_path,sse_service):
     if "trace" in file_path:
         analysis_id = os.path.basename(file_path).replace(".trace.log","")
         # await asyncio.sleep(2)
-        await sse_service.push_message(json.dumps({
+        data = json.dumps({
             "analysis_id":analysis_id,
             "msgType":"trace"
-        }))
+        })
+        msg = {"group": "default", "data": data}
+        await sse_service.push_message(msg)
     elif "workflow" in file_path:
         analysis_id = os.path.basename(file_path).replace(".workflow.log","")
         # await asyncio.sleep(2)
-        await sse_service.push_message(json.dumps({
+        data = json.dumps({
             "analysis_id":analysis_id,
             "msgType":"workflow_log"
-        }))
+        })
+        msg = {"group": "default", "data": data}
+        await sse_service.push_message(msg)
     pass
 
-async def process_end(analysis_id,sse_service):
+async def process_end(analysis,sse_service):
     # sse_service = app.state.sse_service
-    await sse_service.push_message(json.dumps({
-        "analysis_id":analysis_id,
-        "msgType":"process_end"
-    }))
+    data = json.dumps({
+        "analysis_id":analysis.get("analysis_id"),
+        "msgType":"process_end",
+        "analysis":analysis
+    })
+    msg = {"group": "default", "data": data}
+    await sse_service.push_message(msg)

@@ -48,6 +48,6 @@ async def delete_namespace_by_namespace_id(namespace_id:str):
         if find_namespace:
             find_component =  pipeline_service.find_component_by_namespace(conn,find_namespace.namespace_id)
             if find_component:
-                raise HTTPException(status_code=400, detail=f"namespace {find_namespace.name} 存在，不能删除")
+                raise HTTPException(status_code=400, detail=f"namespace {find_namespace.name} 存在组件，不能删除")
         namespace_service.delete_namespace(conn,namespace_id)
         return {"message":"success"}

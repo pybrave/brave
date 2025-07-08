@@ -6,12 +6,12 @@ from brave.api.models.core import analysis
 import asyncio
 import inspect
 import logging
-from brave.api.service.sse_service import SSEService
+from brave.api.service.sse_service import   SSESessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class FileWatcher:
-    def __init__(self, watch_path: str,sse_service: SSEService, listener_prefix: str = "file"):
+    def __init__(self, watch_path: str,sse_service: SSESessionService, listener_prefix: str = "file"):
         """
         初始化 FileWatcher 实例。
         

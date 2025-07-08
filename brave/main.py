@@ -13,6 +13,7 @@ from brave.api.routes.literature import literature_api
 from brave.api.routes.sse import sseController
 import asyncio
 # from brave.api.service.watch_service import watch_folder,startup_process_event
+from brave.api.service.sse_service import SSESessionService
 from brave.api.service.file_watcher_service import FileWatcher
 from brave.api.service.process_monitor_service import ProcessMonitor
 from brave.api.routes.bio_database import bio_database
@@ -22,6 +23,7 @@ import os
 from brave.api.config.config import get_settings
 from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
 from brave.api.routes.namespace import namespace
+from brave.api.routes.file_operation import file_operation  
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -34,14 +36,17 @@ async def lifespan(app: FastAPI):
         os.makedirs(monitor)
 
     # asyncio.create_task(watch_folder(monitor))
-    sse_service = SSEService()
+    # sse_service = SSEService()
+    sse_service = SSESessionService()
     file_watcher = FileWatcher(watch_path=monitor,sse_service=sse_service)
     process_monitor = ProcessMonitor(sse_service=sse_service)
     app.state.sse_service = sse_service
+    app.state.file_watcher = file_watcher
+    app.state.process_monitor = process_monitor
     asyncio.create_task(file_watcher.watch_folder())
     asyncio.create_task(sse_service.broadcast_loop())
-    asyncio.create_task(sse_service.producer())
-    asyncio.create_task(process_monitor.check_process_worker())
+    # asyncio.create_task(sse_service.producer())
+    asyncio.create_task(process_monitor.startup_process_event())
     yield
     
 def create_app() -> FastAPI:
@@ -68,7 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(literature_api,prefix="/brave-api")
     app.include_router(sseController,prefix="/brave-api")
     app.include_router(namespace,prefix="/brave-api")
-
+    app.include_router(file_operation,prefix="/brave-api")
     producer_task = None
     broadcast_task = None
 

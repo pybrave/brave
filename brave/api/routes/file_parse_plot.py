@@ -22,12 +22,14 @@ import pandas as pd
 from brave.api.config.db import get_engine
 from brave.api.models.core import samples
 import inspect
+import  brave.api.service.pipeline as pipeline_service
+
 # from brave.api.routes.analysis import get_db_value
 from brave.api.utils.get_db_utils import get_ids
 file_parse_plot = APIRouter()
 from brave.api.config.config import get_settings
 from pathlib import Path
-from brave.api.routes.sample_result import find_analyais_result_by_ids
+from brave.api.service.analysis_result_service import find_analyais_result_by_ids
 
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -50,11 +52,11 @@ def get_sample(project):
         return df
 
      
-def get_db_dict(db_field,request_param):
+def get_db_dict(conn,db_field,request_param):
     db_ids_dict = {key: get_ids(request_param[key]) for key in db_field if key in request_param}
     # with get_db_session() as session:
     # get_db_value
-    db_dict = { key:find_analyais_result_by_ids(value) for key,value in  db_ids_dict.items()}
+    db_dict = { key:find_analyais_result_by_ids(conn,value) for key,value in  db_ids_dict.items()}
     return db_dict
 
 # 实现模块默认隔离，通过module_dir实现模块共享
@@ -64,35 +66,40 @@ def get_db_dict(db_field,request_param):
 # pipeline/reads-alignment-based-abundance-analysis/py_plot/abundance_alpha_diversity.py
 def parse_result(request_param,module_name):
     module_dir = request_param['component_id']
-    # if "module_dir" in request_param:
-    #     module_dir = request_param['module_dir']
-    py_module = find_module("py_plot",module_dir,module_name,'py')['module']
-    # if module_dir not in all_module:
-    #     raise HTTPException(status_code=500, detail=f"py_plot: 目录{module_dir}没有找到!")
-    # py_module_dir = all_module[module_dir]
-    # if module_name not in py_module_dir:
-    #     raise HTTPException(status_code=500, detail=f"py_plot: 目录{module_dir}文件{module_name}没有找到!")
-    # py_module = py_module_dir[module_name]['module']
-    module = importlib.import_module(py_module)
-    parse_data = getattr(module, "parse_data")
-    sig = inspect.signature(parse_data)
-    params = sig.parameters.keys()
-    args = {
-        "request_param":request_param,
-    }
-    if hasattr(module, "get_db_field"):
-        get_db_field = getattr(module, "get_db_field")
-        db_field = get_db_field()
-        db_dict = get_db_dict(db_field,request_param)
-        if "db_dict" in params:
-            args.update({"db_dict":db_dict})
-        else:
-            args.update(db_dict)
-    
-    if "sample" in params:
-        sample = get_sample(request_param['project'])
-        args.update({"sample":sample})
-    
+    with get_engine().begin() as conn:
+        component = pipeline_service.find_pipeline_by_id(conn, module_dir)
+        if not component:
+            raise HTTPException(status_code=500, detail=f"根据{module_dir}不能找到记录!")
+
+        # if "module_dir" in request_param:
+        #     module_dir = request_param['module_dir']
+        py_module = find_module(component.namespace,"py_plot",module_dir,module_name,'py')['module']
+        # if module_dir not in all_module:
+        #     raise HTTPException(status_code=500, detail=f"py_plot: 目录{module_dir}没有找到!")
+        # py_module_dir = all_module[module_dir]
+        # if module_name not in py_module_dir:
+        #     raise HTTPException(status_code=500, detail=f"py_plot: 目录{module_dir}文件{module_name}没有找到!")
+        # py_module = py_module_dir[module_name]['module']
+        module = importlib.import_module(py_module)
+        parse_data = getattr(module, "parse_data")
+        sig = inspect.signature(parse_data)
+        params = sig.parameters.keys()
+        args = {
+            "request_param":request_param,
+        }
+        if hasattr(module, "get_db_field"):
+            get_db_field = getattr(module, "get_db_field")
+            db_field = get_db_field()
+            db_dict = get_db_dict(conn,db_field,request_param)
+            if "db_dict" in params:
+                args.update({"db_dict":db_dict})
+            else:
+                args.update(db_dict)
+        
+        if "sample" in params:
+            sample = get_sample(request_param['project'])
+            args.update({"sample":sample})
+        
     # data = None
     # if len(params) ==1:
     #     data = parse_data(request_param)

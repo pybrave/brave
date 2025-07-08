@@ -8,7 +8,7 @@ from brave.api.config.config import get_settings
 from brave.api.service import namespace_service
 from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
 from collections import defaultdict
-from brave.api.models.core import t_pipeline_components,t_pipeline_components_relation
+from brave.api.models.core import t_pipeline_components,t_pipeline_components_relation,t_namespace
 import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import select, and_, join, func,insert,update
@@ -193,11 +193,14 @@ async def get_pipeline_v2(name):
         t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
         t_pipeline_components.c.namespace,
+        t_namespace.c.name.label("namespace_name"),
         cast(null(), String).label("relation_type"),
         cast(null(), String).label("parent_component_id"),
         # cast(null(), String).label("pipeline_id"),
         cast(null(), String).label("order_index"),
         cast(null(), String).label("relation_id")
+    ).select_from(
+        t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
     ).where(
         t_pipeline_components.c.component_id == name,
         t_pipeline_components.c.component_type == "pipeline"
@@ -207,6 +210,7 @@ async def get_pipeline_v2(name):
     tp2 = aliased(t_pipeline_components)
     trp = t_pipeline_components_relation
     fp = aliased(t_pipeline_components)
+    tn = aliased(t_namespace)
 
     recursive = select(
         tp2.c.component_id,
@@ -214,13 +218,17 @@ async def get_pipeline_v2(name):
         tp2.c.install_key,
         tp2.c.content,
         tp2.c.namespace,
+        tn.c.name.label("namespace_name"),
         trp.c.relation_type,
         trp.c.parent_component_id,
         trp.c.order_index ,
         trp.c.relation_id
-    ).join(trp, tp2.c.component_id == trp.c.component_id) \
-    .join(fp, fp.c.component_id == trp.c.parent_component_id) 
-    # .where(trp.c.pipeline_id == name) 
+    ).select_from(
+        tp2.outerjoin(tn, tp2.c.namespace == tn.c.namespace_id)
+        .join(trp, tp2.c.component_id == trp.c.component_id)
+        .join(fp, fp.c.component_id == trp.c.parent_component_id)
+    )
+    # .where(trp.c.pipeline_id == name)
 
     # union_all 并组成 CTE
     cte = base.union_all(recursive).cte("full_pipeline", recursive=True)
@@ -296,9 +304,13 @@ def build_pipeline_structure(id_to_node,children_map,root_item):
 @pipeline.post("/get-module-content",tags=['pipeline'])
 async def get_module_content(queryModule:QueryModule):
     module_dir = queryModule.component_id
+    with get_engine().begin() as conn:
+        find_pipeine = pipeline_service.find_pipeline_by_id(conn,queryModule.component_id)
+        if not find_pipeine:
+            raise HTTPException(status_code=500, detail=f"根据{queryModule.component_id}不能找到记录!")
     # if queryModule.module_dir:
     #     module_dir = queryModule.module_dir
-    py_module = pipeline_service.find_module(queryModule.module_type,module_dir,queryModule.module_name,queryModule.file_type)
+    py_module = pipeline_service.find_module(find_pipeine.namespace,queryModule.module_type,module_dir,queryModule.module_name,queryModule.file_type)
     py_module_path = py_module['path']
     if os.path.exists(py_module_path):
         with open(py_module_path,"r") as f:
@@ -470,7 +482,7 @@ async def get_downstream_analysis_list(analysis_method):
     downstream_dict = {item['saveAnalysisMethod']: item for item in downstream_list  if 'saveAnalysisMethod' in item}
     return downstream_dict[analysis_method]
     
-@pipeline.post("/find-pipeline",tags=['pipeline'],response_model=Pipeline)
+@pipeline.post("/find-pipeline",tags=['pipeline'])
 async def find_pipeline_by_id(queryPipeline:QueryPipeline):
     with get_engine().begin() as conn:
         return pipeline_service.find_pipeline_by_id(conn,queryPipeline.component_id)
@@ -628,26 +640,31 @@ async def save_pipeline(savePipeline:SavePipeline):
 
 
 @pipeline.delete("/delete-pipeline-relation/{relation_id}")
-async def delete_pipeline_relation(relation_id: str):
+async def delete_pipeline_relation(relation_id: int):
     with get_engine().begin() as conn:
+        component_relation = pipeline_service.find_by_relation_id(conn,relation_id)
+        if not component_relation:
+            raise HTTPException(status_code=500, detail=f"根据{relation_id}不能找到记录!") 
         stmt = t_pipeline_components_relation.delete().where(t_pipeline_components_relation.c.relation_id == relation_id)
         conn.execute(stmt)
-        component_relation = pipeline_service.find_by_relation_id(conn,relation_id)
         pipeline_service.write_all_component_relation(conn,component_relation.namespace)
         return {"message":"success"}
 
 
 
-@pipeline.delete("/delete-pipeline/{pipeline_id}")
-async def delete_pipeline(component_id: str):
+@pipeline.delete("/delete-component/{component_id}")
+async def delete_component(component_id: str):
+
     with get_engine().begin() as conn:
         stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.parent_component_id ==component_id)
-        find_pipeine = conn.execute(stmt).fetchone()
+        parent_find_pipeine = conn.execute(stmt).fetchone()
+        stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.component_id ==component_id)
+        child_find_pipeine = conn.execute(stmt).fetchall()
 
-        if  find_pipeine:
+        if  parent_find_pipeine or child_find_pipeine:
             raise HTTPException(status_code=500, detail=f"不能删除存在关联!") 
         else:
-            stmt = t_pipeline_components.delete().where(t_pipeline_components.c.pipeline_id == component_id)
+            stmt = t_pipeline_components.delete().where(t_pipeline_components.c.component_id == component_id)
             conn.execute(stmt)
             pipeline_service.delete_wrap_pipeline_dir(component_id)
             return {"message":"success"}
@@ -684,3 +701,15 @@ async def list_namespace_file():
     namespace_list = [get_namespace_by_file(item) for item in namespace_list]
 
     return namespace_list
+
+
+@pipeline.get("/get-depend-component/{component_id}",tags=['pipeline'])
+async def get_depend_component(component_id):
+    with get_engine().begin() as conn:
+        find_component = pipeline_service.find_pipeline_by_id(conn, component_id)
+        if not find_component:
+            raise HTTPException(status_code=404, detail=f"Component {component_id} not found")
+        namespace = find_component.namespace
+        child_depend_component = pipeline_service.get_child_depend_component(conn, namespace, component_id)
+        parent_depend_component = pipeline_service.get_parent_depend_component(conn, namespace, component_id)
+        return list(child_depend_component) + list(parent_depend_component)

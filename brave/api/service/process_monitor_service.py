@@ -1,3 +1,4 @@
+from ast import Dict, Set
 import asyncio
 import psutil
 from watchfiles import awatch
@@ -9,17 +10,21 @@ import logging
 from importlib.resources import files
 from importlib import import_module
 import inspect
-from brave.api.service.sse_service import SSEService
+from brave.api.service.sse_service import SSESessionService
+from collections import defaultdict
+from typing import Dict, Set
 # 创建 logger
 logger = logging.getLogger(__name__)
 
 class ProcessMonitor:
-    def __init__(self, sse_service: SSEService,check_interval: int = 5  ):
+    def __init__(self, sse_service: SSESessionService,check_interval: int = 5  ):
         self.queue_process = asyncio.Queue()
         self.queue_lock = asyncio.Lock()  # 保证数据库更新和队列操作安全
         self.check_interval = check_interval  # 检查间隔
         self.listener_files = self._load_listener_files()
         self.sse_service = sse_service
+        self.analysis_id_to_queue: Dict[str, Set[asyncio.Queue]] = defaultdict(set)
+        
     def _load_listener_files(self):
         """
         加载监听器文件列表
@@ -59,7 +64,8 @@ class ProcessMonitor:
 
         logger.info(f"队列初始化完毕，任务数：{self.queue_process.qsize()}")
         # 启动进程检查工作
-        asyncio.create_task(self.check_process_worker())
+        # asyncio.create_task()
+        await self.check_process_worker()
 
     async def check_process_worker(self):
         """
@@ -81,7 +87,7 @@ class ProcessMonitor:
             except (psutil.NoSuchProcess, ValueError) as e:
                 logger.warning(f"进程 {process_id} 不存在或非 nextflow，清理数据库: {e}")
                 # 更新数据库，将 process_id 设为 None
-                await self.clean_up_process(analysis_id, process_id)
+                await self.clean_up_process(item)
             else:
                 # 进程存在且符合要求，延迟后重新入队
                 await asyncio.sleep(self.check_interval)
@@ -89,10 +95,11 @@ class ProcessMonitor:
             finally:
                 self.queue_process.task_done()
 
-    async def clean_up_process(self, analysis_id: str, process_id: str):
+    async def clean_up_process(self, item):
         """
         清理数据库中的 process_id 字段，并触发监听器事件
         """
+        analysis_id = item.get("analysis_id")
         # 确保数据库操作的线程安全
         async with self.queue_lock:
             with get_engine().begin() as conn:
@@ -104,6 +111,12 @@ class ProcessMonitor:
                 conn.execute(stmt)
                 conn.commit()
 
-            logger.info(f"清理完成 analysis id={analysis_id}")
-            await self.execute_listener("process_end", {"analysis_id": analysis_id,"sse_service": self.sse_service })
+                logger.info(f"清理完成 analysis id={analysis_id}")
+            await self.execute_listener("process_end", {"analysis": item,"sse_service": self.sse_service })
 
+    async def add_process(self, analysis_dict):
+        async with self.queue_lock:
+            await self.queue_process.put(analysis_dict)
+
+    async def get_process(self):
+        return await self.queue_process.get()

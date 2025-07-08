@@ -75,12 +75,21 @@ sseController = APIRouter()
 # from brave.api.service.sse_service import sse_service  # 从 service.py 导入
 
 
-@sseController.get("/sse")
-async def sse(request: Request):
+# @sseController.get("/sse")
+# async def sse(request: Request):
+#     q = asyncio.Queue()
+#     sse_service = request.app.state.sse_service  # 从 app.state 获取实例
+#     sse_service.add_client(q)
+#     return StreamingResponse(sse_service.event_generator(request, q), media_type="text/event-stream")
+
+
+@sseController.get("/sse-group")
+async def sse_group(request: Request,group="default"):
     q = asyncio.Queue()
     sse_service = request.app.state.sse_service  # 从 app.state 获取实例
-    sse_service.add_client(q)
-    return StreamingResponse(sse_service.event_generator(request, q), media_type="text/event-stream")
+    sse_service.add_client(q,group)
+    return StreamingResponse(sse_service.event_generator(request, q,group), media_type="text/event-stream")
+
 
 @sseController.get("/send")
 async def send_message(msg: str, request: Request):
