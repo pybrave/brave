@@ -5,6 +5,7 @@ class AnalysisResultQuery(BaseModel):
     # id: Optional[int]
     analysis_method:Optional[list]=None
     component_ids:Optional[list]=None
+    component_id:Optional[str]=None
     project:Optional[str]=None
     querySample:Optional[bool]=True
     analysis_type:Optional[str]=None

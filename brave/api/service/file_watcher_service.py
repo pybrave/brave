@@ -7,7 +7,7 @@ import asyncio
 import inspect
 import logging
 from brave.api.service.sse_service import   SSESessionService
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class FileWatcher:

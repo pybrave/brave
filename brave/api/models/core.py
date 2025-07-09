@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Table
+from datetime import datetime
+from sqlalchemy import Column, DateTime, Table
 from sqlalchemy.sql.sqltypes import Integer, String
 from brave.api.config.db import meta
 # from sqlalchemy.dialects.mysql import LONGTEXT
@@ -143,7 +144,9 @@ t_pipeline_components_relation = Table(
     Column("component_id", String(255)),
     Column("parent_component_id", String(255)),
     Column("order_index", Integer),
-    Column("namespace", String(255))
+    Column("namespace", String(255)),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
 
 )
 

@@ -21,6 +21,8 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         conditions.append(analysis_result.c.analysis_type == analysisResultQuery.analysis_type)
     if analysisResultQuery.component_ids is not None:
         conditions.append(analysis_result.c.component_id.in_(analysisResultQuery.component_ids))
+    if analysisResultQuery.component_id is not None:
+        conditions.append(analysis_result.c.component_id == analysisResultQuery.component_id)
     stmt= stmt.where(and_( *conditions))
     
     result  = conn.execute(stmt)

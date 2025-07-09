@@ -10,6 +10,7 @@ from brave.api.config.db import get_engine
 from brave.api.models.core import t_namespace, t_pipeline_components, t_pipeline_components_relation
 import importlib.resources as resources
 from sqlalchemy import delete, select, and_, join, func,insert,update
+from datetime import datetime
 
 
 def get_pipeline_dir():
@@ -220,9 +221,12 @@ def list_pipeline(conn,queryPipeline:QueryPipeline):
 
 def format_pipeline_componnet_one(item):
     content = json.loads(item['content'])
-    item = {**{k:v for k,v in item.items() if k != 'content'},**content}
+    item = {**content,**{k:v for k,v in item.items() if k != 'content'}}
     if 'img' in item:
-        item['img'] = f"/brave-api/img/{item['img']}"
+        if not item['img']:
+            item['img'] = f"/brave-api/img/pipeline.jpg"
+        else:
+            item['img'] = f"/brave-api/img/{item['namespace']}/{item['component_type']}/{item['component_id']}/{item['img']}"
     return item
 
 def page_pipeline(conn,query:PagePipelineQuery):
@@ -280,15 +284,19 @@ def import_component(conn,namespace,force=False):
                 conn.execute(update_stmt)
         else:
             conn.execute(insert(t_pipeline_components).values(item))    
+def datetime_converter(o):
+    if isinstance(o, datetime):
+        return o.isoformat()
+    raise TypeError(f"Type {type(o)} not serializable")
 
 def write_all_component_relation(conn,namespace):
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{namespace}"
     stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.namespace == namespace)
     find_pipeline = conn.execute(stmt).mappings().all()
-    find_pipeline = [ {k:v for k,v in item.items() if k!="id"} for item in find_pipeline]
+    find_pipeline = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in find_pipeline]
     with open(f"{pipeline_dir}/pipeline_component_relation.json","w") as f:
-        json.dump(find_pipeline,f)
+        json.dump(find_pipeline,f, default=datetime_converter)
 
 def import_component_relation(conn,namespace,force=False):
     pipeline_dir = get_pipeline_dir()
@@ -361,3 +369,14 @@ def get_parent_depend_component(conn, namespace, component_id):
         t_pipeline_components_relation.c.namespace == namespace
     )
     return conn.execute(stmt).mappings().all()
+
+
+
+
+def get_child_component_count(conn,namespace, component_id,relation_type):
+    stmt = select(func.count()).select_from(t_pipeline_components_relation).where(
+        t_pipeline_components_relation.c.parent_component_id == component_id,
+        t_pipeline_components_relation.c.relation_type == relation_type,
+        t_pipeline_components_relation.c.namespace == namespace
+    )
+    return conn.execute(stmt).scalar()

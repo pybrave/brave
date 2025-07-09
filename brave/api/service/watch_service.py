@@ -11,7 +11,7 @@ import logging
 from sqlalchemy import  select, update
 import inspect
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 listener_files = files("brave.api.listener")

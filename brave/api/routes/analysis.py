@@ -285,6 +285,12 @@ async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False)
         # print()
     return {"msg":"success"}
 
+def get_all_files_recursive_v2(directory):
+    file_list=[]
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_list.append(os.path.join(root, file).replace(directory,""))
+    return file_list
 
 
 def get_all_files_recursive(directory,dir_name,file_dict):
@@ -293,6 +299,17 @@ def get_all_files_recursive(directory,dir_name,file_dict):
         for file in files:
             file_list.append(os.path.join(root, file).replace(directory,""))
     return file_dict.update({dir_name:file_list})
+
+@analysis_api.get("/analysis/browse-output-dir/{analysis_id}")
+async def browse_output_dir(analysis_id):
+   with get_engine().begin() as conn:
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        result = conn.execute(stmt).mappings().first()
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
+        output_dir = result['output_dir']
+        file_list = get_all_files_recursive_v2(output_dir)
+        return file_list
 
 # 结果解析
 @analysis_api.post("/fast-api/parse-analysis-result/{analysis_id}")
@@ -313,13 +330,17 @@ async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
         parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
         
         component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
+        if len(component_file_list) == 0:
+            return {"error":"组件没有添加输出文件,请检查!"}
+            # raise HTTPException(status_code=500, detail=f"组件{component_id}没有添加输出文件,请检查!")
         component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
         file_format_list = [
             {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
             for item in component_file_content_list if 'fileFormat' in item
         ]
         if not file_format_list:
-            raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
+            return {"error":"组件的输出文件没有配置fileFormat!请检查!"}
+            # raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
 
 
         py_module = find_module(component_.namespace,"py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
@@ -378,10 +399,7 @@ async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
         if save:
             analysis_result_service.save_or_update_analysis_result_list( conn,result_list)
             # parse_result_oneV2(res,item['name'],result['project'],"V1.0",analysis_id)
-    return {
-        "result_dict":result_dict,
-        "file_dict":file_dict
-    }
+    return {"result_dict":result_dict,"file_format_list":file_format_list,"file_dict":file_dict}
 
 
 

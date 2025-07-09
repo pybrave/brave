@@ -185,64 +185,119 @@ def get_pipeline_item(item):
 
 
 @pipeline.get("/get-pipeline-v2/{name}",tags=['pipeline'])
-async def get_pipeline_v2(name):
+async def get_pipeline_v2(name,component_type="pipeline"):
    # 创建递归 CTE
-    base = select(
+    # base = select(
+    #     t_pipeline_components.c.component_id,
+    #     t_pipeline_components.c.component_type,
+    #     t_pipeline_components.c.install_key,
+    #     t_pipeline_components.c.content,
+    #     t_pipeline_components.c.namespace,
+    #     t_namespace.c.name.label("namespace_name"),
+    #     cast(null(), String).label("relation_type"),
+    #     cast(null(), String).label("parent_component_id"),
+    #     # cast(null(), String).label("pipeline_id"),
+    #     cast(null(), String).label("order_index"),
+    #     cast(null(), String).label("relation_id")
+    # ).select_from(
+    #     t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
+    # ).where(
+    #     t_pipeline_components.c.component_id == name,
+    #     t_pipeline_components.c.component_type == "pipeline"
+    # )
+
+    # # 递归部分
+    # tp2 = aliased(t_pipeline_components)
+    # trp = t_pipeline_components_relation
+    # fp = aliased(t_pipeline_components)
+    # tn = aliased(t_namespace)
+
+    # recursive = select(
+    #     tp2.c.component_id,
+    #     tp2.c.component_type,
+    #     tp2.c.install_key,
+    #     tp2.c.content,
+    #     tp2.c.namespace,
+    #     tn.c.name.label("namespace_name"),
+    #     trp.c.relation_type,
+    #     trp.c.parent_component_id,
+    #     trp.c.order_index ,
+    #     trp.c.relation_id
+    # ).select_from(
+    #     tp2.outerjoin(tn, tp2.c.namespace == tn.c.namespace_id)
+    #     .join(trp, tp2.c.component_id == trp.c.component_id)
+    #     .join(fp, fp.c.component_id == trp.c.parent_component_id)
+    # )
+    # # .where(trp.c.pipeline_id == name)
+
+    # # union_all 并组成 CTE
+    # cte = base.union_all(recursive).cte("full_pipeline", recursive=True)
+    # # 查询最终结果
+    # final_query = select(cte)
+    # # .order_by(
+    # #     case((cte.c.order_index == None, 1), else_=0),
+    # #     func.coalesce(cte.c.order_index, cte.c.relation_id)
+    # # )
+
+    base = (select(
         t_pipeline_components.c.component_id,
         t_pipeline_components.c.component_type,
         t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
         t_pipeline_components.c.namespace,
         t_namespace.c.name.label("namespace_name"),
-        cast(null(), String).label("relation_type"),
-        cast(null(), String).label("parent_component_id"),
-        # cast(null(), String).label("pipeline_id"),
-        cast(null(), String).label("order_index"),
-        cast(null(), String).label("relation_id")
+        cast(null(), String(255)).label("relation_type"),
+        cast(null(), String(255)).label("parent_component_id"),
+        cast(null(), String(255)).label("order_index"),
+        cast(null(), String(255)).label("relation_id"),
     ).select_from(
         t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
     ).where(
         t_pipeline_components.c.component_id == name,
-        t_pipeline_components.c.component_type == "pipeline"
-    )
+        t_pipeline_components.c.component_type == component_type,
+    ).cte(name="base", recursive=True))
 
-    # 递归部分
-    tp2 = aliased(t_pipeline_components)
-    trp = t_pipeline_components_relation
-    fp = aliased(t_pipeline_components)
-    tn = aliased(t_namespace)
+
+    # 递归 CTE 定义
+    # cte = base.cte(name="full_pipeline", recursive=True)
+
+    tp1 = aliased(t_pipeline_components)
+    tn1 = aliased(t_namespace)
+    rel = t_pipeline_components_relation
+    # fp = aliased(cte)  # 引用递归CTE自身
+    base_alias = base.alias()
 
     recursive = select(
-        tp2.c.component_id,
-        tp2.c.component_type,
-        tp2.c.install_key,
-        tp2.c.content,
-        tp2.c.namespace,
-        tn.c.name.label("namespace_name"),
-        trp.c.relation_type,
-        trp.c.parent_component_id,
-        trp.c.order_index ,
-        trp.c.relation_id
+        tp1.c.component_id,
+        tp1.c.component_type,
+        tp1.c.install_key,
+        tp1.c.content,
+        tp1.c.namespace,
+        tn1.c.name.label("namespace_name"),
+        rel.c.relation_type,
+        rel.c.parent_component_id,
+        rel.c.order_index,
+        rel.c.relation_id,
     ).select_from(
-        tp2.outerjoin(tn, tp2.c.namespace == tn.c.namespace_id)
-        .join(trp, tp2.c.component_id == trp.c.component_id)
-        .join(fp, fp.c.component_id == trp.c.parent_component_id)
+        tp1.outerjoin(tn1, tp1.c.namespace == tn1.c.namespace_id)
+        .join(rel, tp1.c.component_id == rel.c.component_id)
+        .join(base_alias, rel.c.parent_component_id == base_alias.c.component_id)
     )
-    # .where(trp.c.pipeline_id == name)
 
-    # union_all 并组成 CTE
-    cte = base.union_all(recursive).cte("full_pipeline", recursive=True)
-    # 查询最终结果
+    # # 合并 base 和 recursive，生成完整的递归CTE
+    cte = base.union_all(recursive) #.cte(name="full_pipeline", recursive=True)
+
+    # # 最终查询排序
     final_query = select(cte).order_by(
         case((cte.c.order_index == None, 1), else_=0),
-        func.coalesce(cte.c.order_index, cte.c.relation_id)
+        cte.c.order_index
+        # func.coalesce(cte.c.order_index, cte.c.relation_id),
     )
-
-
     # 执行查询
     with get_engine().begin() as conn:
         data = conn.execute(final_query).mappings().all()
-        
+    if  len(data) < 0:
+        raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
     id_to_node = {(item["component_id"], item["relation_type"]): get_one_data(item) for item in data}
     children_map = defaultdict(list)
     for item in data:
@@ -252,17 +307,50 @@ async def get_pipeline_v2(name):
             child_key = (item["component_id"], item["relation_type"])
             children_map[parent_id].append(child_key)
     # 获取根 pipeline_id
-    root_item  = next((item for item in data if item["component_type"] == "pipeline"),None)
+    root_item  = next((item for item in data if item["component_type"] == component_type),None)
     if not root_item:
         raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
     # root_key = (root_item["component_id"], None)
-    result = build_pipeline_structure(id_to_node,children_map,root_item)
+    if component_type == "software":
+        result = build_software_structure(id_to_node,children_map,root_item)
+    elif component_type == "pipeline":
+        result = build_pipeline_structure(id_to_node,children_map,root_item)
+    elif component_type == "file":
+        result = build_file_structure(id_to_node,children_map,root_item)
+    else:
+        raise HTTPException(status_code=500, detail=f"{component_type}没有结构解析!")  
     return result
 
 def get_one_data(item):
     content = json.loads(item["content"])
     item = {k:v for k,v in item.items() if k!="content"}
-    return {**item, **content }
+    return { **content,**item }
+
+def build_file_structure(id_to_node,children_map,root_item):
+    
+    item = {**root_item, "downstreamAnalysis": []}
+    for ds_id in children_map.get(item["component_id"], []):
+        downstream = id_to_node[ds_id]
+        item["downstreamAnalysis"].append(downstream)
+    return item
+
+def  build_software_structure(id_to_node,children_map,root_item):
+    # result = {**root_item}
+    item = {**root_item}
+    input_files = []
+    output_files = []
+    for sub_id in children_map.get(root_item["component_id"], []):
+        sub = id_to_node[sub_id]
+        sub_content = sub
+        if sub["relation_type"] == "software_input_file":
+            input_files.append(sub_content)
+        elif sub["relation_type"] == "software_output_file":
+            sub_out = {**sub_content, "downstreamAnalysis": []}
+            for ds_id in children_map.get(sub["component_id"], []):
+                downstream = id_to_node[ds_id]
+                sub_out["downstreamAnalysis"].append(downstream)
+            output_files.append(sub_out)    
+    return {**item, "inputFile":input_files, "outputFile":output_files}
 
 def build_pipeline_structure(id_to_node,children_map,root_item):
     # node = id_to_node[pid]
@@ -554,6 +642,8 @@ async def save_pipeline_relation(conn,savePipelineRelation):
         stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
     else:
         save_pipeline_relation_dict['relation_id'] = str(uuid.uuid4())
+        child_component_count = pipeline_service.get_child_component_count(conn,namespace,savePipelineRelation.parent_component_id,savePipelineRelation.relation_type)
+        save_pipeline_relation_dict['order_index'] = child_component_count + 1
         stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
         conn.execute(stmt)
     
