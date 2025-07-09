@@ -2,6 +2,8 @@ import glob
 import re
 from functools import reduce
 
+from brave.api.config.config import get_settings
+
 def glob_to_regex(glob_path: str) -> str:
     # 转义路径中的正则特殊字符（除了 *）
     escaped = re.escape(glob_path)
@@ -9,10 +11,19 @@ def glob_to_regex(glob_path: str) -> str:
     regex = escaped.replace(r'\*', r'(.+)')
     return f'r"{regex}"'
 
-def from_glob_get_file(content,dir=""):
+def from_glob_get_file(content,dir=None):
+    settings = get_settings()
     form_data = {}
     for k,v in content.items():
-        pattern_str = f"{dir}/{v}"
+        if dir: 
+            pattern_str = f"{dir}/{v}".strip()
+        else:
+            pattern_str = v.strip()
+
+        if pattern_str.startswith("~"):
+            pattern_str = pattern_str.replace("~",str(settings.DATA_DIR))
+
+        
         file_list = glob.glob(pattern_str)
         pattern = re.compile(glob_to_regex(pattern_str)[2:-1]) 
         result_dict = {}

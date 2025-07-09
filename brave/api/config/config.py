@@ -50,6 +50,15 @@ class Settings:
         if pipeline_dir not in sys.path:
             sys.path.insert(0, pipeline_dir)
 
+
+        default_data_dir = f"{home_dir}"
+        data_dir = os.getenv("DATA_DIR",default_data_dir)
+        self.DATA_DIR = Path(data_dir).resolve()# / "data"
+        # self.WORK_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Using DATA_DIR: {self.DATA_DIR}")
+        
+        
+
         default_literature_dir = f"{home_dir}/.brave/literature"
         if not  os.path.exists(default_literature_dir):    
             os.makedirs(default_literature_dir)    
