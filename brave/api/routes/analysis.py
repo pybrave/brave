@@ -157,7 +157,7 @@ def parse_analysis(conn,request_param,module_name,namespace,component_id,compone
 async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False): # request_param: Dict[str, Any]
     # request_param = analysis_input.model_dump_json()
     component_id = request_param['component_id']
-    pipeline_id = request_param['pipeline_id']
+    # pipeline_id = request_param['pipeline_id']
     if component_id is None:
         raise HTTPException(status_code=500, detail=f"component_id is None")
 
@@ -220,7 +220,11 @@ async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False)
             trace_file = f"{base_dir}/monitor/{str_uuid}.trace.log"
             workflow_log_file = f"{base_dir}/monitor/{str_uuid}.workflow.log"
             cache_dir = f"{project_dir}/.nextflow"
-            output_dir = f"{project_dir}/{pipeline_id}/{component_id}/{str_uuid}"
+            if "pipeline_id" in request_param:  
+                pipeline_id = request_param['pipeline_id']
+                output_dir = f"{project_dir}/{pipeline_id}/{component_id}/{str_uuid}"
+            else:
+                output_dir = f"{project_dir}/{component_id}/{str_uuid}"
             # /data/wangyang/nf_work/
             work_dir = f"{work_dir}/{request_param['project']}"
             params_path = f"{output_dir}/params.json"

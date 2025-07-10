@@ -37,7 +37,7 @@ def from_glob_get_file(content,dir=None):
     common_samples = reduce(lambda  x,y: set(x.keys()) & set(y.keys()), form_data.values())
     result = []
     for name in  common_samples:
-        result_dict = { "analysis_key":name}
+        result_dict = { "sample_name":name}
         for k,files in  form_data.items():
             result_dict.update({
                 k:files[name]

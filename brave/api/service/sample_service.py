@@ -1,0 +1,15 @@
+from brave.api.models.core import samples
+
+def find_by_sample_name(conn,sample_name):
+    stmt = samples.select().where(samples.c.sample_name==sample_name)
+    result = conn.execute(stmt).mappings().first()
+    return result
+
+def find_by_sample_name_and_project(conn,sample_name,project):
+    stmt = samples.select().where(samples.c.sample_name==sample_name,samples.c.project==project)
+    result = conn.execute(stmt).mappings().first()
+    return result
+    
+def add_sample(conn,sample_data:dict):
+    stmt = samples.insert().values(sample_data)
+    conn.execute(stmt)

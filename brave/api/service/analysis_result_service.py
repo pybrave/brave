@@ -1,6 +1,6 @@
 from brave.api.config.db import get_engine
 from fastapi import HTTPException
-from brave.api.models.core import analysis_result, samples
+from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components 
 from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
 from sqlalchemy import and_, select
 import json
@@ -8,7 +8,30 @@ import json
 def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     stmt = analysis_result.select() 
     if analysisResultQuery.querySample:
-        stmt =  select(analysis_result, samples).select_from(analysis_result.outerjoin(samples,samples.c.sample_key==analysis_result.c.analysis_key))
+        stmt =  select(
+            analysis_result, 
+            samples.c.sample_name,
+            samples.c.sample_group,
+            samples.c.sample_group_name,
+            samples.c.sample_id,
+            analysis.c.analysis_name,
+            t_pipeline_components.c.name.label("component_name"),
+            t_pipeline_components.c.label.label("component_label"),
+            t_pipeline_components.c.name.label("analysis_method")
+            ) 
+        stmt = stmt.select_from(
+            analysis_result.outerjoin(samples,samples.c.sample_id==analysis_result.c.sample_id)
+            .outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id)
+            .outerjoin(t_pipeline_components,t_pipeline_components.c.component_id==analysis_result.c.component_id)
+            )
+        # stmt = stmt.where(samples.c.project == analysisResultQuery.project)
+    # if analysisResultQuery.queryAnalysis:
+    #     if not analysisResultQuery.querySample:
+    #         stmt = select(analysis_result)
+    #     stmt = stmt.add_columns(
+    #         analysis.c.analysis_name
+    #     )
+    #     stmt = stmt.get_final_froms()[0].select_from(analysis_result.outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id))
     
     conditions = []
     if analysisResultQuery.project is not None:
@@ -33,6 +56,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     for item in result_dict:
         if item.content_type=="json" and not isinstance(item.content, dict):
             item.content = json.loads(item.content)
+            
         #     result.append(row)
         # # rows = result.mappings().all()
         # pass
@@ -77,8 +101,14 @@ def save_or_update_analysis_result_list(conn, analysis_result_list):
             conn.execute(stmt)
             
 
+def find_by_analysis_result_id(conn,analysis_result_id):
+    stmt = analysis_result.select().where(analysis_result.c.analysis_result_id==analysis_result_id)
+    result = conn.execute(stmt).mappings().first()
+    return result   
 
-
+def update_sample_id(conn,analysis_result_id,sample_id):
+    stmt = analysis_result.update().where(analysis_result.c.analysis_result_id==analysis_result_id).values({"sample_id":sample_id})
+    conn.execute(stmt)
         
     # with get_db_session() as db:
     #     if len(res) >0:

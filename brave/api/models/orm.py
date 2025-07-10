@@ -8,8 +8,9 @@ class SampleAnalysisResult(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     sample_name = Column(String(255))
-    sample_key = Column(String(255))
-    analysis_name = Column(String(255))
+    sample_id = Column(String(255))
+    # sample_key = Column(String(255))
+    # analysis_name = Column(String(255))
     analysis_key = Column(String(255))
     component_id = Column(String(255))
     analysis_method = Column(String(255))

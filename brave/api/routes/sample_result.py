@@ -1,4 +1,6 @@
 from functools import reduce
+from random import sample
+import uuid
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 import threading
@@ -15,7 +17,7 @@ import os
 import json
 from brave.api.config.db import get_db_session
 from sqlalchemy import and_,or_
-from brave.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult, ImportData, ParseImportData
+from brave.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult, ImportData, ParseImportData,UpdateAnalysisResult,BindSample
 from brave.api.models.core import samples,analysis_result
 from brave.api.config.db import get_engine
 import inspect
@@ -26,6 +28,8 @@ import brave.api.service.analysis_result_service as analysis_result_service
 import brave.api.service.pipeline as pipeline_service
 import re
 from brave.api.utils.from_glob_get_file import from_glob_get_file
+from brave.api.schemas.sample import AddSampleMetadata,UpdateSampleMetadata
+import brave.api.service.sample_service as sample_service
 sample_result = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -289,35 +293,41 @@ async def add_sample_analysis(project):
     # analysis_method: str
     # content: str
     # analysis_key: str
+
+
 @sample_result.post("/import-data",tags=['analsyis_result'])
 async def import_data(importDataList:List[ImportData]):
     with get_engine().begin() as conn:
         for importData in importDataList:
-            component_ = pipeline_service.find_pipeline_by_id(conn,importData.component_id)
-            if not component_:
-                raise HTTPException(status_code=404, detail=f"Component with id {importData.component_id} not found")
-            try:
-                component_content = json.loads(component_.content)
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
-            analysis_method = component_content['name']
-            analysis_label = component_content['label']
+            
+            find_sample = sample_service.find_by_sample_name_and_project(conn,importData.sample_name,importData.project)
+            sample_id = None
+            if  find_sample:
+                sample_id = find_sample.sample_id    
+            else:
+                sample_id = str(uuid.uuid4())
+                sample_service.add_sample(conn,{"sample_name":importData.sample_name,"sample_id":sample_id,"project":importData.project}) 
+            
+
             stmt = analysis_result.select().where(and_(
-                analysis_result.c.analysis_key==importData.analysis_key,
+                analysis_result.c.sample_id==sample_id,
                 analysis_result.c.component_id==importData.component_id,
                 analysis_result.c.project==importData.project
             ))
             result = conn.execute(stmt).fetchall()
             if result:
-                raise HTTPException(status_code=500, detail=f"分析结果已存在")
+                raise HTTPException(status_code=500, detail=f"分析结果{importData.sample_name}已存在!")
 
+            analysis_result_id = str(uuid.uuid4())
             stmt = analysis_result.insert().values(
                 component_id=importData.component_id,
                 project=importData.project,
-                analysis_method=analysis_method,
+                # analysis_method=analysis_method,
                 content=importData.content,
-                analysis_key=importData.analysis_key,
-                sample_name=analysis_label,
+                sample_id=sample_id,
+                analysis_result_id=analysis_result_id,
+                # sample_name=importData.sample_name,
+                # sample_name=analysis_label,
                 content_type="json",
                 analysis_type="import_data"
             )
@@ -334,9 +344,84 @@ async def parse_import_data(parseImportData:ParseImportData):
     content = parseImportData.content
     content = json.loads(content)
     result = from_glob_get_file(content)
+    # for item in result:
+    #     item['file_name'] = item['analysis_key']
+    return result
+
+@sample_result.post("/analysis-result/update-analsyis-result",tags=['analsyis_result'])
+def update_analsyis_result(updateAnalysisResult:UpdateAnalysisResult):
+    with get_engine().begin() as conn:
+        stmt = analysis_result.update() 
+        stmt = stmt.where(analysis_result.c.id==updateAnalysisResult.id)
+        stmt = stmt.values(updateAnalysisResult.model_dump())
+        conn.execute(stmt)
+        conn.commit()
+    return {"message":"success"}
+
+
+@sample_result.post("/sample/add-sample-metadata",tags=['sample'])
+async def add_sample_metadata(sample_metadata:AddSampleMetadata ):
+    with get_engine().begin() as conn:
+        sample_id = str(uuid.uuid4())
+        data = {k:v for k,v in sample_metadata.model_dump().items() if v is not None and k!="sample_id" and k!="analysis_result_id"}
+
+        if sample_metadata.analysis_result_id:
+            analysis_result = analysis_result_service.find_by_analysis_result_id(conn,sample_metadata.analysis_result_id)
+            if not analysis_result:
+                raise HTTPException(status_code=500, detail=f"分析结果{sample_metadata.analysis_result_id}不存在!")
+    
+            stmt = samples.select().where(samples.c.sample_id==analysis_result.sample_id)
+            result = conn.execute(stmt).mappings().first()
+            if result:
+                raise HTTPException(status_code=500, detail=f"样本metadata{result.sample_id}已存在!")
+            analysis_result_service.update_sample_id(conn,sample_metadata.analysis_result_id,sample_id)
+            data["project"] = analysis_result.project
+
+        if not sample_metadata.project:
+            raise HTTPException(status_code=500, detail=f"项目不能为空!")
+        
+        data["sample_id"] = sample_id
+        stmt = samples.insert().values(data)
+        conn.execute(stmt)
+
+    return {"message":"success"}
+
+@sample_result.post("/sample/update-sample-metadata",tags=['sample'])
+async def update_sample_metadata(sample_metadata:UpdateSampleMetadata    ):
+    data = sample_metadata.model_dump()
+    data = {k:v for k,v in data.items() if v is not None and k!="sample_id" }
+    with get_engine().begin() as conn:
+        stmt = samples.update().where(samples.c.sample_id==sample_metadata.sample_id).values(data)
+        conn.execute(stmt)
+        conn.commit()
+    return {"message":"success"}
+
+@sample_result.get("/sample/find-sample-metadata-by-id/{sample_id}",tags=['sample'])
+async def find_sample_metadata_by_id(sample_id:str):
+    with get_engine().begin() as conn:
+        stmt = samples.select().where(samples.c.sample_id==sample_id)
+        result = conn.execute(stmt).mappings().first()
     return result
 
 
+@sample_result.delete("/sample/delete-sample-by-sample-id/{sample_id}",tags=['sample'])
+async def delete_sample_by_sample_id(sample_id:str):
+    with get_engine().begin() as conn:
+        stmt = samples.delete().where(samples.c.sample_id==sample_id)
+        conn.execute(stmt)
+        conn.commit()
+    return {"message":"success"}
 
 
-
+@sample_result.post("/sample/bind-sample-to-analysis-result",tags=['sample'])
+async def bind_sample_to_analysis_result(bindSample:BindSample):
+    with get_engine().begin() as conn:
+        stmt = samples.select().where(samples.c.sample_id==bindSample.sample_id)
+        result = conn.execute(stmt).mappings().first()
+        if not result:
+            raise HTTPException(status_code=500, detail=f"样本metadata{bindSample.sample_id}不存在!")
+        analysis_result = analysis_result_service.find_by_analysis_result_id(conn,bindSample.analysis_result_id)
+        if not analysis_result:
+            raise HTTPException(status_code=500, detail=f"分析结果{bindSample.analysis_result_id}不存在!")
+        analysis_result_service.update_sample_id(conn,bindSample.analysis_result_id,bindSample.sample_id)
+    return {"message":"success"}

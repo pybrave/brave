@@ -38,7 +38,9 @@ class SampleGroup(BaseModel):
 class Sample(BaseModel):
     id: Optional[int]
     sample_name: Optional[str]
-    sample_key: Optional[str]
+    sample_id: Optional[str]
+    # sample_key: Optional[str]
+    analysis_key: Optional[str]
     sequencing_target: Optional[str]
     sequencing_technique: Optional[str]
     sample_composition: Optional[str]
@@ -55,3 +57,16 @@ class Sample(BaseModel):
 class ProjectCount(BaseModel):
     project: Optional[str]
     count: Optional[int]
+
+class AddSampleMetadata(BaseModel):
+    analysis_result_id: Optional[str]=None
+    sample_name: Optional[str]=None
+    sample_group: Optional[str]
+    sample_group_name: Optional[str]=None
+    project: Optional[str]=None
+
+class UpdateSampleMetadata(BaseModel):
+    sample_id: Optional[str]
+    sample_name: Optional[str]=None
+    sample_group: Optional[str]
+    sample_group_name: Optional[str]=None

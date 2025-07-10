@@ -181,8 +181,66 @@ def get_pipeline_item(item):
         "pipeline_type":item.pipeline_type,
         **content
     }
+@pipeline.get("/get-component-parent/{component_id}",tags=['pipeline'])
+async def get_component_parent(component_id,component_type):
+    
 
+    base = select(
+        t_pipeline_components.c.component_id,
+        t_pipeline_components.c.component_type,
+        t_pipeline_components.c.install_key,
+        t_pipeline_components.c.content,
+        t_pipeline_components.c.namespace,
+        t_pipeline_components.c.name,
+        t_namespace.c.name.label("namespace_name"),
+        cast(null(), String(255)).label("relation_type"),
+        cast(null(), String(255)).label("parent_component_id"),
+        cast(null(), String(255)).label("order_index"),
+        cast(null(), String(255)).label("relation_id"),
+    ).select_from(
+        t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
+    ).where(
+        t_pipeline_components.c.component_id == component_id,
+        t_pipeline_components.c.component_type == component_type,
+    )
 
+    tp1 = aliased(t_pipeline_components)
+    tn1 = aliased(t_namespace)
+    rel = t_pipeline_components_relation
+    # fp = aliased(cte)  # 引用递归CTE自身
+    # base_alias = base.alias()
+
+    stmt_parenet = select(
+        tp1.c.component_id,
+        tp1.c.component_type,
+        tp1.c.install_key,
+        tp1.c.content,
+        tp1.c.namespace,
+        tp1.c.name,
+        tn1.c.name.label("namespace_name"),
+        rel.c.relation_type,
+        rel.c.parent_component_id,
+        rel.c.order_index,
+        rel.c.relation_id,
+    ).select_from(
+        tp1.outerjoin(tn1, tp1.c.namespace == tn1.c.namespace_id)
+        .join(rel, tp1.c.component_id == rel.c.parent_component_id)
+    ).where(
+        rel.c.component_id == component_id
+    )
+
+    # # 合并 base 和 recursive，生成完整的递归CTE
+    stmt = base.union_all(stmt_parenet) 
+    with get_engine().begin() as conn:
+        data = conn.execute(stmt).mappings().all()
+    child_item  = next((item for item in data if item["component_type"] == component_type),None)
+    if not child_item:
+        raise HTTPException(status_code=500, detail=f"{component_id}没有找到!")  
+
+    parent_item_list = [dict(item) for item in data if item['component_type'] != component_type]
+    child_item = dict(child_item)
+    child_item['parent'] = parent_item_list
+    return child_item
 
 @pipeline.get("/get-pipeline-v2/{name}",tags=['pipeline'])
 async def get_pipeline_v2(name,component_type="pipeline"):
@@ -245,6 +303,7 @@ async def get_pipeline_v2(name,component_type="pipeline"):
         t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
         t_pipeline_components.c.namespace,
+        t_pipeline_components.c.name,
         t_namespace.c.name.label("namespace_name"),
         cast(null(), String(255)).label("relation_type"),
         cast(null(), String(255)).label("parent_component_id"),
@@ -273,6 +332,7 @@ async def get_pipeline_v2(name,component_type="pipeline"):
         tp1.c.install_key,
         tp1.c.content,
         tp1.c.namespace,
+        tp1.c.name,
         tn1.c.name.label("namespace_name"),
         rel.c.relation_type,
         rel.c.parent_component_id,
