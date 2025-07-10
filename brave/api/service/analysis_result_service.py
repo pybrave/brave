@@ -89,7 +89,7 @@ def save_or_update_analysis_result_list(conn, analysis_result_list):
     for item in analysis_result_list:
         stmt = analysis_result.select().where(and_(
             analysis_result.c.component_id == item['component_id'],
-            analysis_result.c.analysis_key == item['analysis_key'],
+            analysis_result.c.sample_id == item['sample_id'],
             analysis_result.c.project == item['project']
         ))
         result = conn.execute(stmt).mappings().first()

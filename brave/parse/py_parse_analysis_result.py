@@ -40,9 +40,10 @@ def parse(dir_path,file_format):
     #  analysis_key,software,content_type,content
     result_data = [
         {
-            "analysis_key": item['analysis_key'],
+            "file_name": item['sample_name'],
+            # "sample_name": item['sample_name'],
             "content_type": "json",
-            "content":json.dumps({k:v for k,v in item.items() if k != 'analysis_key'   }),
+            "content":json.dumps({k:v for k,v in item.items() if k != 'sample_name'   }),
         }
         for item in form_data   ]
     return result_data

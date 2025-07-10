@@ -299,7 +299,9 @@ async def add_sample_analysis(project):
 async def import_data(importDataList:List[ImportData]):
     with get_engine().begin() as conn:
         for importData in importDataList:
-            
+            if not importData.file_name:
+                importData.file_name = importData.sample_name
+                
             find_sample = sample_service.find_by_sample_name_and_project(conn,importData.sample_name,importData.project)
             sample_id = None
             if  find_sample:
@@ -326,6 +328,7 @@ async def import_data(importDataList:List[ImportData]):
                 content=importData.content,
                 sample_id=sample_id,
                 analysis_result_id=analysis_result_id,
+                file_name=importData.file_name,
                 # sample_name=importData.sample_name,
                 # sample_name=analysis_label,
                 content_type="json",

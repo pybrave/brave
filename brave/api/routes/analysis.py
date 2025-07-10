@@ -40,6 +40,7 @@ from brave.api.service.watch_service import queue_process
 import threading
 import psutil
 import brave.api.service.analysis_result_service as analysis_result_service
+import brave.api.service.sample_service as sample_service
 analysis_api = APIRouter()
 
 
@@ -391,8 +392,8 @@ async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
             for sub_item in  res:
                 sub_item.update({
                     "component_id":item['component_id'],
-                    "analysis_name":item['name'],
-                    "analysis_method":item['name'],
+                    # "analysis_name":item['name'],
+                    # "analysis_method":item['name'],
                     "project":result['project'],
                     "analysis_id":analysis_id,
                     "analysis_type":"upstream_analysis"
@@ -401,6 +402,14 @@ async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
             result_list = result_list + res
             
         if save:
+            sample_name_list = [item['file_name'] for item in result_list]
+            sample_list = sample_service.find_by_sample_name_list(conn,sample_name_list)
+            sample_dict = {item['sample_name']:item for item in sample_list}
+            for item in result_list:
+                if item['file_name'] in sample_dict:
+                    item['sample_id'] = sample_dict[item['file_name']]['sample_id']
+                else:
+                    raise HTTPException(status_code=500, detail=f"样本{item['file_name']}不存在!")
             analysis_result_service.save_or_update_analysis_result_list( conn,result_list)
             # parse_result_oneV2(res,item['name'],result['project'],"V1.0",analysis_id)
     return {"result_dict":result_dict,"file_format_list":file_format_list,"file_dict":file_dict}

@@ -40,7 +40,7 @@ class Sample(BaseModel):
     sample_name: Optional[str]
     sample_id: Optional[str]
     # sample_key: Optional[str]
-    analysis_key: Optional[str]
+    # analysis_key: Optional[str]
     sequencing_target: Optional[str]
     sequencing_technique: Optional[str]
     sample_composition: Optional[str]

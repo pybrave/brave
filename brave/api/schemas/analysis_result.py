@@ -24,6 +24,7 @@ class AnalysisResult(BaseModel):
     analysis_method: Optional[str]
     software: Optional[str]
     content: Optional[str]
+    file_name: Optional[str]
     # analysis_version: Optional[str]
     content_type: Optional[str]
     project: Optional[str]
@@ -52,6 +53,7 @@ class ImportData(BaseModel):
     project: str
     content: str
     sample_name: str
+    file_name: Optional[str]=None
     # content_type:Optional[str]="json"
     # analysis_type:Optional[str]="import_data"
 

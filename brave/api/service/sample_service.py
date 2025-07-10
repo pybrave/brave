@@ -13,3 +13,9 @@ def find_by_sample_name_and_project(conn,sample_name,project):
 def add_sample(conn,sample_data:dict):
     stmt = samples.insert().values(sample_data)
     conn.execute(stmt)
+
+
+def find_by_sample_name_list(conn,sample_name_list):
+    stmt = samples.select().where(samples.c.sample_name.in_(sample_name_list))
+    result = conn.execute(stmt).mappings().all()
+    return result
