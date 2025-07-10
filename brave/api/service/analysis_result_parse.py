@@ -27,6 +27,7 @@ class AnalysisResultParse:
         self.sse_service = sse_service
         self.analysis_id_to_sample: Dict[str, Any] ={}
         self.analysis_id_to_params: Dict[str, Any] = {}
+        self.analysis_id_to_map_filename_sample_id: Dict[str, Any] = {}
         self._load_parsed_analysis_result()
 
     def _load_parsed_analysis_result(self):
@@ -62,6 +63,15 @@ class AnalysisResultParse:
         file_format_list = params["file_format_list"]
         parse = params["parse"]
         result_list,result_dict = analysis_service.execute_parse(analysis,parse,file_format_list)
+        sample_list = self.analysis_id_to_map_filename_sample_id[analysis_id] 
+        sample_dict = {item['sample_name']:item for item in sample_list}
+        add_sample_list = []
+        for item in result_list:
+                if item['file_name'] in sample_dict:
+                    item['sample_id'] = sample_dict[item['file_name']]['sample_id']
+                    add_sample_list.append(item)
+                # else:
+                #     raise HTTPException(status_code=500, detail=f"样本{item['file_name']}不存在!")
         
         return result_list,result_dict
 
