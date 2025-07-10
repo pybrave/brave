@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     print("✅ 启动后台任务")
     current_loop = asyncio.get_event_loop()
-    print(f"startup 事件循环：{current_loop}")
+    # print(f"startup 事件循环：{current_loop}")
     global producer_task, broadcast_task
     monitor = f"{settings.BASE_DIR}/monitor"
     if not  os.path.exists(monitor):

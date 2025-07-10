@@ -110,6 +110,18 @@ def update_sample_id(conn,analysis_result_id,sample_id):
     stmt = analysis_result.update().where(analysis_result.c.analysis_result_id==analysis_result_id).values({"sample_id":sample_id})
     conn.execute(stmt)
         
+    
+def find_analysis_result_by_analysis_id(conn,analysis_id):
+    stmt = analysis_result.select().where(analysis_result.c.analysis_id==analysis_id)
+    result = conn.execute(stmt).mappings().all()
+    return result
+
+def find_analysis_result_in_analysis_id(conn,analysis_id_list):
+    stmt = select(analysis_result)
+    # stmt = stmt.select_from(analysis_result.outerjoin(samples,samples.c.sample_id==analysis_result.c.sample_id))
+    stmt = stmt.where(analysis_result.c.analysis_id.in_(analysis_id_list))
+    result = conn.execute(stmt).mappings().all()
+    return result   
     # with get_db_session() as db:
     #     if len(res) >0:
     #         # print(res[0])

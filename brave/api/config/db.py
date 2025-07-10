@@ -42,7 +42,7 @@ class EngineSingleton:
                     settings = get_settings()
 
                     # cls._engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-                    cls._engine = create_engine(settings.DB_URL, echo=True, future=True)
+                    cls._engine = create_engine(settings.DB_URL, echo=False, future=True)
         return cls._engine
 
 # conn = engine.connect()

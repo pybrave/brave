@@ -50,7 +50,7 @@ class FileWatcher:
 
     async def watch_folder(self):
         """文件变更监控任务"""
-        logger.info(f"开始监控文件夹: {self.watch_path}")
+        print(f"开始监控文件夹: {self.watch_path}")
         async for changes in awatch(self.watch_path, recursive=False, step=3000):
             for change, file_path in changes:
                 # 触发文件变更事件

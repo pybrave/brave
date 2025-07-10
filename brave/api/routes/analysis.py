@@ -41,6 +41,7 @@ import threading
 import psutil
 import brave.api.service.analysis_result_service as analysis_result_service
 import brave.api.service.sample_service as sample_service
+import brave.api.service.analysis_service as analysis_service
 analysis_api = APIRouter()
 
 
@@ -320,86 +321,78 @@ async def browse_output_dir(analysis_id):
 @analysis_api.post("/fast-api/parse-analysis-result/{analysis_id}")
 async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
     with get_engine().begin() as conn:
-        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
-        result = conn.execute(stmt).mappings().first()
-        if not result:
-            raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
-        component_id = result['component_id']
-        component_ = pipeline_service.find_pipeline_by_id(conn, component_id)
-        if not component_:
-            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
-        try:
-            component_content = json.loads(component_.content)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
-        parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
+        # stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        # result = conn.execute(stmt).mappings().first()
+        # if not result:
+        #     raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
+        # component_id = result['component_id']
+        # component_ = pipeline_service.find_pipeline_by_id(conn, component_id)
+        # if not component_:
+        #     raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
+        # try:
+        #     component_content = json.loads(component_.content)
+        # except Exception as e:
+        #     raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
+        # parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
         
-        component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
-        if len(component_file_list) == 0:
-            return {"error":"组件没有添加输出文件,请检查!"}
-            # raise HTTPException(status_code=500, detail=f"组件{component_id}没有添加输出文件,请检查!")
-        component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
-        file_format_list = [
-            {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
-            for item in component_file_content_list if 'fileFormat' in item
-        ]
-        if not file_format_list:
-            return {"error":"组件的输出文件没有配置fileFormat!请检查!"}
-            # raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
+        # component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
+        # if len(component_file_list) == 0:
+        #     return {"error":"组件没有添加输出文件,请检查!"}
+        #     # raise HTTPException(status_code=500, detail=f"组件{component_id}没有添加输出文件,请检查!")
+        # component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
+        # file_format_list = [
+        #     {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
+        #     for item in component_file_content_list if 'fileFormat' in item
+        # ]
+        # if not file_format_list:
+        #     return {"error":"组件的输出文件没有配置fileFormat!请检查!"}
+        #     # raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
 
 
-        py_module = find_module(component_.namespace,"py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
-        module = importlib.import_module(py_module)
-        parse = getattr(module, "parse")
+        # py_module = find_module(component_.namespace,"py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
+        # module = importlib.import_module(py_module)
+        # parse = getattr(module, "parse")
+
+        params :Any = analysis_service.get_parse_analysis_result_params(conn,analysis_id)
+        
+        if "error" in params:
+            return {"error":params["error"]}
+        analysis :Any = params["analysis"]
+        file_format_list = params["file_format_list"]
+        parse = params["parse"]
 
 
-        result_dict = {}
+        # result_dict = {}
+        # result_list = []
+        # for item in file_format_list:        
+        #     dir_path = f"{analysis['output_dir']}/output/{item['dir']}"
+        #     res = None    
+        #     args = {
+        #         "dir_path":dir_path,
+        #         # "analysis": dict(result),
+        #         "file_format":item['fileFormat']
+        #         # "args":moduleArgs,
+            
+        #     }
+        #     res = parse(**args)
+            
+        #     for sub_item in  res:
+        #         sub_item.update({
+        #             "component_id":item['component_id'],
+        #             # "analysis_name":item['name'],
+        #             # "analysis_method":item['name'],
+        #             "project":analysis['project'],
+        #             "analysis_id":analysis['analysis_id'],
+        #             "analysis_type":"upstream_analysis"
+        #             })
+        #     result_dict.update({item['name']:res})
+        #     result_list = result_list + res
+        result_list,result_dict = analysis_service.execute_parse(analysis,parse,file_format_list)
+
         file_dict={}
-        result_list = []
         for item in file_format_list:
-
-            
-            # module_dir = component_.pipeline_key
-            # if "moduleDir" in pipeline_content:
-            #     module_dir = pipeline_content['moduleDir']
-            # 递归获取dir_path的文件
-        
-        
-            dir_path = f"{result['output_dir']}/output/{item['dir']}"
+            dir_path = f"{analysis['output_dir']}/output/{item['dir']}"
             get_all_files_recursive(dir_path,item['dir'],file_dict)
-
-
-            # if item['module'] not in all_module:
-            #     raise HTTPException(status_code=500, detail=f"py_parse_analysis_result: {module_name}没有找到!")
-            # py_module = all_module[]
-            
-            # # parse_result_one()
-            moduleArgs = {}
-            # if "moduleArgs" in item:
-            #     moduleArgs = item['moduleArgs']
-            
-            
-            res = None    
-            args = {
-                "dir_path":dir_path,
-                # "analysis": dict(result),
-                "file_format":item['fileFormat']
-                # "args":moduleArgs,
-            
-            }
-            res = parse(**args)
-            
-            for sub_item in  res:
-                sub_item.update({
-                    "component_id":item['component_id'],
-                    # "analysis_name":item['name'],
-                    # "analysis_method":item['name'],
-                    "project":result['project'],
-                    "analysis_id":analysis_id,
-                    "analysis_type":"upstream_analysis"
-                    })
-            result_dict.update({item['name']:res})
-            result_list = result_list + res
             
         if save:
             sample_name_list = [item['file_name'] for item in result_list]
