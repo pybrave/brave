@@ -5,6 +5,9 @@ import time
 import queue
 import threading
 import asyncio
+from brave.api.service.sse_service import get_sse_service
+from brave.api.service.sse_service import SSESessionService
+from fastapi import Depends
 
 sseController = APIRouter()
 
@@ -95,4 +98,9 @@ async def sse_group(request: Request,group="default"):
 async def send_message(msg: str, request: Request):
     sse_service = request.app.state.sse_service  # 获取实例
     await sse_service.push_message(msg)
+    return {"status": "queued", "message": msg}
+
+@sseController.get("/send2")
+async def send_message2(msg: str, sse_service:SSESessionService = Depends(get_sse_service)   ):
+    await sse_service.push_message({"group":"default","data":msg})
     return {"status": "queued", "message": msg}

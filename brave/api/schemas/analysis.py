@@ -34,3 +34,4 @@ class Analysis(BaseModel):
     pipeline_script: Optional[str]
     parse_analysis_module: Optional[str]
     process_id: Optional[str]
+    analysis_status: Optional[str]

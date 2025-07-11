@@ -49,7 +49,8 @@ analysis = Table(
     Column("workflow_log_file", String(255)),
     Column("executor_log_file", String(255)),
     Column("process_id", String(255)),
-    Column("script_config_file", String(255))
+    Column("script_config_file", String(255)),
+    Column("analysis_status", String(255))
 )
 
 analysis_result = Table(
@@ -74,7 +75,8 @@ analysis_result = Table(
     Column("project", String(255)),
     Column("request_param", String(255)),
     Column("analysis_type", String(255)),
-    Column("create_date", String(255))
+    Column("create_date", String(255)),
+    Column("analysis_result_hash", String(255))
 )
 
 literature = Table(

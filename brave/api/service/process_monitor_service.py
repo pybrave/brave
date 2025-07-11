@@ -11,45 +11,54 @@ from importlib.resources import files
 from importlib import import_module
 import inspect
 from brave.api.service.sse_service import SSESessionService
+from brave.api.service.analysis_result_parse import AnalysisResultParse
 from collections import defaultdict
 from typing import Dict, Set
+from brave.api.service.listener_files_service import ListenerFilesService
 # 创建 logger
 logger = logging.getLogger(__name__)
 
 class ProcessMonitor:
-    def __init__(self, sse_service: SSESessionService,check_interval: int = 5  ):
+    def __init__(self, 
+    sse_service: SSESessionService,
+    analysis_result_parse_service: AnalysisResultParse,
+    listener_files_service: ListenerFilesService,
+    check_interval: int = 5,
+     
+    ):
         self.queue_process = asyncio.Queue()
         self.queue_lock = asyncio.Lock()  # 保证数据库更新和队列操作安全
         self.check_interval = check_interval  # 检查间隔
-        self.listener_files = self._load_listener_files()
+        # self.listener_files = self._load_listener_files()
         self.sse_service = sse_service
         self.analysis_id_to_queue: Dict[str, Set[asyncio.Queue]] = defaultdict(set)
-        
-    def _load_listener_files(self):
-        """
-        加载监听器文件列表
-        """
-        listener_files = files("brave.api.listener")
-        return [
-            item.stem
-            for item in listener_files.iterdir()
-            if item.is_file() and item.name.endswith(".py") and item.name != "__init__.py" and item.name.startswith("file")
-        ]
+        self.analysis_result_parse_service = analysis_result_parse_service
+        self.listener_files_service = listener_files_service
+    # def _load_listener_files(self):
+    #     """
+    #     加载监听器文件列表
+    #     """
+    #     listener_files = files("brave.api.listener")
+    #     return [
+    #         item.stem
+    #         for item in listener_files.iterdir()
+    #         if item.is_file() and item.name.endswith(".py") and item.name != "__init__.py" and item.name.startswith("file")
+    #     ]
 
-    async def execute_listener(self, func, args):
-        """
-        执行监听器的回调函数
-        """
-        if isinstance(self.listener_files, list) and len(self.listener_files) > 0:
-            for name in self.listener_files:
-                full_module = f"brave.api.listener.{name}"
-                mod = import_module(full_module)
-                if hasattr(mod, func):
-                    run_func = getattr(mod, func)
-                    if inspect.iscoroutinefunction(run_func):
-                        asyncio.create_task(run_func(**args))
-                    else:
-                        await asyncio.to_thread(run_func, **args)
+    # async def execute_listener(self, func, args):
+    #     """
+    #     执行监听器的回调函数
+    #     """
+    #     if isinstance(self.listener_files, list) and len(self.listener_files) > 0:
+    #         for name in self.listener_files:
+    #             full_module = f"brave.api.listener.{name}"
+    #             mod = import_module(full_module)
+    #             if hasattr(mod, func):
+    #                 run_func = getattr(mod, func)
+    #                 if inspect.iscoroutinefunction(run_func):
+    #                     asyncio.create_task(run_func(**args))
+    #                 else:
+    #                     await asyncio.to_thread(run_func, **args)
 
     async def startup_process_event(self):
         """
@@ -102,17 +111,10 @@ class ProcessMonitor:
         analysis_id = item.get("analysis_id")
         # 确保数据库操作的线程安全
         async with self.queue_lock:
-            with get_engine().begin() as conn:
-                stmt = (
-                    update(analysis)
-                    .where(analysis.c.analysis_id == analysis_id)
-                    .values(process_id=None)
-                )
-                conn.execute(stmt)
-                conn.commit()
-
-                logger.info(f"清理完成 analysis id={analysis_id}")
-            await self.execute_listener("process_end", {"analysis": item,"sse_service": self.sse_service })
+            await self.listener_files_service.execute_listener("process_end", {
+                "analysis": item,
+                "sse_service": self.sse_service,
+                "analysis_result_parse_service":self.analysis_result_parse_service})
 
     async def add_process(self, analysis_dict):
         async with self.queue_lock:

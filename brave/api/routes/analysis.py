@@ -42,6 +42,9 @@ import psutil
 import brave.api.service.analysis_result_service as analysis_result_service
 import brave.api.service.sample_service as sample_service
 import brave.api.service.analysis_service as analysis_service
+from brave.api.service.analysis_result_parse import get_analysis_result_parse_service
+from brave.api.service.analysis_result_parse import AnalysisResultParse
+
 analysis_api = APIRouter()
 
 
@@ -180,7 +183,8 @@ async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False)
             "analysis_name":request_param['analysis_name'],
             "request_param":json.dumps(request_param),
             # "analysis_method":component_script,
-            "component_id":component_id
+            "component_id":component_id,
+            "analysis_status":"created"
             # "parse_analysis_module":parse_analysis_module
         }
         # module_dir = pipeline_id
@@ -299,12 +303,7 @@ def get_all_files_recursive_v2(directory):
     return file_list
 
 
-def get_all_files_recursive(directory,dir_name,file_dict):
-    file_list=[]
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            file_list.append(os.path.join(root, file).replace(directory,""))
-    return file_dict.update({dir_name:file_list})
+
 
 @analysis_api.get("/analysis/browse-output-dir/{analysis_id}")
 async def browse_output_dir(analysis_id):
@@ -319,93 +318,44 @@ async def browse_output_dir(analysis_id):
 
 # 结果解析
 @analysis_api.post("/fast-api/parse-analysis-result/{analysis_id}")
-async def parse_analysis_result(analysis_id,save:Optional[bool]=False):
+async def parse_analysis_result(analysis_id,save:Optional[bool]=False,analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
     with get_engine().begin() as conn:
-        # stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
-        # result = conn.execute(stmt).mappings().first()
-        # if not result:
-        #     raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
-        # component_id = result['component_id']
-        # component_ = pipeline_service.find_pipeline_by_id(conn, component_id)
-        # if not component_:
-        #     raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
-        # try:
-        #     component_content = json.loads(component_.content)
-        # except Exception as e:
-        #     raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
-        # parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
-        
-        # component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
-        # if len(component_file_list) == 0:
-        #     return {"error":"组件没有添加输出文件,请检查!"}
-        #     # raise HTTPException(status_code=500, detail=f"组件{component_id}没有添加输出文件,请检查!")
-        # component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
-        # file_format_list = [
-        #     {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
-        #     for item in component_file_content_list if 'fileFormat' in item
-        # ]
-        # if not file_format_list:
-        #     return {"error":"组件的输出文件没有配置fileFormat!请检查!"}
-        #     # raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
-
-
-        # py_module = find_module(component_.namespace,"py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
-        # module = importlib.import_module(py_module)
-        # parse = getattr(module, "parse")
-
-        params :Any = analysis_service.get_parse_analysis_result_params(conn,analysis_id)
-        
-        if "error" in params:
-            return {"error":params["error"]}
-        analysis :Any = params["analysis"]
-        file_format_list = params["file_format_list"]
-        parse = params["parse"]
-
-
-        # result_dict = {}
-        # result_list = []
-        # for item in file_format_list:        
-        #     dir_path = f"{analysis['output_dir']}/output/{item['dir']}"
-        #     res = None    
-        #     args = {
-        #         "dir_path":dir_path,
-        #         # "analysis": dict(result),
-        #         "file_format":item['fileFormat']
-        #         # "args":moduleArgs,
-            
-        #     }
-        #     res = parse(**args)
-            
-        #     for sub_item in  res:
-        #         sub_item.update({
-        #             "component_id":item['component_id'],
-        #             # "analysis_name":item['name'],
-        #             # "analysis_method":item['name'],
-        #             "project":analysis['project'],
-        #             "analysis_id":analysis['analysis_id'],
-        #             "analysis_type":"upstream_analysis"
-        #             })
-        #     result_dict.update({item['name']:res})
-        #     result_list = result_list + res
-        result_list,result_dict = analysis_service.execute_parse(analysis,parse,file_format_list)
-
-        file_dict={}
-        for item in file_format_list:
-            dir_path = f"{analysis['output_dir']}/output/{item['dir']}"
-            get_all_files_recursive(dir_path,item['dir'],file_dict)
-            
         if save:
-            sample_name_list = [item['file_name'] for item in result_list]
-            sample_list = sample_service.find_by_sample_name_list(conn,sample_name_list)
-            sample_dict = {item['sample_name']:item for item in sample_list}
-            for item in result_list:
-                if item['file_name'] in sample_dict:
-                    item['sample_id'] = sample_dict[item['file_name']]['sample_id']
-                else:
-                    raise HTTPException(status_code=500, detail=f"样本{item['file_name']}不存在!")
-            analysis_result_service.save_or_update_analysis_result_list( conn,result_list)
-            # parse_result_oneV2(res,item['name'],result['project'],"V1.0",analysis_id)
-    return {"result_dict":result_dict,"file_format_list":file_format_list,"file_dict":file_dict}
+            result = await analysis_result_parse_service.save_analysis_result_preview(conn,analysis_id)
+        else:
+            result = await analysis_result_parse_service.parse_analysis_result_preview(conn,analysis_id)
+        return result
+    #     params :Any = analysis_service.get_parse_analysis_result_params(conn,analysis_id)
+    #     result_list,result_dict = analysis_service.execute_parse(**params)
+
+
+    #     analysis :Any = params["analysis"]
+    #     file_format_list = params["file_format_list"]
+    #     file_dict = analysis_service.get_file_dict(file_format_list,analysis['output_dir'])
+            
+    #     if save:
+    #         for item in result_list:
+    #             result = analysis_result_service.find_analysis_result_exist(conn,item['component_id'],item['file_name'],item['project'])
+    #             if not result:
+    #                 find_sample = sample_service.find_by_sample_name_and_project(conn,item['sample_name'],item['project'])
+    #                 if find_sample:
+    #                     item['sample_id'] = find_sample['sample_id']
+    #                 analysis_result_service.add_analysis_result(conn,item)
+    #             else:
+    #                 if item['analysis_result_hash']!= result['analysis_result_hash']:
+    #                     analysis_result_service.update_analysis_result(conn,result.id,item)
+                    
+    #         # sample_name_list = [item['file_name'] for item in result_list]
+    #         # sample_list = sample_service.find_by_sample_name_list(conn,sample_name_list)
+    #         # sample_dict = {item['sample_name']:item for item in sample_list}
+    #         # for item in result_list:
+    #         #     if item['file_name'] in sample_dict:
+    #         #         item['sample_id'] = sample_dict[item['file_name']]['sample_id']
+    #         #     else:
+    #         #         raise HTTPException(status_code=500, detail=f"样本{item['file_name']}不存在!")
+    #         # analysis_result_service.save_or_update_analysis_result_list( conn,result_list)
+    #         # parse_result_oneV2(res,item['name'],result['project'],"V1.0",analysis_id)
+    # return {"result_dict":result_dict,"file_format_list":file_format_list,"file_dict":file_dict}
 
 
 
@@ -513,7 +463,7 @@ def start_background( cwd,cmd):
     return proc.pid
 
 @analysis_api.post("/run-analysis/{analysis_id}")
-async def run_analysis(request: Request,analysis_id):
+async def run_analysis(request: Request,analysis_id,auto_parse:Optional[bool]=True,analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
     process_monitor = request.app.state.process_monitor
     
     with get_engine().begin() as conn:
@@ -530,13 +480,15 @@ async def run_analysis(request: Request,analysis_id):
                 pass  # 进程不存在或 process_id 非法，继续执行
         
         pid = start_background(analysis_.output_dir, ["bash","run.sh"])
-        stmt = analysis.update().values({"process_id":pid}).where(analysis.c.analysis_id==analysis_id)
+        stmt = analysis.update().values({"process_id":pid,"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
         conn.execute(stmt)
-    analysis_dict = dict(analysis_)
+        analysis_dict = dict(analysis_)
 
-    analysis_dict['process_id'] = pid
-    # await queue_process.put(analysis_dict)
-    await process_monitor.add_process(analysis_dict)
+        analysis_dict['process_id'] = pid
+        # await queue_process.put(analysis_dict)
+        await process_monitor.add_process(analysis_dict)
+        if auto_parse:
+            await analysis_result_parse_service.add_analysis_id(analysis_id)
     return {"pid":pid}
 
 # @analysis_api.get("/monitor-analysis/{analysis_id}")
@@ -563,4 +515,15 @@ async def find_analysis_by_id(analysis_id):
 
 
 
+@analysis_api.get("/get-cache-analysis-result-by-id/{analysis_id}")
+def get_cache_analysis_result_by_id(analysis_id,analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
+    return analysis_result_parse_service.cached_analysis_result()[analysis_id]
 
+@analysis_api.get("/get-cache-analysis-result")
+def get_cache_analysis_result(analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
+    return analysis_result_parse_service.cached_analysis_result()
+
+
+@analysis_api.get("/get-cache-analysis-params")
+def get_cache_params(analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
+    return analysis_result_parse_service.cached_params()

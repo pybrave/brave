@@ -3,7 +3,7 @@
 import asyncio
 import threading
 from collections import defaultdict
-
+from functools import lru_cache
 from typing import Dict, Set
 import json
 
@@ -13,8 +13,8 @@ class SSEService:
         self.connected_clients = set()
 
     async def broadcast_loop(self):
-        current_loop = asyncio.get_event_loop()
-        print(f"broadcast_loop 事件循环：{current_loop}")
+        # current_loop = asyncio.get_event_loop()
+        # print(f"broadcast_loop 事件循环：{current_loop}")
         while True:
             msg = await self.global_queue.get()
             print(f"广播消息: {msg} 客户端数量: {len(self.connected_clients)}")
@@ -75,6 +75,7 @@ class SSESessionService:
         self.client_groups[group].discard(client_queue)
 
     async def event_generator(self, request, client_queue: asyncio.Queue, group: str):
+        yield ": keep-alive\n\n"
         try:
             while True:
                 if await request.is_disconnected():
@@ -118,6 +119,10 @@ class SSESessionService:
             # await self.push_message(msgB)
 
 
+@lru_cache()
+def get_sse_service():
+    sse_service = SSESessionService()
+    return sse_service
 
 # from collections import defaultdict
 # from typing import Dict, Set

@@ -5,6 +5,8 @@ from fastapi import HTTPException
 import json
 import  brave.api.service.pipeline as pipeline_service
 import importlib
+import hashlib
+import os
 
 def get_parse_analysis_result_params(conn,analysis_id):
     stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
@@ -41,14 +43,13 @@ def get_parse_analysis_result_params(conn,analysis_id):
 
     return {
         "analysis":result,
-        "component_content":component_content,
         "file_format_list":file_format_list,
         "parse":parse
     }
 
 
-def execute_parse(analysis,parse,file_format_list):
 
+def execute_parse(analysis,parse,file_format_list):
     result_dict = {}
     result_list = []
     for item in file_format_list:        
@@ -70,7 +71,8 @@ def execute_parse(analysis,parse,file_format_list):
                 # "analysis_method":item['name'],
                 "project":analysis['project'],
                 "analysis_id":analysis['analysis_id'],
-                "analysis_type":"upstream_analysis"
+                "analysis_type":"upstream_analysis",
+                "analysis_result_hash":hashlib.md5(sub_item['content'].encode()).hexdigest()
                 })
         result_dict.update({item['name']:res})
         result_list = result_list + res
@@ -80,4 +82,23 @@ def execute_parse(analysis,parse,file_format_list):
 def find_running_analysis(conn):
     stmt = select(analysis).where(analysis.c.process_id!=None)
     result = conn.execute(stmt).mappings().all()
+    return result
+
+def get_all_files_recursive(directory,dir_name,file_dict):
+    file_list=[]
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_list.append(os.path.join(root, file).replace(directory,""))
+    return file_dict.update({dir_name:file_list})
+
+def get_file_dict(file_format_list,output_dir):
+    file_dict={}
+    for item in file_format_list:
+        dir_path = f"{output_dir}/output/{item['dir']}"
+        get_all_files_recursive(dir_path,item['dir'],file_dict)
+    return file_dict
+
+def find_analysis_by_id(conn,analysis_id):
+    stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+    result = conn.execute(stmt).mappings().first()
     return result

@@ -4,7 +4,7 @@ from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_c
 from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
 from sqlalchemy import and_, select
 import json
-
+import uuid
 def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     stmt = analysis_result.select() 
     if analysisResultQuery.querySample:
@@ -83,23 +83,35 @@ def find_analyais_result_by_ids( conn,value):
     else:
         return analysis_result
 
+def find_analysis_result_exist(conn,component_id,file_name,project):
+    stmt = analysis_result.select().where(and_(
+        analysis_result.c.component_id == component_id,
+        analysis_result.c.file_name == file_name,
+        analysis_result.c.project == project
+    ))
+    result = conn.execute(stmt).mappings().first()
+    return result 
 
 
-def save_or_update_analysis_result_list(conn, analysis_result_list):
-    for item in analysis_result_list:
-        stmt = analysis_result.select().where(and_(
-            analysis_result.c.component_id == item['component_id'],
-            analysis_result.c.sample_id == item['sample_id'],
-            analysis_result.c.project == item['project']
-        ))
-        result = conn.execute(stmt).mappings().first()
-        if result:
-            stmt = analysis_result.update().where(analysis_result.c.id == result.id).values(item)
-            conn.execute(stmt)
-        else:
-            stmt = analysis_result.insert().values(item)
-            conn.execute(stmt)
+# def save_or_update_analysis_result_list(conn, analysis_result_list):
+#     for item in analysis_result_list:
+#         result = find_analysis_result_exist(conn,item['component_id'],item['file_name'],item['project'])
+#         if result:
+#             stmt = analysis_result.update().where(analysis_result.c.id == result.id).values(item)
+#             conn.execute(stmt)
+#         else:
+#             stmt = analysis_result.insert().values(item)
+#             conn.execute(stmt)
             
+def add_analysis_result(conn,analysis_result_dict):
+    print(f"添加分析结果: {analysis_result_dict['file_name']}")
+    analysis_result_dict['analysis_result_id'] = str(uuid.uuid4())
+    stmt = analysis_result.insert().values(analysis_result_dict)
+    conn.execute(stmt)
+def update_analysis_result(conn,analysis_result_id,analysis_result_dict):
+    print(f"更新分析结果: {analysis_result_dict['file_name']}")
+    stmt = analysis_result.update().where(analysis_result.c.id==analysis_result_id).values(analysis_result_dict)
+    conn.execute(stmt)  
 
 def find_by_analysis_result_id(conn,analysis_result_id):
     stmt = analysis_result.select().where(analysis_result.c.analysis_result_id==analysis_result_id)

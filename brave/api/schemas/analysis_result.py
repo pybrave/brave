@@ -39,6 +39,7 @@ class AnalysisResult(BaseModel):
     component_id: Optional[str]
     component_name: Optional[str]
     component_label: Optional[str]
+    analysis_result_hash: Optional[str]
     
 
 class ParseImportData(BaseModel):

@@ -30,6 +30,9 @@ import re
 from brave.api.utils.from_glob_get_file import from_glob_get_file
 from brave.api.schemas.sample import AddSampleMetadata,UpdateSampleMetadata
 import brave.api.service.sample_service as sample_service
+from brave.api.service.analysis_result_parse import get_analysis_result_parse_service,AnalysisResultParse
+from fastapi import Depends
+
 sample_result = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -236,10 +239,17 @@ async def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisRe
     # return {"aa":"aa"}
 
 
-@sample_result.delete("/analyais-result/delete-by-id/{id}",  status_code=HTTP_204_NO_CONTENT)
-async def delete_analysis_result(id: int):
+@sample_result.delete(
+    "/analyais-result/delete-by-id/{analysis_result_id}",  
+    status_code=HTTP_204_NO_CONTENT)
+async def delete_analysis_result(analysis_result_id: str,analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
     with get_engine().begin() as conn:
-        conn.execute(analysis_result.delete().where(analysis_result.c.id == id))
+        find_analysis_result = analysis_result_service.find_by_analysis_result_id(conn,analysis_result_id)
+        if not find_analysis_result:
+            raise HTTPException(status_code=500, detail=f"分析结果{analysis_result_id}不存在!")
+        analysis_id = find_analysis_result.analysis_id
+        conn.execute(analysis_result.delete().where(analysis_result.c.analysis_result_id == analysis_result_id))
+        analysis_result_parse_service.remove_analysis_result_by_analsyis_result_id(analysis_id,analysis_result_id)
     return {"message":"success"}
 
 
