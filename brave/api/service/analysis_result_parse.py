@@ -139,15 +139,16 @@ class AnalysisResultParse:
                 analysis_id = await asyncio.wait_for(self.change_analysis_id_list.get(), timeout=0.5)
                 print(f"自动解析分析: {analysis_id} !")
                 with get_engine().begin() as conn:
-                    await self.save_analysis_result(conn,analysis_id,False)
+                    await self.save_analysis_result(conn,analysis_id,True)
 
             except asyncio.TimeoutError:
                 if self.change_analysis_id_list.empty():
                     for analysis_id in self.remove_analysis_id_list:
-                        print(f"删除分析: {analysis_id} !")
-                        self.remove_analysis_id(analysis_id)
-                        self.reomve_analysis_result(analysis_id)
-                        self.remove_analysis_id_list = []
+                        await asyncio.sleep(1)
+                        # print(f"删除分析: {analysis_id} !")
+                        # self.remove_analysis_id(analysis_id)
+                        # self.reomve_analysis_result(analysis_id)
+                        # self.remove_analysis_id_list = []
            
             # async with self.lock:
             # if not self.is_analysis_id_exist(analysis_id):
