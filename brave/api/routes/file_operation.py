@@ -12,6 +12,11 @@ file_operation = APIRouter()
 
 @file_operation.get("/file-operation/read-file")
 async def read_file(file_path):
+    if not os.path.exists(file_path):
+        return {
+            "content": [],
+            "offset": 0
+        }
     with open(file_path, 'r') as file:
         return file.read()
 
@@ -19,6 +24,11 @@ async def read_file(file_path):
 async def read_log_file(file_path,offset:int=0):
     lock = file_locks[file_path]
     async with lock:
+        if not os.path.exists(file_path):
+            return {
+                "content": [],
+                "offset": 0
+            }
         with open(file_path, 'r') as file:
             file.seek(offset)
             return {
