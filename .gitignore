@@ -20,3 +20,4 @@ nextflow_dev/
 .vscode/launch.json
 pipeline-dev2/
 .history/
+__init__.pyc

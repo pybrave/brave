@@ -144,7 +144,7 @@ class AnalysisResultParse:
             except asyncio.TimeoutError:
                 if self.change_analysis_id_list.empty():
                     for analysis_id in self.remove_analysis_id_list:
-                        await asyncio.sleep(1)
+                        await asyncio.sleep(0.05)
                         # print(f"删除分析: {analysis_id} !")
                         # self.remove_analysis_id(analysis_id)
                         # self.reomve_analysis_result(analysis_id)

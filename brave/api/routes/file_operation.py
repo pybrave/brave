@@ -1,7 +1,11 @@
 import os
 from fastapi import APIRouter
+import asyncio
 
 from brave.api.schemas.file_operation import WriteFile
+from collections import defaultdict
+
+file_locks = defaultdict(asyncio.Lock)
 
 file_operation = APIRouter()
 
@@ -10,6 +14,28 @@ file_operation = APIRouter()
 async def read_file(file_path):
     with open(file_path, 'r') as file:
         return file.read()
+
+@file_operation.get("/file-operation/read-log-file")
+async def read_log_file(file_path,offset:int=0):
+    lock = file_locks[file_path]
+    async with lock:
+        with open(file_path, 'r') as file:
+            file.seek(offset)
+            return {
+                "content": file.readlines(),
+                "offset": file.tell()
+            }
+
+# @app.get("/logs/delta")
+# def get_incremental_logs(offset: int):
+#     with open(LOG_FILE, "r") as f:
+#         f.seek(offset)
+#         new_data = f.read()
+#         new_offset = f.tell()
+#     return {
+#         "logs": new_data,
+#         "offset": new_offset
+#     }
 
 
 @file_operation.post("/file-operation/write-file")
