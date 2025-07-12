@@ -27,6 +27,7 @@ from brave.api.routes.file_operation import file_operation
 from brave.api.service.sse_service import get_sse_service
 from brave.api.service.analysis_result_parse import get_analysis_result_parse_service
 from brave.api.service.listener_files_service import get_listener_files_service
+from brave.api.routes.setting import setting_controller
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -95,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(sseController,prefix="/brave-api")
     app.include_router(namespace,prefix="/brave-api")
     app.include_router(file_operation,prefix="/brave-api")
+    app.include_router(setting_controller,prefix="/brave-api")
     producer_task = None
     broadcast_task = None
 
