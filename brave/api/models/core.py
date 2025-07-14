@@ -50,7 +50,8 @@ analysis = Table(
     Column("executor_log_file", String(255)),
     Column("process_id", String(255)),
     Column("script_config_file", String(255)),
-    Column("analysis_status", String(255))
+    Column("analysis_status", String(255)),
+    Column("job_id", String(255))
 )
 
 analysis_result = Table(

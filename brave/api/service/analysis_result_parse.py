@@ -65,6 +65,8 @@ class AnalysisResultParse:
             if analysis_id  in self.analysis_id_list:
                 await self.change_analysis_id_list.put(analysis_id)
 
+ 
+
     def remove_analysis_id(self,analysis_id):
         if analysis_id in self.analysis_id_list:
             self.analysis_id_list.remove(analysis_id)

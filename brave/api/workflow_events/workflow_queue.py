@@ -1,0 +1,57 @@
+import asyncio
+from dataclasses import dataclass, field
+from typing import Dict, Any
+import time
+
+from .pubsub import PubSubManager
+from .handlers.workflow_events import router
+
+
+
+@dataclass
+class WorkflowQueue:
+    queue: asyncio.Queue
+    task: asyncio.Task
+    last_active: float = field(default_factory=time.time)
+    subscribers: int = 0
+
+class WorkflowQueueManager:
+    def __init__(self, pubsub: PubSubManager):
+        self.workflow_map: dict[str, WorkflowQueue] = {}
+        self.pubsub = pubsub
+
+    def register(self, workflow_id: str):
+        if workflow_id not in self.workflow_map:
+            queue = asyncio.Queue()
+            task = asyncio.create_task(self._consume_loop(workflow_id, queue))
+            self.workflow_map[workflow_id] = WorkflowQueue(queue=queue, task=task)
+
+    async def put(self, workflow_id: str, msg: dict):
+        self.register(workflow_id)
+        wfq = self.workflow_map[workflow_id]
+        wfq.last_active = time.time()
+        await wfq.queue.put(msg)
+
+    def get(self, workflow_id: str) -> WorkflowQueue:
+        return self.workflow_map[workflow_id]
+
+    async def _consume_loop(self, workflow_id: str, queue: asyncio.Queue):
+        while True:
+            msg = await queue.get()
+            try:
+                await self.pubsub.publish(workflow_id, msg)
+                await router.dispatch(msg)
+            except Exception as e:
+                print(f"[Consumer ERROR] workflow {workflow_id}: {e}")
+
+    async def cleanup(self, timeout: int = 300):
+        now = time.time()
+        to_delete = []
+        for wf_id, wfq in self.workflow_map.items():
+            if wfq.subscribers == 0 and wfq.queue.empty() and (now - wfq.last_active > timeout):
+                wfq.task.cancel()
+                to_delete.append(wf_id)
+        for wf_id in to_delete:
+            del self.workflow_map[wf_id]
+            print(f"[Cleanup] Removed workflow {wf_id}")
+

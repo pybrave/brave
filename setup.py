@@ -11,7 +11,10 @@ setup(
         "uvicorn[standard]",
         "typer",
         "pymysql",
-        "click==8.1.8"
+        "click==8.1.8",
+        "dependency-injector>=4.0,<5.0",
+        "docker",
+        "kubernetes"
         ],
     entry_points={
         "console_scripts": [

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time
@@ -9,6 +9,7 @@ from brave.api.service.sse_service import get_sse_service
 from brave.api.service.sse_service import SSESessionService
 from fastapi import Depends
 import json
+from brave.app_manager import AppManager
 sseController = APIRouter()
 
 
@@ -89,15 +90,20 @@ sseController = APIRouter()
 @sseController.get("/sse-group")
 async def sse_group(request: Request,group="default"):
     q = asyncio.Queue()
-    sse_service = request.app.state.sse_service  # 从 app.state 获取实例
-    sse_service.add_client(q,group)
-    return StreamingResponse(sse_service.event_generator(request, q,group), media_type="text/event-stream")
+    manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
+    if manager.sse_service is None:
+        raise HTTPException(status_code=500, detail="SSE服务未初始化")
+        
+    manager.sse_service.add_client(q,group)
+    return StreamingResponse(manager.sse_service.event_generator(request, q,group), media_type="text/event-stream")
 
 
 @sseController.get("/send")
 async def send_message(msg: str, request: Request):
-    sse_service = request.app.state.sse_service  # 获取实例
-    await sse_service.push_message(msg)
+    manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
+    if manager.sse_service is None:
+        raise HTTPException(status_code=500, detail="SSE服务未初始化")
+    await manager.sse_service.push_message({"group":"default","data":msg})
     return {"status": "queued", "message": msg}
 
 @sseController.get("/send-test")

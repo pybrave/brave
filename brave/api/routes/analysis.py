@@ -1,6 +1,7 @@
 from fastapi import APIRouter,Depends,HTTPException, Request
 from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
+from brave.api.executor.models import LocalJobSpec
 from brave.api.schemas.bio_database import QueryBiodatabase
 from brave.api.schemas.sample import Sample
 from typing import List
@@ -44,7 +45,9 @@ import brave.api.service.sample_service as sample_service
 import brave.api.service.analysis_service as analysis_service
 from brave.api.service.analysis_result_parse import get_analysis_result_parse_service
 from brave.api.service.analysis_result_parse import AnalysisResultParse
-
+from brave.app_manager import AppManager
+from brave.api.executor.factory import get_executor_dep
+from brave.api.executor.base import JobExecutor
 analysis_api = APIRouter()
 
 
@@ -463,8 +466,17 @@ def start_background( cwd,cmd):
     return proc.pid
 
 @analysis_api.post("/run-analysis/{analysis_id}")
-async def run_analysis(request: Request,analysis_id,auto_parse:Optional[bool]=True,analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
-    process_monitor = request.app.state.process_monitor
+async def run_analysis(
+    request: Request,
+    analysis_id,
+    auto_parse:Optional[bool]=True,
+    analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)
+    ):
+
+    manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
+    process_monitor = manager.process_monitor
+    if process_monitor is None:
+        raise HTTPException(status_code=500, detail="ProcessMonitor服务未初始化")
     
     with get_engine().begin() as conn:
         stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
@@ -490,6 +502,63 @@ async def run_analysis(request: Request,analysis_id,auto_parse:Optional[bool]=Tr
         if auto_parse:
             await analysis_result_parse_service.add_analysis_id(analysis_id)
     return {"pid":pid}
+
+
+
+
+@analysis_api.post("/run-analysis-v2/{analysis_id}")
+async def run_analysis_v2(
+    analysis_id,
+    auto_parse:Optional[bool]=True,
+    executor: JobExecutor = Depends(get_executor_dep),
+    ):
+
+    # manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
+    # process_monitor = manager.process_monitor
+    # if process_monitor is None:
+    #     raise HTTPException(status_code=500, detail="ProcessMonitor服务未初始化")
+    
+    with get_engine().begin() as conn:
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        result = conn.execute(stmt)
+        analysis_ = result.mappings().first()
+        if analysis_ is None:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        # process_id = analysis_['process_id']
+        job_id = executor.submit_job(LocalJobSpec(
+            command=["bash", "run.sh"],
+            output_dir=analysis_['output_dir'],
+            process_id=analysis_['process_id']
+        ))
+        stmt = analysis.update().values({"job_id":job_id,"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
+        conn.execute(stmt)
+        return {"job_id":job_id}
+
+    #     analysis_dict = dict(analysis_)
+    #     analysis_dict['job_id'] = job_id
+    #     await process_monitor.add_process(analysis_dict)
+    #     if auto_parse:
+    #         await analysis_result_parse_service.add_analysis_id(analysis_id)
+    #     if process_id is not None:
+    #         try:
+    #             proc = psutil.Process(int(process_id))
+    #             if proc.is_running():
+    #                 raise Exception(f"Analysis is already running with process_id={process_id}")
+    #         except (psutil.NoSuchProcess, ValueError):
+    #             pass  # 进程不存在或 process_id 非法，继续执行
+        
+    #     pid = start_background(analysis_.output_dir, ["bash","run.sh"])
+    #     stmt = analysis.update().values({"process_id":pid,"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
+    #     conn.execute(stmt)
+    #     analysis_dict = dict(analysis_)
+
+    #     analysis_dict['process_id'] = pid
+    #     # await queue_process.put(analysis_dict)
+    #     await process_monitor.add_process(analysis_dict)
+    #     if auto_parse:
+    #         await analysis_result_parse_service.add_analysis_id(analysis_id)
+    # return {"pid":pid}
+
 
 # @analysis_api.get("/monitor-analysis/{analysis_id}")
 # async def pipeline_monitor(analysis_id):
