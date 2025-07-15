@@ -5,6 +5,7 @@ import hashlib
 import json
            
 class JobSpec(BaseModel):
+    job_id: str
     command: List[str]
     output_dir: str
     # image: str = ""

@@ -2,14 +2,15 @@
 from kubernetes import client, config
 from brave.api.executor.models import JobSpec
 from .base import JobExecutor   
-
+from brave.api.core.workflow_event_router import WorkflowEventRouter
 class K8sExecutor(JobExecutor):
-    def __init__(self):
+    def __init__(self, workflow_event_router: WorkflowEventRouter):
+        super().__init__(workflow_event_router)
         config.load_kube_config()
         self.api = client.CoreV1Api()
         self.batch_api = client.BatchV1Api()
 
-    def submit_job(self, job_spec: JobSpec) -> str:
+    async def _do_submit_job(self, job_spec: JobSpec) -> str:
         # 这里应构造 Job YAML spec
         job = client.V1Job(...)  # 构建 Job 对象
         self.batch_api.create_namespaced_job(namespace="default", body=job)

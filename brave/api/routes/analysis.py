@@ -525,7 +525,8 @@ async def run_analysis_v2(
         if analysis_ is None:
             raise HTTPException(status_code=404, detail="Analysis not found")
         # process_id = analysis_['process_id']
-        job_id = executor.submit_job(LocalJobSpec(
+        job_id = await executor.submit_job(LocalJobSpec(
+            job_id=analysis_id,
             command=["bash", "run.sh"],
             output_dir=analysis_['output_dir'],
             process_id=analysis_['process_id']

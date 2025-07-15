@@ -5,7 +5,7 @@ from brave.api.executor.models import JobSpec
 from .base import JobExecutor
 
 class SlurmExecutor(JobExecutor):
-    def submit_job(self, job_spec: JobSpec):
+    async def _do_submit_job(self, job_spec: JobSpec):
         pass
         # script_path = job_spec["script_path"]
         # result = subprocess.run(["sbatch", script_path], capture_output=True, text=True)

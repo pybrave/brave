@@ -1,7 +1,7 @@
 
 from typing import Callable, Awaitable, Dict
 import asyncio
-
+from functools import lru_cache
 class WorkflowEventRouter:
     def __init__(self):
         self._handlers: Dict[str, Callable[[dict], Awaitable]] = {}
@@ -22,3 +22,7 @@ class WorkflowEventRouter:
             await handler(msg)
         else:
             print(f"[EventRouter] No handler for event '{event}'")
+
+# @lru_cache(maxsize=1)
+# def get_router():
+#     return WorkflowEventRouter()

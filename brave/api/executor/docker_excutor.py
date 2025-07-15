@@ -4,12 +4,13 @@ from docker.models.containers import Container
 
 from brave.api.executor.models import DockerJobSpec
 from .base import JobExecutor
-
+from brave.api.core.workflow_event_router import WorkflowEventRouter    
 class DockerExecutor(JobExecutor):
-    def __init__(self):
+    def __init__(self, workflow_event_router: WorkflowEventRouter):
+        super().__init__(workflow_event_router)
         self.client = docker.from_env()
 
-    def submit_job(self,  job: DockerJobSpec) -> str:
+    async def _do_submit_job(self,  job: DockerJobSpec) -> str:
         container: Container = self.client.containers.run(
             image=job.image,
             command=job.command,

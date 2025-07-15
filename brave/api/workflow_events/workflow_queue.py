@@ -3,9 +3,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Any
 import time
 
-from .pubsub import PubSubManager
-from .handlers.workflow_events import router
-
+from brave.api.core.pubsub import PubSubManager
+from brave.api.core.workflow_event_router import WorkflowEventRouter
 
 
 @dataclass
@@ -13,12 +12,13 @@ class WorkflowQueue:
     queue: asyncio.Queue
     task: asyncio.Task
     last_active: float = field(default_factory=time.time)
-    subscribers: int = 0
+    # subscribers: int = 0
 
 class WorkflowQueueManager:
-    def __init__(self, pubsub: PubSubManager):
+    def __init__(self, pubsub: PubSubManager, workflow_event_router: WorkflowEventRouter):
         self.workflow_map: dict[str, WorkflowQueue] = {}
         self.pubsub = pubsub
+        self.workflow_event_router = workflow_event_router
 
     def register(self, workflow_id: str):
         if workflow_id not in self.workflow_map:
@@ -40,7 +40,7 @@ class WorkflowQueueManager:
             msg = await queue.get()
             try:
                 await self.pubsub.publish(workflow_id, msg)
-                await router.dispatch(msg)
+                await self.workflow_event_router.dispatch(msg)
             except Exception as e:
                 print(f"[Consumer ERROR] workflow {workflow_id}: {e}")
 
@@ -48,10 +48,13 @@ class WorkflowQueueManager:
         now = time.time()
         to_delete = []
         for wf_id, wfq in self.workflow_map.items():
-            if wfq.subscribers == 0 and wfq.queue.empty() and (now - wfq.last_active > timeout):
+            if  wfq.queue.empty() and (now - wfq.last_active > timeout):
                 wfq.task.cancel()
                 to_delete.append(wf_id)
+            
         for wf_id in to_delete:
             del self.workflow_map[wf_id]
+            # await self.pubsub.publish(wf_id, {"event": "workflow_cleanup", "workflow_id": wf_id})
+            await self.workflow_event_router.dispatch({"event": "workflow_cleanup", "workflow_id": wf_id})
             print(f"[Cleanup] Removed workflow {wf_id}")
 

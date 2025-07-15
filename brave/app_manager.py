@@ -8,7 +8,7 @@ from brave.api.service.listener_files_service import get_listener_files_service
 from brave.api.service.process_monitor_service import ProcessMonitor
 from brave.api.service.sse_service import get_sse_service
 from brave.api.workflow_events.manager import WorkflowEventSystem
-
+from brave.api.workflow_events.handlers.workflow_events import setup_handlers
 class AppManager:
     def __init__(self, app):
         self.app = app
@@ -48,13 +48,14 @@ class AppManager:
 
         self.wes = WorkflowEventSystem()
         self.wes.register_http(self.app)
+        self.tasks.append(asyncio.create_task(self.wes.cleanup_loop()))
 
         self.tasks.append(asyncio.create_task(self.analysis_result_parse_service.auto_save_analysis_result()))
         self.tasks.append(asyncio.create_task(self.file_watcher.watch_folder()))
         self.tasks.append(asyncio.create_task(self.sse_service.broadcast_loop()))
         self.tasks.append(asyncio.create_task(self.process_monitor.startup_process_event()))
         self.tasks.append(asyncio.create_task(self.wes.start()))
-
+        setup_handlers()
         # 挂载到 app.state，方便别处访问
         self.app.state.manager = self
 

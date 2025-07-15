@@ -1,9 +1,19 @@
 from abc import ABC, abstractmethod
 from brave.api.executor.models import JobSpec
+from brave.api.core.workflow_event_router import WorkflowEventRouter
 class JobExecutor(ABC):
+    def __init__(self, router: WorkflowEventRouter):
+        self.router = router
+
+    async def submit_job(self, job_spec: JobSpec) -> str:
+        if self.is_already_running(job_spec):
+            raise Exception(f"Job {job_spec.job_id} is already running")
+        await self._do_submit_job(job_spec)
+        await self.router.dispatch({"event": "job_submitted", "job_id": job_spec.job_id})
+        return job_spec.job_id
 
     @abstractmethod
-    def submit_job(self, job_spec: JobSpec) -> str:
+    async def _do_submit_job(self, job_spec: JobSpec) -> str:
         pass
 
     @abstractmethod
@@ -13,3 +23,6 @@ class JobExecutor(ABC):
     @abstractmethod
     def stop_job(self, job_id: str) -> None:
         pass
+    
+    def is_already_running(self, job_spec: JobSpec) -> bool:
+        return False 

@@ -1,5 +1,5 @@
 from .workflow_queue import WorkflowQueueManager
-from .pubsub import PubSubManager
+from brave.api.core.pubsub import PubSubManager
 
 class EventRouter:
     def __init__(self, pubsub: PubSubManager, wq_manager: WorkflowQueueManager):
