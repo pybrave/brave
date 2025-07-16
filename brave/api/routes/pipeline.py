@@ -645,7 +645,6 @@ async def list_pipeline(queryPipeline:QueryPipeline):
         return pipeline_service.list_pipeline(conn,queryPipeline)
 
 @pipeline.post("/page-pipeline-components",tags=['pipeline'])
-@inject
 async def page_pipeline(query:PagePipelineQuery ):
     with get_engine().begin() as conn:
         return pipeline_service.page_pipeline(conn,query)

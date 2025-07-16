@@ -18,7 +18,7 @@ class WorkflowEventRouter:
     async def dispatch(self, msg: dict):
         event = msg.get("workflow_event")
         if not event:
-            print("[EventRouter] No 'event' in message")
+            print("[EventRouter] No 'workflow_event' in message")
             return
         handlers = self._handlers.get(event)
         if handlers:

@@ -21,7 +21,7 @@ class IngressEventRouter:
     async def dispatch(self, msg: dict):
         event_str = msg.get("ingress_event")
         if not event_str:
-            print("[IngressEventRouter] No 'event' in message")
+            print("[IngressEventRouter] No 'ingress_event' in message")
             return
         try:
             event = IngressEvent(event_str)
