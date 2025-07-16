@@ -24,21 +24,23 @@ from brave.api.config.config import get_settings
 from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
 from brave.api.routes.namespace import namespace
 from brave.api.routes.file_operation import file_operation  
-from brave.api.service.sse_service import get_sse_service
-from brave.api.service.analysis_result_parse import get_analysis_result_parse_service
+# from brave.api.service.sse_service import get_sse_service
+# from brave.api.service.analysis_result_parse import get_analysis_result_parse_service
 from brave.api.service.listener_files_service import get_listener_files_service
 from brave.api.routes.setting import setting_controller
-from brave.api.workflow_events.manager import WorkflowEventSystem
 from brave.app_manager import AppManager
 from brave.app_container import AppContainer
+from brave.setup_routes import setup_routes
 container = AppContainer()
-container.wire(modules=[__name__])
+container.wire(modules=["brave.api.routes.sse"])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     manager = AppManager(app)
-    container.app_manager.override(providers.Object(manager))
+    # container.app_manager.override(providers.Object(manager))
     await manager.start()
+    setup_routes(app,manager)
+    
     app.state.manager = manager 
     yield 
     await manager.stop()
@@ -94,83 +96,4 @@ async def lifespan(app: FastAPI):
     
 def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan)
-    frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
-    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "build","assets")), name="assets")
-    # frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
-
-    app.mount("/brave-api/img", StaticFiles(directory=os.path.join(frontend_path, "img")), name="img")
-
-    settings = get_settings()
-    app.mount("/brave-api/dir", StaticFiles(directory=settings.BASE_DIR), name="base_dir")
-    app.mount("/brave-api/work-dir", StaticFiles(directory=settings.WORK_DIR), name="work_dir")
-
-    app.mount("/brave-api/literature/dir", StaticFiles(directory=os.path.join(settings.LITERATURE_DIR)), name="literature_dir")
-    app.mount("/brave-api/pipeline-dir", StaticFiles(directory=os.path.join(settings.PIPELINE_DIR)), name="pipeline_dir")
-
-    app.include_router(sample_result,prefix="/brave-api")
-    app.include_router(file_parse_plot,prefix="/brave-api")
-    app.include_router(sample,prefix="/brave-api")
-    app.include_router(analysis_api,prefix="/brave-api")
-    app.include_router(bio_database,prefix="/brave-api")
-    app.include_router(pipeline,prefix="/brave-api")
-    app.include_router(literature_api,prefix="/brave-api")
-    app.include_router(sseController,prefix="/brave-api")
-    app.include_router(namespace,prefix="/brave-api")
-    app.include_router(file_operation,prefix="/brave-api")
-    app.include_router(setting_controller,prefix="/brave-api")
-    producer_task = None
-    broadcast_task = None
-
-    
-    # app.state.sse_service = sse_service
-    
-    
-    # 启动后台广播任务
-    # @app.on_event("startup")
-   
-
-        # asyncio.create_task(broadcast_loop())
-        # await startup_process_event()
-        # asyncio.create_task(producer())
-
-    # @app.on_event("shutdown")
-    # async def on_shutdown():
-    #     print("✅ 关闭后台任务")
-    #     for task in [producer_task, broadcast_task]:
-    #         if task:
-    #             task.cancel()
-    @app.get("/favicon.ico")
-    async def serve_frontend():
-        favicon = os.path.join(frontend_path, "build/favicon.ico")
-        return FileResponse(favicon)
-
-    @app.get("/html/index.html")
-    async def html():
-        index_path = os.path.join(frontend_path, "html/index.html")
-        return FileResponse(index_path)
-
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        index_path = os.path.join(frontend_path, "build/index.html")
-        return FileResponse(index_path)
-
     return app
-# @app.get("/")
-# async def read_root():
-#     time.sleep(10)
-#     print("sleep")
-#     print(threading.get_ident())
-#     time.sleep(10)
-#     print(threading.get_ident())
-#     return {"Hello": "World"}
-    
-# @app.get("/abc")
-# def read_root():
-#     print("sleep")
-#     print(threading.get_ident())
-#     time.sleep(10)
-#     return {"Hello": "World"}
-
-# @app.get("/items/{item_id}")
-# def read_item(item_id: int, q: Union[str, None] = None):
-#     return {"item_id": item_id, "q": q}

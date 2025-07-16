@@ -1,4 +1,5 @@
-from fastapi import APIRouter,HTTPException
+from dependency_injector.wiring import Provide, inject
+from fastapi import APIRouter, Depends,HTTPException
 from importlib.resources import files, as_file
 
 import json
@@ -18,11 +19,14 @@ import brave.api.service.pipeline  as pipeline_service
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import union_all
+from brave.api.service.sse_service import SSESessionService
 import brave.api.utils.service_utils  as service_utils
 import asyncio
 import time
 from starlette.concurrency import run_in_threadpool
 from typing import List
+
+from brave.app_container import AppContainer
 
 pipeline = APIRouter()
 
@@ -641,7 +645,8 @@ async def list_pipeline(queryPipeline:QueryPipeline):
         return pipeline_service.list_pipeline(conn,queryPipeline)
 
 @pipeline.post("/page-pipeline-components",tags=['pipeline'])
-async def page_pipeline(query:PagePipelineQuery):
+@inject
+async def page_pipeline(query:PagePipelineQuery ):
     with get_engine().begin() as conn:
         return pipeline_service.page_pipeline(conn,query)
 

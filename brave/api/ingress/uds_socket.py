@@ -2,10 +2,11 @@ import os
 import asyncio
 import socket
 import json
-from ..interfaces.base_ingress import BaseMessageIngress
+from brave.api.core.ingress_event_router import IngressEventRouter
+from .interfaces.base_ingress import BaseMessageIngress
 
 class UDSSocketIngress(BaseMessageIngress):
-    def __init__(self, path, router):
+    def __init__(self, path, router:IngressEventRouter):
         self.path = path
         self.router = router
 

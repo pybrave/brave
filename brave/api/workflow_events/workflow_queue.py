@@ -19,6 +19,10 @@ class WorkflowQueueManager:
         self.workflow_map: dict[str, WorkflowQueue] = {}
         self.pubsub = pubsub
         self.workflow_event_router = workflow_event_router
+    
+
+    def register_subscriber(self, topic: str, callback):
+        self.pubsub.subscribe(topic, callback)
 
     def register(self, workflow_id: str):
         if workflow_id not in self.workflow_map:
@@ -31,6 +35,10 @@ class WorkflowQueueManager:
         wfq = self.workflow_map[workflow_id]
         wfq.last_active = time.time()
         await wfq.queue.put(msg)
+
+    async def dispatch(self, msg: dict):
+        workflow_id = msg.get("workflow_id", "global")
+        await self.put(workflow_id, msg)
 
     def get(self, workflow_id: str) -> WorkflowQueue:
         return self.workflow_map[workflow_id]
@@ -58,3 +66,8 @@ class WorkflowQueueManager:
             await self.workflow_event_router.dispatch({"event": "workflow_cleanup", "workflow_id": wf_id})
             print(f"[Cleanup] Removed workflow {wf_id}")
 
+    
+    async def cleanup_loop(self):
+        while True:
+            await self.cleanup()
+            await asyncio.sleep(10)

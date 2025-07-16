@@ -19,9 +19,9 @@ import brave.api.service.analysis_result_service as analysis_result_service
 import brave.api.service.sample_service as sample_service
 from functools import lru_cache
 from fastapi import Depends
-from brave.api.service.sse_service import get_sse_service
 from brave.api.service.listener_files_service import get_listener_files_service
 from brave.api.service.listener_files_service import ListenerFilesService
+
 # 创建 logger
 logger = logging.getLogger(__name__)
 
@@ -222,13 +222,14 @@ class AnalysisResultParse:
         return {"result_dict":result_dict,"file_format_list":file_format_list,"file_dict":file_dict}
    
 
-@lru_cache()
-def get_analysis_result_parse_service(
-    sse_service:SSESessionService=Depends(get_sse_service),
-    listener_files_service:ListenerFilesService=Depends(get_listener_files_service)
-):
-    analysis_result_parse_service = AnalysisResultParse(sse_service,listener_files_service)
-    return analysis_result_parse_service
+# @lru_cache()
+# @inject
+# def get_analysis_result_parse_service(
+#     sse_service:SSESessionService=Provide[AppContainer.sse_service],
+#     listener_files_service:ListenerFilesService=Depends(get_listener_files_service)
+# ):
+#     analysis_result_parse_service = AnalysisResultParse(sse_service,listener_files_service)
+#     return analysis_result_parse_service
 
 
 # async def parse_analysis_result(analysis_id,save:Optional[bool]=False):

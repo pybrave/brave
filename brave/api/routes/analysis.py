@@ -1,3 +1,5 @@
+from dependency_injector.wiring import Provide
+from dependency_injector.wiring import inject
 from fastapi import APIRouter,Depends,HTTPException, Request
 from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
@@ -43,8 +45,8 @@ import psutil
 import brave.api.service.analysis_result_service as analysis_result_service
 import brave.api.service.sample_service as sample_service
 import brave.api.service.analysis_service as analysis_service
-from brave.api.service.analysis_result_parse import get_analysis_result_parse_service
 from brave.api.service.analysis_result_parse import AnalysisResultParse
+from brave.app_container import AppContainer
 from brave.app_manager import AppManager
 from brave.api.executor.factory import get_executor_dep
 from brave.api.executor.base import JobExecutor
@@ -320,8 +322,11 @@ async def browse_output_dir(analysis_id):
         return file_list
 
 # 结果解析
+@inject
 @analysis_api.post("/fast-api/parse-analysis-result/{analysis_id}")
-async def parse_analysis_result(analysis_id,save:Optional[bool]=False,analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
+async def parse_analysis_result(
+    analysis_id,save:Optional[bool]=False,
+    analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
     with get_engine().begin() as conn:
         if save:
             result = await analysis_result_parse_service.save_analysis_result_preview(conn,analysis_id)
@@ -466,11 +471,12 @@ def start_background( cwd,cmd):
     return proc.pid
 
 @analysis_api.post("/run-analysis/{analysis_id}")
+@inject
 async def run_analysis(
     request: Request,
     analysis_id,
     auto_parse:Optional[bool]=True,
-    analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)
+    analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])         
     ):
 
     manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
@@ -586,14 +592,17 @@ async def find_analysis_by_id(analysis_id):
 
 
 @analysis_api.get("/get-cache-analysis-result-by-id/{analysis_id}")
-def get_cache_analysis_result_by_id(analysis_id,analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
+@inject
+def get_cache_analysis_result_by_id(analysis_id,analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
     return analysis_result_parse_service.cached_analysis_result()[analysis_id]
 
 @analysis_api.get("/get-cache-analysis-result")
-def get_cache_analysis_result(analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
+@inject
+def get_cache_analysis_result(analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
     return analysis_result_parse_service.cached_analysis_result()
 
 
 @analysis_api.get("/get-cache-analysis-params")
-def get_cache_params(analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
+@inject
+def get_cache_params(analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
     return analysis_result_parse_service.cached_params()

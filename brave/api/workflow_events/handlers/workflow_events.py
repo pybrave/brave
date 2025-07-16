@@ -1,12 +1,12 @@
 # workflow_event_system/handlers/workflow_events.py
 
-from brave.app_container import AppContainer
+from dependency_injector.wiring import inject
 from brave.api.core.workflow_event_router import WorkflowEventRouter
 from dependency_injector.wiring import inject, Provide
+from brave.app_container import AppContainer
 
-
-@inject 
-def setup_handlers(router: WorkflowEventRouter = Provide[AppContainer.workflow_event_router]):
+@inject
+def setup_handlers(router: WorkflowEventRouter = Provide[AppContainer.workflow_event_router]    ):
 
             
     @router.on_event("flow_begin")

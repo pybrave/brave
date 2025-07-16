@@ -1,16 +1,21 @@
 import json
 import os
 import glob
+
+from dependency_injector.wiring import Provide
 from brave.api.config.config import get_settings
 from pathlib import Path
 import shutil
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule
 from brave.api.config.db import get_engine
 from brave.api.models.core import t_namespace, t_pipeline_components, t_pipeline_components_relation
 import importlib.resources as resources
 from sqlalchemy import delete, select, and_, join, func,insert,update
 from datetime import datetime
+
+from brave.api.service.sse_service import SSESessionService
+from brave.app_container import AppContainer
 
 
 def get_pipeline_dir():

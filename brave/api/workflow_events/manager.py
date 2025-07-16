@@ -1,11 +1,10 @@
-from brave.api.workflow_events.interfaces.base_ingress import BaseMessageIngress
-from brave.api.core.pubsub import PubSubManager
-from .workflow_queue import WorkflowQueueManager
-from .uds_listener import UDSListener
-from .event_router import EventRouter
-from .sse import SSEManager
-import asyncio
-from typing import Union, Optional
+# from brave.api.core.pubsub import PubSubManager
+# from brave.api.ingress.interfaces.base_ingress import BaseMessageIngress
+# from .workflow_queue import WorkflowQueueManager
+# from .uds_listener import UDSListener
+# from .sse import SSEManager
+# import asyncio
+# from typing import Union, Optional
 
 #                         [ workflow_queues ]
 #                           ┌────────────┐
@@ -51,42 +50,50 @@ from typing import Union, Optional
 # WorkflowQueueManager
 #    ↓
 # PubSubManager
-from brave.api.core.pubsub import PubSubManager
-from .workflow_queue import WorkflowQueueManager
-from .event_router import EventRouter
-from .sse import SSEManager
-from .ingress.factory import create_ingress
-from .ingress.http_ingress import HTTPIngress
-# from .config import EVENT_MODE, UDS_PATH
-EVENT_MODE = "stream"
-UDS_PATH = "/tmp/brave.sock"
+# from brave.api.core.pubsub import PubSubManager
+# from .workflow_queue import WorkflowQueueManager
+# from brave.api.core.ingress_event_router import IngressEventRouter
+# from .sse import SSEManager
+# from brave.api.ingress.http_ingress import HTTPIngress
+# from dependency_injector.wiring import inject, Provide
+# from brave.app_container import AppContainer
+# # from .config import EVENT_MODE, UDS_PATH
+# EVENT_MODE = "stream"
+# UDS_PATH = "/tmp/brave.sock"
 
-class WorkflowEventSystem:
-    def __init__(self, queue_manager: WorkflowQueueManager, pubsub: PubSubManager, router: EventRouter):
-        self.pubsub = pubsub
-        self.queue_manager = queue_manager
-        self.router = router
-        self.ingress = create_ingress(EVENT_MODE, UDS_PATH, self.router)
-        self.sse = SSEManager(self.queue_manager)
+# class WorkflowManager:
+#     @inject
+#     def __init__(
+#         self, 
+#         queue_manager: WorkflowQueueManager = Provide[AppContainer.workflow_queue_manager], 
+#         pubsub: PubSubManager = Provide[AppContainer.pubsub_manager]):
 
-    async def start(self):
-        if isinstance(self.ingress, BaseMessageIngress):
-            await self.ingress.start()
+#         self.pubsub = pubsub
+#         self.queue_manager = queue_manager
+#         self.sse = SSEManager(self.queue_manager)
 
-    def register_http(self, app):
-        if isinstance(self.ingress, HTTPIngress):
-            self.ingress.register(app)
+#     # async def start(self):
+#     #     if isinstance(self.ingress, BaseMessageIngress):
+#     #         await self.ingress.start()
 
-    def sse_endpoint(self):
-        return self.sse.create_endpoint()
+#     # def register_http(self, app):
+#     #     if isinstance(self.ingress, HTTPIngress):
+#     #         self.ingress.register(app)
 
-    def register_subscriber(self, topic: str, callback):
-        self.pubsub.subscribe(topic, callback)
+#     def sse_endpoint(self):
+#         return self.sse.create_endpoint()
 
-    async def cleanup_loop(self):
-        while True:
-            await self.queue_manager.cleanup()
-            await asyncio.sleep(10)
+#     def register_subscriber(self, topic: str, callback):
+#         self.pubsub.subscribe(topic, callback)
+
+#     async def cleanup_loop(self):
+#         while True:
+#             await self.queue_manager.cleanup()
+#             await asyncio.sleep(10)
+
+
+
+
 # class WorkflowEventSystem:
 #     def __init__(self, uds_path="/tmp/brave.sock"):
 #         self.pubsub = PubSubManager()

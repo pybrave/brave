@@ -6,6 +6,9 @@ from collections import defaultdict
 from functools import lru_cache
 from typing import Dict, Set
 import json
+from fastapi import Request
+from fastapi.responses import StreamingResponse
+
 
 class SSEService:
     def __init__(self):
@@ -49,6 +52,13 @@ class SSEService:
 
     def remove_client(self, client_queue):
         self.connected_clients.discard(client_queue)
+
+    def create_endpoint(self):
+        async def endpoint(request: Request):
+            q = asyncio.Queue()
+            self.add_client(q)
+            return StreamingResponse(self.event_generator(request, q), media_type="text/event-stream")
+        return endpoint
 
     async def producer(self):
         i = 1
@@ -94,6 +104,7 @@ class SSESessionService:
     async def push_message(self, msg: dict):
         # 消息结构：{"group": "typeA", "data": "hello"}
         await self.global_queue.put(msg)
+    
 
     async def broadcast_loop(self):
         while True:
@@ -107,6 +118,12 @@ class SSESessionService:
             print(f"📣 广播到组 {group}: {data}, 客户端数量: {len(clients)}")
             for q in clients:
                 await q.put(data)
+    def create_endpoint(self):
+        async def endpoint(request: Request, group: str = "default"):
+            q = asyncio.Queue()
+            self.add_client(q, group)
+            return StreamingResponse(self.event_generator(request, q, group), media_type="text/event-stream")
+        return endpoint
 
     async def producer(self):
         i = 0
@@ -119,10 +136,10 @@ class SSESessionService:
             # await self.push_message(msgB)
 
 
-@lru_cache()
-def get_sse_service():
-    sse_service = SSESessionService()
-    return sse_service
+# @lru_cache()
+# def get_sse_service():
+#     sse_service = SSESessionService()
+#     return sse_service
 
 # from collections import defaultdict
 # from typing import Dict, Set

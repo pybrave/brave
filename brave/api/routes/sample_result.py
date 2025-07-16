@@ -30,9 +30,10 @@ import re
 from brave.api.utils.from_glob_get_file import from_glob_get_file
 from brave.api.schemas.sample import AddSampleMetadata,UpdateSampleMetadata
 import brave.api.service.sample_service as sample_service
-from brave.api.service.analysis_result_parse import get_analysis_result_parse_service,AnalysisResultParse
+from brave.api.service.analysis_result_parse import AnalysisResultParse
 from fastapi import Depends
-
+from dependency_injector.wiring import inject, Provide
+from brave.app_container import AppContainer
 sample_result = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -242,7 +243,11 @@ async def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisRe
 @sample_result.delete(
     "/analyais-result/delete-by-id/{analysis_result_id}",  
     status_code=HTTP_204_NO_CONTENT)
-async def delete_analysis_result(analysis_result_id: str,analysis_result_parse_service:AnalysisResultParse = Depends(get_analysis_result_parse_service)):
+@inject
+async def delete_analysis_result(
+    analysis_result_id: str,
+    analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
+
     with get_engine().begin() as conn:
         find_analysis_result = analysis_result_service.find_by_analysis_result_id(conn,analysis_result_id)
         if not find_analysis_result:
