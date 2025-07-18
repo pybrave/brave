@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.responses import StreamingResponse
 import asyncio
-from brave.api.workflow_events.workflow_queue import WorkflowQueueManager
+from brave.api.core.workflow_queue import WorkflowQueueManager
 class WorkflowSSEManager:
     def __init__(self, workflow_queue_manager: WorkflowQueueManager):
         self.workflow_queue_manager = workflow_queue_manager

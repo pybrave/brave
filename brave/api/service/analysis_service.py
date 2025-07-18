@@ -1,6 +1,6 @@
 from brave.api.config.db import get_engine
-from brave.api.models.core import analysis
-from sqlalchemy import select
+from brave.api.models.core import analysis as t_analysis
+from sqlalchemy import select,update
 from fastapi import HTTPException
 import json
 import  brave.api.service.pipeline as pipeline_service
@@ -9,7 +9,7 @@ import hashlib
 import os
 
 def get_parse_analysis_result_params(conn,analysis_id):
-    stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+    stmt = select(t_analysis).where(t_analysis.c.analysis_id == analysis_id)
     result = conn.execute(stmt).mappings().first()
     if not result:
         raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
@@ -80,7 +80,7 @@ def execute_parse(analysis,parse,file_format_list):
 
 
 def find_running_analysis(conn):
-    stmt = select(analysis).where(analysis.c.process_id!=None)
+    stmt = select(t_analysis).where(t_analysis.c.process_id!=None)
     result = conn.execute(stmt).mappings().all()
     return result
 
@@ -99,6 +99,18 @@ def get_file_dict(file_format_list,output_dir):
     return file_dict
 
 def find_analysis_by_id(conn,analysis_id):
-    stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+    stmt = select(t_analysis).where(t_analysis.c.analysis_id == analysis_id)
     result = conn.execute(stmt).mappings().first()
     return result
+
+
+async def finished_analysis(analysis_id):
+    with get_engine().begin() as conn:  
+        stmt = (
+            update(t_analysis)
+            .where(t_analysis.c.analysis_id == analysis_id)
+            .values(process_id=None,analysis_status = "finished")
+        )
+        conn.execute(stmt)
+        conn.commit()
+    print(f"Analysis {analysis_id} finished")

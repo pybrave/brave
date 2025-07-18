@@ -3,7 +3,7 @@ import asyncio
 import json
 from .interfaces.base_ingress import BaseMessageIngress
 from brave.api.core.ingress_event_router import IngressEventRouter
-
+from brave.api.core.event import IngressEvent
 class UDSStreamIngress(BaseMessageIngress):
     def __init__(self, path, router:IngressEventRouter):
         self.path = path
@@ -22,7 +22,15 @@ class UDSStreamIngress(BaseMessageIngress):
             while line := await reader.readline():
                 try:
                     msg = json.loads(line.decode().strip())
-                    await self.router.dispatch(msg)
+                    
+                    evnet_str = msg.get("ingress_event")
+                    event = IngressEvent(evnet_str)
+                    if not event:
+                        event = IngressEvent.NEXTFLOW_EXECUTOR_EVENT
+                        print(f"[UDS-STREAM] Unknown event type '{event}'", msg)
+                        return
+                    data = msg.get("data")
+                    await self.router.dispatch(event,data)
                 except Exception as e:
                     print(f"[UDS-STREAM] Message error: {e}")
         except Exception as e:

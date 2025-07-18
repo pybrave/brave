@@ -322,8 +322,9 @@ async def browse_output_dir(analysis_id):
         return file_list
 
 # 结果解析
-@inject
+
 @analysis_api.post("/fast-api/parse-analysis-result/{analysis_id}")
+@inject
 async def parse_analysis_result(
     analysis_id,save:Optional[bool]=False,
     analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):

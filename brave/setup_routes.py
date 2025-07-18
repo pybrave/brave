@@ -40,7 +40,10 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.include_router(setting_controller,prefix="/brave-api")
 
     app.get("/brave-api/sse-group")(manager.sse_service.create_endpoint())  
-
+    endpoint = manager.ingress_manager.create_endpoint()
+    if endpoint:
+        app.post("/brave-api/ingress")(endpoint)
+    # curl -X POST http://localhost:5005/brave-api/ingress -d '{"ingress_event": "workflow_log", "workflow_event":"flow_begin","workflow_id": "123", "message": "test"}'
     # app.state.sse_service = sse_service
     
     

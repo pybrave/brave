@@ -1,20 +1,22 @@
 # brave/container.py
 from dependency_injector import containers, providers
-from brave.api.core.workflow_event_router import WorkflowEventRouter
-from brave.api.workflow_events.workflow_queue import WorkflowQueueManager
+from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
+from brave.api.core.workflow_queue import WorkflowQueueManager
 from brave.api.core.pubsub import PubSubManager
-from brave.api.core.ingress_event_router import IngressEventRouter
+from brave.api.core.routers.ingress_event_router import IngressEventRouter
 from brave.api.ingress.manager import IngressManager
-from brave.api.workflow_events.sse import WorkflowSSEManager
+from brave.api.core.workflow_sse import WorkflowSSEManager
 from brave.api.service.sse_service import SSESessionService
 from brave.api.service.analysis_result_parse import AnalysisResultParse
 from brave.api.service.listener_files_service import ListenerFilesService
-    
+from brave.api.ingress.factory import IngressMode
+from brave.api.core.routers.watch_file_event_router import WatchFileEvenetRouter
+from brave.api.core.routers.analysis_executer_router import AnalysisExecutorRouter
 class AppContainer(containers.DeclarativeContainer):
     # Core services
     wiring_config = containers.WiringConfiguration(modules=[".api",".app_manager",".api.routes"])
     pubsub_manager = providers.Singleton(PubSubManager)
-    workflow_event_router = providers.Singleton(WorkflowEventRouter)
+ 
     workflow_queue_manager = providers.Singleton(
         WorkflowQueueManager, 
         pubsub=pubsub_manager,
@@ -26,7 +28,7 @@ class AppContainer(containers.DeclarativeContainer):
 
     ingress_manager = providers.Singleton(
         IngressManager,
-        event_mode="stream",
+        event_mode=IngressMode.STREAM,
         uds_path="/tmp/brave.sock",
         ingress_event_router=ingress_event_router
     )
@@ -51,7 +53,8 @@ class AppContainer(containers.DeclarativeContainer):
         listener_files_service=listener_files_service
     )
 
-    
+
+
     # App manager with injected dependencies
     # app_manager = providers.Singleton(
     #     AppManager,

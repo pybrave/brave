@@ -14,7 +14,6 @@ from brave.api.routes.sse import sseController
 import asyncio
 # from brave.api.service.watch_service import watch_folder,startup_process_event
 from brave.api.service.sse_service import SSESessionService
-from brave.api.service.file_watcher_service import FileWatcher
 from brave.api.service.process_monitor_service import ProcessMonitor
 from brave.api.routes.bio_database import bio_database
 from fastapi.staticfiles import StaticFiles
@@ -32,11 +31,11 @@ from brave.app_manager import AppManager
 from brave.app_container import AppContainer
 from brave.setup_routes import setup_routes
 container = AppContainer()
-container.wire(modules=["brave.api.routes.sse"])
+container.wire(modules=["brave.api.routes"], packages=["brave.api.routes"])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    manager = AppManager(app)
+    manager = AppManager()
     # container.app_manager.override(providers.Object(manager))
     await manager.start()
     setup_routes(app,manager)

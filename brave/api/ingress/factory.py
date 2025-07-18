@@ -20,12 +20,19 @@ from brave.api.core.ingress_event_router import IngressEventRouter
 #         else:
 #             raise ValueError(f"Unsupported ingress mode: {self.event_mode}")
 
-def create_ingress(mode, path, router:IngressEventRouter):
-    if mode == "stream":
+from enum import Enum
+
+class IngressMode(Enum):
+    STREAM = "stream"
+    SOCKET = "socket"
+    HTTP = "http"
+
+def create_ingress(mode: IngressMode, path, router: IngressEventRouter):
+    if mode == IngressMode.STREAM:
         return UDSStreamIngress(path, router)
-    elif mode == "socket":
+    elif mode == IngressMode.SOCKET:
         return UDSSocketIngress(path, router)
-    elif mode == "http":
+    elif mode == IngressMode.HTTP:
         return HTTPIngress(router)
     else:
         raise ValueError(f"Unsupported ingress mode: {mode}")

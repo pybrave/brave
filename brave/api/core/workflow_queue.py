@@ -4,8 +4,8 @@ from typing import Dict, Any
 import time
 
 from brave.api.core.pubsub import PubSubManager
-from brave.api.core.workflow_event_router import WorkflowEventRouter
-
+from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
+from brave.api.core.event import WorkflowEvent
 
 @dataclass
 class WorkflowQueue:
@@ -29,6 +29,9 @@ class WorkflowQueueManager:
             queue = asyncio.Queue()
             task = asyncio.create_task(self._consume_loop(workflow_id, queue))
             self.workflow_map[workflow_id] = WorkflowQueue(queue=queue, task=task)
+    
+ 
+        
 
     async def put(self, workflow_id: str, msg: dict):
         self.register(workflow_id)
@@ -37,7 +40,7 @@ class WorkflowQueueManager:
         await wfq.queue.put(msg)
 
     async def dispatch(self, msg: dict):
-        workflow_id = msg.get("workflow_id", "global")
+        workflow_id = msg.get("analysis_id", "global")
         await self.put(workflow_id, msg)
 
     def get(self, workflow_id: str) -> WorkflowQueue:
@@ -48,7 +51,15 @@ class WorkflowQueueManager:
             msg = await queue.get()
             try:
                 await self.pubsub.publish(workflow_id, msg)
-                await self.workflow_event_router.dispatch(msg)
+                
+                try:
+                    event = WorkflowEvent(msg.get("workflow_event"))
+                except ValueError:
+                    event = msg.get("workflow_event")
+                    print(f"[WorkflowEventRouter] Unknown event type '{event}'", msg)
+                    return
+
+                await self.workflow_event_router.dispatch(event,msg)
             except Exception as e:
                 print(f"[Consumer ERROR] workflow {workflow_id}: {e}")
 
@@ -63,7 +74,7 @@ class WorkflowQueueManager:
         for wf_id in to_delete:
             del self.workflow_map[wf_id]
             # await self.pubsub.publish(wf_id, {"event": "workflow_cleanup", "workflow_id": wf_id})
-            await self.workflow_event_router.dispatch({"event": "workflow_cleanup", "workflow_id": wf_id})
+            await self.workflow_event_router.dispatch(WorkflowEvent.WORKFLOW_CLEANUP, {"analysis_id": wf_id})
             print(f"[Cleanup] Removed workflow {wf_id}")
 
     

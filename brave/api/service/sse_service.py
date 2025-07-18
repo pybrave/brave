@@ -104,7 +104,10 @@ class SSESessionService:
     async def push_message(self, msg: dict):
         # 消息结构：{"group": "typeA", "data": "hello"}
         await self.global_queue.put(msg)
-    
+
+    async def push_message_default(self, msg: dict):
+        # 消息结构：{"group": "typeA", "data": "hello"}
+        await self.global_queue.put({"group": "default", "data": msg})
 
     async def broadcast_loop(self):
         while True:

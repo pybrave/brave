@@ -2,6 +2,7 @@ import os
 import asyncio
 import socket
 import json
+from brave.api.core.event import IngressEvent
 from brave.api.core.ingress_event_router import IngressEventRouter
 from .interfaces.base_ingress import BaseMessageIngress
 
@@ -32,7 +33,14 @@ class UDSSocketIngress(BaseMessageIngress):
                     if not data:
                         break
                     msg = json.loads(data.decode())
-                    await self.router.dispatch(msg)
+                    evnet_str = msg.get("ingress_event")
+                    event = IngressEvent(evnet_str)
+                    if not event:
+                        event = IngressEvent.NEXTFLOW_EXECUTOR_EVENT
+                        print(f"[UDS-SOCKET] Unknown event type '{event}'", msg)
+                        return
+                    data = msg.get("data")
+                    await self.router.dispatch(event,data)
                 except Exception as e:
                     print(f"[UDS-SOCKET] Error: {e}")
                     break

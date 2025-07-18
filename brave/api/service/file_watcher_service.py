@@ -1,7 +1,9 @@
+import os
 from watchfiles import awatch
 from importlib.resources import files
 from importlib import import_module
 from brave.api.config.db import get_engine
+from brave.api.core.event import WatchFileEvent
 from brave.api.models.core import analysis
 import asyncio
 import inspect
@@ -9,16 +11,21 @@ import logging
 from brave.api.service.sse_service import   SSESessionService
 from brave.api.service.analysis_result_parse import AnalysisResultParse
 from brave.api.service.listener_files_service import ListenerFilesService
+from brave.api.core.watch_file_event_router import WatchFileEvenetRouter
+from brave.app_container import AppContainer
+from dependency_injector.wiring import Provide
+
 # logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class FileWatcher:
+class FileWatcherService:
     def __init__(
         self, 
         watch_path: str,
-        sse_service: SSESessionService, 
-        analysis_result_parse_service: AnalysisResultParse,
-        listener_files_service: ListenerFilesService
+        watchfile_event_router:WatchFileEvenetRouter=Provide[AppContainer.watchfile_event_router]
+        # sse_service: SSESessionService, 
+        # analysis_result_parse_service: AnalysisResultParse,
+        # listener_files_service: ListenerFilesService
     ):
         """
         初始化 FileWatcher 实例。
@@ -27,9 +34,10 @@ class FileWatcher:
         :param listener_prefix: 监听器文件名前缀，默认是 "file"
         """
         self.watch_path = watch_path
-        self.sse_service = sse_service
-        self.analysis_result_parse_service = analysis_result_parse_service
-        self.listener_files_service = listener_files_service
+        self.watchfile_event_router = watchfile_event_router
+        # self.sse_service = sse_service
+        # self.analysis_result_parse_service = analysis_result_parse_service
+        # self.listener_files_service = listener_files_service
 
     # def _load_listener_files(self):
     #     """加载所有符合条件的文件监听器"""
@@ -61,13 +69,23 @@ class FileWatcher:
         print(f"开始监控文件夹: {self.watch_path}")
         async for changes in awatch(self.watch_path, recursive=False, step=3000):
             for change, file_path in changes:
-                # 触发文件变更事件
-                await self.listener_files_service.execute_listener("file_change",
-                 {"change": change, 
-                 "file_path": file_path, 
-                 "sse_service": 
-                 self.sse_service,
-                 "analysis_result_parse_service":self.analysis_result_parse_service})
+                event:WatchFileEvent
+                if "trace" in file_path:
+                    event = WatchFileEvent.TRACE_LOG
+                    analysis_id = os.path.basename(file_path).replace(".trace.log","")
+                elif "workflow" in file_path:
+                    event =WatchFileEvent.WORKFLOW_LOG
+                    analysis_id = os.path.basename(file_path).replace(".workflow.log","")   
+                else:
+                    continue
+                await self.watchfile_event_router.dispatch(event,{"event_type":event.value,"file_path":file_path,"analysis_id":analysis_id})   
+                # # 触发文件变更事件
+                # await self.listener_files_service.execute_listener("file_change",
+                #  {"change": change, 
+                #  "file_path": file_path, 
+                #  "sse_service": 
+                #  self.sse_service,
+                #  "analysis_result_parse_service":self.analysis_result_parse_service})
 
 
 # 示例：如何使用 FileWatcher 类
