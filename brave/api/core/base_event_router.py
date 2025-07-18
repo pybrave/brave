@@ -24,17 +24,17 @@ class BaseEventRouter(ABC, Generic[E]):
         self._handlers[event].add(handler)
 
 
-    async def dispatch(self,event:E, msg: dict):
-        # event = msg.get("workflow_event")
-        # if not event:
-        #     print("[EventRouter] No 'workflow_event' in message", msg)
-        #     return
-        handlers = self._handlers.get(event)
-        if handlers:
-            for handler in handlers:
-                if asyncio.iscoroutinefunction(handler):
-                    await handler(msg)
-                else:
-                    handler(msg)
-        else:
-            print(f"[EventRouter] No handler for event '{event}'")
+    # async def dispatch(self,event:E, msg: dict):
+    #     # event = msg.get("workflow_event")
+    #     # if not event:
+    #     #     print("[EventRouter] No 'workflow_event' in message", msg)
+    #     #     return
+    #     handlers = self._handlers.get(event)
+    #     if handlers:
+    #         for handler in handlers:
+    #             if asyncio.iscoroutinefunction(handler):
+    #                 await handler(msg)
+    #             else:
+    #                 handler(msg)
+    #     else:
+    #         print(f"[EventRouter] No handler for event '{event}'")

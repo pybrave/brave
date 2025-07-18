@@ -4,10 +4,12 @@ from collections import defaultdict
 
 from brave.api.core.base_event_router import BaseEventRouter
 from brave.api.core.event import WatchFileEvent
+from brave.api.core.direct_dispatch import DirectDispatch
 
 Callback = Union[Callable[[dict], None], Callable[[dict], Coroutine]]
 
-class WatchFileEvenetRouter(BaseEventRouter[WatchFileEvent]):
+class WatchFileEvenetRouter(DirectDispatch[WatchFileEvent]):
+    pass
     # def __init__(self):
     #     self._handlers: dict[WatchFileEvent, set[Callback]] = defaultdict(set)
 

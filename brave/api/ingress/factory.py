@@ -1,7 +1,7 @@
 from .uds_stream import UDSStreamIngress
 from .uds_socket import UDSSocketIngress
 from .http_ingress import HTTPIngress
-from brave.api.core.ingress_event_router import IngressEventRouter
+from brave.api.core.routers.ingress_event_router import IngressEventRouter
 
 # brave/api/core/ingress_factory.py
 # class IngressFactory:

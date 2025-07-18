@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from .factory import  create_ingress, IngressMode
 from .interfaces.base_ingress import BaseMessageIngress
-from brave.api.core.ingress_event_router import IngressEventRouter
+from brave.api.core.routers.ingress_event_router import IngressEventRouter
 from .http_ingress import HTTPIngress
 
 class IngressManager:

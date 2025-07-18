@@ -5,13 +5,15 @@ import asyncio
 
 from brave.api.core.base_event_router import BaseEventRouter
 from brave.api.core.event import IngressEvent
-
+from brave.api.core.queued_dispatch import QueuedDispatch
 
 
 Callback = Union[Callable[[dict], None], Callable[[dict], Coroutine]]
 
-class IngressEventRouter(BaseEventRouter[IngressEvent]):
-    pass
+class IngressEventRouter(QueuedDispatch[IngressEvent]):
+    def __init__(self):
+        super().__init__(maxlen=100, delay=0.02)
+
     # def __init__(self):
     #     self._handlers: dict[IngressEvent, set[Callback]] = defaultdict(set)
 

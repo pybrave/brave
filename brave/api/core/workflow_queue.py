@@ -15,10 +15,9 @@ class WorkflowQueue:
     # subscribers: int = 0
 
 class WorkflowQueueManager:
-    def __init__(self, pubsub: PubSubManager, workflow_event_router: WorkflowEventRouter):
+    def __init__(self, pubsub: PubSubManager):
         self.workflow_map: dict[str, WorkflowQueue] = {}
         self.pubsub = pubsub
-        self.workflow_event_router = workflow_event_router
     
 
     def register_subscriber(self, topic: str, callback):
@@ -59,7 +58,7 @@ class WorkflowQueueManager:
                     print(f"[WorkflowEventRouter] Unknown event type '{event}'", msg)
                     return
 
-                await self.workflow_event_router.dispatch(event,msg)
+                # await self.workflow_event_router.dispatch(event,msg)
             except Exception as e:
                 print(f"[Consumer ERROR] workflow {workflow_id}: {e}")
 
@@ -73,8 +72,9 @@ class WorkflowQueueManager:
             
         for wf_id in to_delete:
             del self.workflow_map[wf_id]
-            # await self.pubsub.publish(wf_id, {"event": "workflow_cleanup", "workflow_id": wf_id})
-            await self.workflow_event_router.dispatch(WorkflowEvent.WORKFLOW_CLEANUP, {"analysis_id": wf_id})
+            
+            await self.pubsub.publish(wf_id, {"event": "workflow_cleanup", "workflow_id": wf_id})
+            # await self.workflow_event_router.dispatch(WorkflowEvent.WORKFLOW_CLEANUP, {"analysis_id": wf_id})
             print(f"[Cleanup] Removed workflow {wf_id}")
 
     

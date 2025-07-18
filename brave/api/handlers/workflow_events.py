@@ -1,7 +1,7 @@
 # workflow_event_system/handlers/workflow_events.py
 
 from dependency_injector.wiring import inject
-from brave.api.core.workflow_event_router import WorkflowEventRouter
+from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
 from dependency_injector.wiring import inject, Provide
 from brave.app_container import AppContainer
 from brave.api.core.event import WorkflowEvent

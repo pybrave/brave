@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter
 from brave.api.core.event import IngressEvent
-from brave.api.core.ingress_event_router import IngressEventRouter
+from brave.api.core.routers.ingress_event_router import IngressEventRouter
 
 class HTTPIngress:
     def __init__(self, router:IngressEventRouter):

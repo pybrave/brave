@@ -3,7 +3,7 @@ import asyncio
 import socket
 import json
 from brave.api.core.event import IngressEvent
-from brave.api.core.ingress_event_router import IngressEventRouter
+from brave.api.core.routers.ingress_event_router import IngressEventRouter
 from .interfaces.base_ingress import BaseMessageIngress
 
 class UDSSocketIngress(BaseMessageIngress):

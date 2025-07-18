@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from brave.api.core.event import WorkflowEvent
 from brave.api.executor.models import JobSpec
-from brave.api.core.workflow_event_router import WorkflowEventRouter
+from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
 class JobExecutor(ABC):
     def __init__(self, router: WorkflowEventRouter):
         self.router = router

@@ -2,7 +2,7 @@
 from kubernetes import client, config
 from brave.api.executor.models import JobSpec
 from .base import JobExecutor   
-from brave.api.core.workflow_event_router import WorkflowEventRouter
+from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
 class K8sExecutor(JobExecutor):
     def __init__(self, workflow_event_router: WorkflowEventRouter):
         super().__init__(workflow_event_router)

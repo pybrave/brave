@@ -78,13 +78,23 @@ class AppManager:
         self.tasks.append(asyncio.create_task(self.ingress_manager.start()))
         self.tasks.append(asyncio.create_task(self.workflow_queue_manager.cleanup_loop()))
 
-        # register handler for workflow event
+        # register handler for ingress event
         self.ingress_event_router.register_handler(IngressEvent.NEXTFLOW_EXECUTOR_EVENT, self.workflow_queue_manager.dispatch)
         self.ingress_event_router.register_handler(IngressEvent.HEARTBEAT, process_heartbeat)
+
+        # register  handler for workflow event
+        self.workflow_queue_manager.register_subscriber(WorkflowEvent.ON_FLOW_BEGIN, self.workflow_event_router.dispatch)
+
+
+
+
+
 
         async def push_default_message(msg):
             await self.sse_service.push_message({"group": "default", "data": json.dumps(msg)})
 
+
+        
         #  sse_service.push_message
         self.workflow_event_router.register_handler(WorkflowEvent.ON_FLOW_BEGIN,  push_default_message)
         # self.workflow_event_router.register_handler(WorkflowEvent.ON_FILE_PUBLISH,  self.sse_service.push_message_default)

@@ -4,7 +4,7 @@ from brave.api.executor.models import LocalJobSpec
 from .base import JobExecutor
 import threading
 import psutil
-from brave.api.core.workflow_event_router import WorkflowEventRouter
+from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
 class LocalExecutor(JobExecutor):
     def __init__(self, workflow_event_router: WorkflowEventRouter):
         super().__init__(workflow_event_router)

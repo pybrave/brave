@@ -11,7 +11,7 @@ import logging
 from brave.api.service.sse_service import   SSESessionService
 from brave.api.service.analysis_result_parse import AnalysisResultParse
 from brave.api.service.listener_files_service import ListenerFilesService
-from brave.api.core.watch_file_event_router import WatchFileEvenetRouter
+from brave.api.core.routers.watch_file_event_router import WatchFileEvenetRouter
 from brave.app_container import AppContainer
 from dependency_injector.wiring import Provide
 

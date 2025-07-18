@@ -16,11 +16,14 @@ class AppContainer(containers.DeclarativeContainer):
     # Core services
     wiring_config = containers.WiringConfiguration(modules=[".api",".app_manager",".api.routes"])
     pubsub_manager = providers.Singleton(PubSubManager)
- 
+    workflow_event_router = providers.Singleton(WorkflowEventRouter)
+    watchfile_event_router = providers.Singleton(WatchFileEvenetRouter)
+    analysis_executor_router = providers.Singleton(AnalysisExecutorRouter)
+
     workflow_queue_manager = providers.Singleton(
         WorkflowQueueManager, 
-        pubsub=pubsub_manager,
-        workflow_event_router=workflow_event_router
+        pubsub=pubsub_manager
+        # workflow_event_router=workflow_event_router
     )
     
     # Create adapter for WorkflowEventSystem
@@ -34,11 +37,11 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
     # Workflow event system
-    workflow_queue_manager = providers.Singleton(
-        WorkflowQueueManager,
-        pubsub=pubsub_manager,
-        workflow_event_router=workflow_event_router
-    )
+    # workflow_queue_manager = providers.Singleton(
+    #     WorkflowQueueManager,
+    #     pubsub=pubsub_manager,
+    #     workflow_event_router=workflow_event_router
+    # )
     sse_service = providers.Singleton(SSESessionService)
     workflow_sse_manager = providers.Singleton(WorkflowSSEManager, workflow_queue_manager=workflow_queue_manager)
     

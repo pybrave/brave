@@ -4,10 +4,11 @@ from collections import defaultdict
 
 from brave.api.core.base_event_router import BaseEventRouter
 from brave.api.core.event import AnalysisExecutorEvent
+from brave.api.core.direct_dispatch import DirectDispatch
 
 Callback = Union[Callable[[dict], None], Callable[[dict], Coroutine]]
 
-class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent]):
+class AnalysisExecutorRouter(DirectDispatch[AnalysisExecutorEvent]):
     pass
     # def __init__(self):
     #     self._handlers: dict[WatchFileEvent, set[Callback]] = defaultdict(set)

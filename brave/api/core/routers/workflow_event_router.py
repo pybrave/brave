@@ -3,9 +3,10 @@ import asyncio
 from collections import defaultdict
 from brave.api.core.base_event_router import BaseEventRouter
 from brave.api.core.event import WorkflowEvent
+from brave.api.core.direct_dispatch import DirectDispatch
 Callback = Union[Callable[[dict], None], Callable[[dict], Coroutine]]
 
-class WorkflowEventRouter(BaseEventRouter[WorkflowEvent]):
+class WorkflowEventRouter(DirectDispatch[WorkflowEvent]):
     pass
     # def __init__(self):
     #     # self._handlers: Dict[str, Callable[[dict], Awaitable]] = {}
