@@ -168,7 +168,8 @@ t_bio_database = Table(
     Column("database_id", String(255)),
     Column("name", String(255)),
     Column("path", String(255)),
-    Column("type", String(255))
+    Column("type", String(255)),
+    Column("db_index", String(255))
 )
 
 t_namespace = Table(

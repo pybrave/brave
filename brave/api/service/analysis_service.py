@@ -1,8 +1,10 @@
+from operator import and_
 from brave.api.config.db import get_engine
-from brave.api.models.core import analysis as t_analysis
+from brave.api.models.core import analysis as t_analysis, t_pipeline_components
 from sqlalchemy import select,update
 from fastapi import HTTPException
 import json
+from brave.api.schemas.analysis import QueryAnalysis
 import  brave.api.service.pipeline as pipeline_service
 import importlib
 import hashlib
@@ -24,16 +26,17 @@ def get_parse_analysis_result_params(conn,analysis_id):
     parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
     
     component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
-    if len(component_file_list) == 0:
-        return {"error":"组件没有添加输出文件,请检查!"}
+    file_format_list = []
+    # if len(component_file_list) == 0:
+    #     return {"error":"组件没有添加输出文件,请检查!"}
         # raise HTTPException(status_code=500, detail=f"组件{component_id}没有添加输出文件,请检查!")
     component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
     file_format_list = [
         {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
         for item in component_file_content_list if 'fileFormat' in item
     ]
-    if not file_format_list:
-        return {"error":"组件的输出文件没有配置fileFormat!请检查!"}
+    # if not file_format_list:
+    #     return {"error":"组件的输出文件没有配置fileFormat!请检查!"}
         # raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
 
 
@@ -80,7 +83,7 @@ def execute_parse(analysis,parse,file_format_list):
 
 
 def find_running_analysis(conn):
-    stmt = select(t_analysis).where(t_analysis.c.process_id!=None)
+    stmt = select(t_analysis).where(t_analysis.c.analysis_status=="running")
     result = conn.execute(stmt).mappings().all()
     return result
 
@@ -114,3 +117,28 @@ async def finished_analysis(analysis_id):
         conn.execute(stmt)
         conn.commit()
     print(f"Analysis {analysis_id} finished")
+
+
+
+
+def list_analysis(conn,query:QueryAnalysis):
+    conditions = []
+    if query.analysis_id:
+        conditions.append(t_analysis.c.analysis_id == query.analysis_id)
+    if query.analysis_method:
+        conditions.append(t_analysis.c.analysis_method == query.analysis_method)
+    if query.component_id:
+        conditions.append(t_analysis.c.component_id == query.component_id)
+    if query.project:
+        conditions.append(t_analysis.c.project == query.project)
+
+    stmt = select(
+        t_analysis,
+        t_pipeline_components.c.name.label("component_name"),
+        t_pipeline_components.c.label.label("component_label"),
+        t_pipeline_components.c.component_type.label("component_type")
+    )
+    stmt = stmt.select_from(t_analysis.outerjoin(t_pipeline_components,t_analysis.c.component_id==t_pipeline_components.c.component_id) )
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
+    return conn.execute(stmt).mappings().all()

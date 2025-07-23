@@ -68,6 +68,7 @@ class FileWatcherService:
         """文件变更监控任务"""
         print(f"开始监控文件夹: {self.watch_path}")
         async for changes in awatch(self.watch_path, recursive=False, step=3000):
+
             for change, file_path in changes:
                 event:WatchFileEvent
                 if "trace" in file_path:

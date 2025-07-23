@@ -4,12 +4,17 @@ from collections import defaultdict
 
 from brave.api.core.base_event_router import BaseEventRouter
 from brave.api.core.event import WatchFileEvent
-from brave.api.core.direct_dispatch import DirectDispatch
 
 Callback = Union[Callable[[dict], None], Callable[[dict], Coroutine]]
 
-class WatchFileEvenetRouter(DirectDispatch[WatchFileEvent]):
-    pass
+class WatchFileEvenetRouter(BaseEventRouter[WatchFileEvent,Callback]):
+    async def dispatch(self, event: WatchFileEvent, payload: dict):
+        handlers = self._handlers.get(event, [])
+        for handler in handlers:
+            if asyncio.iscoroutinefunction(handler):
+                await handler(payload)
+            else:
+                handler(payload)
     # def __init__(self):
     #     self._handlers: dict[WatchFileEvent, set[Callback]] = defaultdict(set)
 

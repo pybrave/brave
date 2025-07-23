@@ -1,11 +1,12 @@
 # container/k8s_backend.py
 from kubernetes import client, config
 from brave.api.executor.models import JobSpec
+from brave.api.core.evenet_bus import EventBus
 from .base import JobExecutor   
 from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
 class K8sExecutor(JobExecutor):
-    def __init__(self, workflow_event_router: WorkflowEventRouter):
-        super().__init__(workflow_event_router)
+    def __init__(self,event_bus:EventBus):
+        self.event_bus = event_bus
         config.load_kube_config()
         self.api = client.CoreV1Api()
         self.batch_api = client.BatchV1Api()

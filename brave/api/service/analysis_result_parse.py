@@ -21,18 +21,18 @@ from functools import lru_cache
 from fastapi import Depends
 from brave.api.service.listener_files_service import get_listener_files_service
 from brave.api.service.listener_files_service import ListenerFilesService
-
+from brave.api.core.evenet_bus import EventBus
 # 创建 logger
 logger = logging.getLogger(__name__)
 
 class AnalysisResultParse:
-    def __init__(self, sse_service: SSESessionService,listener_files_service:ListenerFilesService):
+    def __init__(self):
         # self.queue_process = asyncio.Queue()
         self.queue_lock = asyncio.Lock()  # 保证数据库更新和队列操作安全
         # self.check_interval = check_interval  # 检查间隔
         # self.listener_files = self._load_listener_files()
-        self.sse_service = sse_service
-        self.listener_files_service = listener_files_service
+        # self.sse_service = sse_service
+        # self.listener_files_service = listener_files_service
         self.analysis_id_to_analysis_result: Dict[str, List[Any]] =defaultdict(list)
         self.analysis_id_to_params: Dict[str, Any] = defaultdict(dict)
         self.analysis_id_list: List[str] = []
@@ -174,11 +174,11 @@ class AnalysisResultParse:
               
                 
                 analysis_result_service.add_analysis_result(conn,item)
-                await self.listener_files_service.execute_listener("analysis_result_add",{
-                    "analysis":params['analysis'],
-                    "analysis_result":item,
-                    "sse_service":self.sse_service
-                })
+                # await self.listener_files_service.execute_listener("analysis_result_add",{
+                #     "analysis":params['analysis'],
+                #     "analysis_result":item,
+                #     "sse_service":self.sse_service
+                # })
                 # data = json.dumps({
                 #     "msg":f"分析{analysis_id}，文件{item['file_name']}保存成功!",
                 #     "component_id":item['component_id'],
@@ -189,11 +189,11 @@ class AnalysisResultParse:
             else:
                 if item['analysis_result_hash']!= result['analysis_result_hash']:
                     analysis_result_service.update_analysis_result(conn,result.id,item)
-                    await self.listener_files_service.execute_listener("analysis_result_update",{
-                        "analysis":params['analysis'],
-                        "analysis_result":item,
-                        "sse_service":self.sse_service
-                    })
+                    # await self.listener_files_service.execute_listener("analysis_result_update",{
+                    #     "analysis":params['analysis'],
+                    #     "analysis_result":item,
+                    #     "sse_service":self.sse_service
+                    # })
                     # data = json.dumps({
                     #     "msg":f"分析{analysis_id}，文件{item['file_name']}更新成功!",
                     #     "msgType":"analysis_result"
@@ -205,6 +205,7 @@ class AnalysisResultParse:
 
     def parse_analysis_result(self,conn,analysis_id,preview):
         params:Any = self.find_parse_params(conn,analysis_id,preview)
+   
         result_list,result_dict = analysis_service.execute_parse(**params)
         return params,result_list,result_dict
 

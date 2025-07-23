@@ -22,7 +22,7 @@ def setup_routes(app: FastAPI,manager:AppManager):
     # frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
     app.mount("/brave-api/img", StaticFiles(directory=os.path.join(frontend_path, "img")), name="img")
     settings = get_settings()
-    app.mount("/brave-api/dir", StaticFiles(directory=settings.BASE_DIR), name="base_dir")
+    app.mount("/brave-api/dir", StaticFiles(directory=settings.BASE_DIR, follow_symlink=True), name="base_dir")
     app.mount("/brave-api/work-dir", StaticFiles(directory=settings.WORK_DIR), name="work_dir")
 
     app.mount("/brave-api/literature/dir", StaticFiles(directory=os.path.join(settings.LITERATURE_DIR)), name="literature_dir")

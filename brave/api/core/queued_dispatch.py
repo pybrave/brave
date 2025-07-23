@@ -7,7 +7,7 @@ from brave.api.core.base_event_router import BaseEventRouter
 E = TypeVar("E")  # 泛型事件类型
 Callback = Union[Callable[[dict], None], Callable[[dict], Coroutine]]
 
-class QueuedDispatch(BaseEventRouter[E]):
+class QueuedDispatch(BaseEventRouter[E,Callback]):
     def __init__(self, *args, maxlen: int = 100, delay: float =0, **kwargs):
         super().__init__(*args, **kwargs)
         self._queues: Dict[E, asyncio.Queue] = {}

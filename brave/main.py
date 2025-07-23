@@ -31,7 +31,12 @@ from brave.app_manager import AppManager
 from brave.app_container import AppContainer
 from brave.setup_routes import setup_routes
 container = AppContainer()
-container.wire(modules=["brave.api.routes"], packages=["brave.api.routes"])
+# container.config.executer_type.from_env("EXECUTER_TYPE","local")    
+
+container.wire(modules=["brave.api.routes"], packages=["brave.api.routes","brave.api.handlers"])
+container.config.from_dict({
+    'executer_type': 'docker'
+})
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

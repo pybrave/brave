@@ -3,8 +3,10 @@ import subprocess
 
 from brave.api.executor.models import JobSpec
 from .base import JobExecutor
-
+from brave.api.core.evenet_bus import EventBus  
 class SlurmExecutor(JobExecutor):
+    def __init__(self,event_bus:EventBus):
+        self.event_bus = event_bus
     async def _do_submit_job(self, job_spec: JobSpec):
         pass
         # script_path = job_spec["script_path"]

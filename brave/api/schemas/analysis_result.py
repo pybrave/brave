@@ -11,7 +11,13 @@ class AnalysisResultQuery(BaseModel):
     # queryAnalysis:Optional[bool]=True
     analysis_type:Optional[str]=None
     ids:Optional[list]=None
-    
+
+class AnalysisResultParseModal(BaseModel):
+    sample_id: Optional[str]
+    project: Optional[str]
+    component_id: Optional[str]
+    analysis_result_hash: Optional[str]
+    file_name: Optional[str]
 
 class AnalysisResult(BaseModel):
     id: Optional[int]

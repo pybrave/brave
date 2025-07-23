@@ -15,9 +15,10 @@ class WorkflowQueue:
     # subscribers: int = 0
 
 class WorkflowQueueManager:
-    def __init__(self, pubsub: PubSubManager):
+    def __init__(self, pubsub: PubSubManager, workflow_event_router: WorkflowEventRouter):
         self.workflow_map: dict[str, WorkflowQueue] = {}
         self.pubsub = pubsub
+        self.workflow_event_router = workflow_event_router
     
 
     def register_subscriber(self, topic: str, callback):
@@ -58,7 +59,7 @@ class WorkflowQueueManager:
                     print(f"[WorkflowEventRouter] Unknown event type '{event}'", msg)
                     return
 
-                # await self.workflow_event_router.dispatch(event,msg)
+                await self.workflow_event_router.dispatch(event,workflow_id,msg)
             except Exception as e:
                 print(f"[Consumer ERROR] workflow {workflow_id}: {e}")
 

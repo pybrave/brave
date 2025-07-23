@@ -4,22 +4,21 @@ from .slurm_executor import SlurmExecutor
 from .local_executor import LocalExecutor
 from .base import JobExecutor
 from fastapi import Query
-from brave.app_container import AppContainer
 def get_executor(platform: str) -> JobExecutor:
-    workflow_event_router = AppContainer.workflow_event_router()
+    # workflow_event_router = AppContainer.workflow_event_router()
     if platform == "docker":
-        return DockerExecutor(workflow_event_router)
+        return DockerExecutor()
     elif platform == "k8s":
-        return K8sExecutor(workflow_event_router)
+        return K8sExecutor()
     elif platform == "slurm":
-        return SlurmExecutor(workflow_event_router)
+        return SlurmExecutor()
     elif platform == "local":
-        return LocalExecutor(workflow_event_router)
+        return LocalExecutor()
     else:
         raise ValueError(f"Unsupported backend: {platform}")
 
 
-def get_executor_dep(
-    platform: str = Query(default="local")  # 可从请求中传入，也支持配置默认值
-) -> JobExecutor:
-    return get_executor(platform)
+# def get_executor_dep(
+#     platform: str = Query(default="local")  # 可从请求中传入，也支持配置默认值
+# ) -> JobExecutor:
+#     return get_executor(platform)

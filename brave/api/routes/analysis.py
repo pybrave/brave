@@ -1,8 +1,10 @@
+from anyio import Event
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter,Depends,HTTPException, Request
 from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
+from brave.api.core.evenet_bus import EventBus
 from brave.api.executor.models import LocalJobSpec
 from brave.api.schemas.bio_database import QueryBiodatabase
 from brave.api.schemas.sample import Sample
@@ -18,7 +20,7 @@ from sqlalchemy import and_,or_
 import pandas as pd
 from brave.api.models.core import samples
 from brave.api.config.db import get_engine
-from brave.api.schemas.analysis import AnalysisInput,Analysis,QueryAnalysis
+from brave.api.schemas.analysis import AnalysisInput,Analysis,QueryAnalysis,AnalysisExecuterModal
 from typing import Dict, Any
 from brave.api.models.core import analysis
 import json
@@ -26,6 +28,9 @@ import importlib
 import importlib.util
 import uuid
 import os
+from brave.api.service.result_parse import script_analysis
+from brave.api.service.result_parse import nextflow_analysis
+from brave.api.service.result_parse.nextflow_analysis    import NextflowAnalysis
 from brave.api.utils.get_db_utils import get_ids
 from brave.api.config.config import get_settings
 from brave.api.routes.pipeline import get_pipeline_file
@@ -48,8 +53,11 @@ import brave.api.service.analysis_service as analysis_service
 from brave.api.service.analysis_result_parse import AnalysisResultParse
 from brave.app_container import AppContainer
 from brave.app_manager import AppManager
-from brave.api.executor.factory import get_executor_dep
 from brave.api.executor.base import JobExecutor
+from brave.api.core.routers_name import RoutersName
+from brave.api.core.event import AnalysisExecutorEvent
+from brave.api.service.result_parse.script_analysis import ScriptAnalysis
+from brave.api.service.result_parse.nextflow_analysis import NextflowAnalysis
 analysis_api = APIRouter()
 
 
@@ -105,51 +113,7 @@ def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,ve
 
 
 
-def parse_analysis(conn,request_param,module_name,namespace,component_id,component_content,component_file_list):
-    
-    
-  
-    py_module = find_module(namespace,"py_parse_analysis",component_id,module_name,'py')['module']
 
-    # module_name = f'brave.api.parse_analysis.{module_name}'
-    # if importlib.util.find_spec(module) is None:
-    #     print(f"{module_name}不存在!")
-    # else:
-    module = importlib.import_module(py_module)
-
-    
-
-    ## 查找输入字段
-    component_file_name_list = [json.loads(item.content)['name'] for item in component_file_list]
-    # if hasattr(module,"get_db_field"):
-    #     get_db_field = getattr(module, "get_db_field")
-    #     db_field = get_db_field()
-    db_ids_dict = {key: get_ids(request_param[key]) for key in component_file_name_list if key in request_param}
-    db_dict = { key:analysis_result_service.find_analyais_result_by_ids(conn,value) for key,value in  db_ids_dict.items()}
-    extra_dict={}
-    if "upstreamFormJson" in component_content:
-        upstream_form_json = component_content['upstreamFormJson']
-        upstream_form_json_names = [item['name'] for item in upstream_form_json]
-        extra_dict = {key: request_param[key] for key in upstream_form_json_names if key in request_param}
-
-    
-    database_dict={}
-    if "databases" in component_content:
-        bio_database = component_content['databases']
-        bio_database_data_type_list = [item['name'] for item in bio_database]
-        db_ids_dict = {key: request_param[key] for key in bio_database_data_type_list if key in request_param}
-        database_dict = { key:bio_database_service.get_bio_database_by_id(conn,value)['path'] for key,value in  db_ids_dict.items()}
-
-    args = {
-        "analysis_dict":db_dict,
-        "database_dict":database_dict,
-        "extra_dict":extra_dict
-    }
-
-    parse_data = getattr(module, "parse_data")
-
-    result = parse_data(**args)
-    return result
  
 
         # get_script = getattr(module, "get_script")
@@ -163,142 +127,7 @@ def parse_analysis(conn,request_param,module_name,namespace,component_id,compone
 
 # ,response_model=List[Sample]
 #  参数解析
-@analysis_api.post("/fast-api/save-analysis")
-async def save_analysis(request_param: Dict[str, Any],save:Optional[bool]=False): # request_param: Dict[str, Any]
-    # request_param = analysis_input.model_dump_json()
-    component_id = request_param['component_id']
-    # pipeline_id = request_param['pipeline_id']
-    if component_id is None:
-        raise HTTPException(status_code=500, detail=f"component_id is None")
 
-
-    with get_engine().begin() as conn:
-        component = pipeline_service.find_pipeline_by_id(conn, component_id)
-        if component is None or not hasattr(component, "content"):
-            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found or missing content.")
-        component_content = json.loads(component.content)
-        parse_analysis_module = component_content.get('parseAnalysisModule')
-        component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_input_file")
-        parse_analysis_result = parse_analysis(conn,request_param,parse_analysis_module,component.namespace,component_id,component_content,component_file_list)
-        if not save:
-            return parse_analysis_result
-    
-        new_analysis = {
-            "project":request_param['project'],
-            "analysis_name":request_param['analysis_name'],
-            "request_param":json.dumps(request_param),
-            # "analysis_method":component_script,
-            "component_id":component_id,
-            "analysis_status":"created"
-            # "parse_analysis_module":parse_analysis_module
-        }
-        # module_dir = pipeline_id
-        # if "moduleDir" in component_content:
-        #     module_dir = component_content['moduleDir']
-
-        output_dir=None
-        work_dir=None
-        result = None
-        if "id" in request_param:
-            stmt = select(analysis).where(analysis.c.id == request_param['id'])
-            result = conn.execute(stmt).fetchone()
-        if result:
-            output_dir = result.output_dir
-            work_dir = result.work_dir
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            if not os.path.exists(work_dir):
-                os.makedirs(work_dir)
-            params_path = result.params_path
-            command_path = result.command_path
-
-            with open(params_path, "w") as f:
-                json.dump(parse_analysis_result,f)
-                
-            # new_analysis['output_format'] = parse_analysis_result_module
-            stmt = analysis.update().values(new_analysis).where(analysis.c.id==request_param['id'])
-        else:
-            settings = get_settings()
-            base_dir = settings.BASE_DIR
-            work_dir = settings.WORK_DIR
-            str_uuid = str(uuid.uuid4())
-            # /ssd1/wy/workspace2/nextflow_workspace
-            # wrap_analysis_pipline = ""
-            # if 'wrap_analysis_pipeline' in request_param:
-            # wrap_analysis_pipline = request_param['wrap_analysis_pipeline']
-
-            project_dir = f"{base_dir}/{request_param['project']}"
-            trace_file = f"{base_dir}/monitor/{str_uuid}.trace.log"
-            workflow_log_file = f"{base_dir}/monitor/{str_uuid}.workflow.log"
-            cache_dir = f"{project_dir}/.nextflow"
-            if "pipeline_id" in request_param:  
-                pipeline_id = request_param['pipeline_id']
-                output_dir = f"{project_dir}/{pipeline_id}/{component_id}/{str_uuid}"
-            else:
-                output_dir = f"{project_dir}/{component_id}/{str_uuid}"
-            # /data/wangyang/nf_work/
-            work_dir = f"{work_dir}/{request_param['project']}"
-            params_path = f"{output_dir}/params.json"
-            command_path= f"{output_dir}/run.sh"
-            executor_log = f"{output_dir}/.nextflow.log"
-            script_config_file = f"{output_dir}/nextflow.config"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            if not os.path.exists(work_dir):
-                os.makedirs(work_dir)
-            # 写入脚本
-        
-            # script_dir = pipeline_id
-            # if "scriptDir" in component_content:
-            #     script_dir = component_content['scriptDir']
-            component_script = find_module(component.namespace,"nextflow",component_id,None,"nf")['path']
-
-            # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
-            new_analysis['pipeline_script'] = component_script
-
-            command =  textwrap.dedent(f"""
-            export NXF_CACHE_DIR={cache_dir}
-            nextflow -log {executor_log} run -offline -resume  \\
-                -ansi-log false \\
-                {component_script} \\
-                -params-file {params_path} \\
-                -w {work_dir} \\
-                -with-trace {trace_file} | tee {workflow_log_file}
-            """)
-            with open(command_path, "w") as f:
-                f.write(command)
-            
-            
-            script_config =  textwrap.dedent(f"""
-            trace.overwrite = true
-            """)
-            with open(script_config_file, "w") as f:
-                f.write(script_config)
-
-            new_analysis['work_dir'] = work_dir
-            new_analysis['output_dir'] = output_dir
-            new_analysis['params_path'] = params_path
-            new_analysis['command_path'] = command_path
-            new_analysis['analysis_id'] = str_uuid
-            new_analysis['trace_file'] = trace_file
-            new_analysis['workflow_log_file'] = workflow_log_file
-            new_analysis['executor_log_file'] = executor_log
-            new_analysis['script_config_file'] = script_config_file
-
-            # parse_analysis(request_param,params_path, parse_analysis_module,component_id)
-            # new_analysis['output_format'] = parse_analysis_result_module
-            with open(params_path, "w") as f:
-                json.dump(parse_analysis_result,f)
-            stmt = analysis.insert().values(new_analysis)
-        conn.execute(stmt)
-        
-       
-        
-
-        # print()
-        # return conn.execute(samples.select()).fetchall()
-        # print()
-    return {"msg":"success"}
 
 def get_all_files_recursive_v2(directory):
     file_list=[]
@@ -370,28 +199,15 @@ async def parse_analysis_result(
 
 @analysis_api.post(
     "/list-analysis",
-    response_model=List[Analysis],
+    # response_model=List[Analysis],
 )
 async def list_analysis(query:QueryAnalysis):
-    conditions = []
-    if query.analysis_id:
-        conditions.append(analysis.c.analysis_id == query.analysis_id)
-    if query.analysis_method:
-        conditions.append(analysis.c.analysis_method == query.analysis_method)
-    if query.component_id:
-        conditions.append(analysis.c.component_id == query.component_id)
-    if query.project:
-        conditions.append(analysis.c.project == query.project)
-
-    stmt = select(analysis)
-    if conditions:
-        stmt = stmt.where(and_(*conditions))
     with get_engine().begin() as conn:
-        return conn.execute(stmt).fetchall()
+        return  analysis_service.list_analysis(conn,query)
 
 
 @analysis_api.delete("/fast-api/analysis/{id}",  status_code=HTTP_204_NO_CONTENT)
-def delete_user(id: int):
+def delete_analysis(id: int):
     with get_engine().begin() as conn:
         conn.execute(analysis.delete().where(analysis.c.id == id))
     return {"message":"success"}
@@ -513,11 +329,61 @@ async def run_analysis(
 
 
 
+# @analysis_api.post("/fast-api/save-analysis")
+# @inject
+# async def save_analysis(
+#     request_param: Dict[str, Any],
+#     save:Optional[bool]=False,
+#     is_submit:Optional[bool]=False,
+#     software_analysis:NextflowAnalysis  =Depends(Provide[AppContainer.nextflow_analysis])): # request_param: Dict[str, Any]
+#     with get_engine().begin() as conn:
+#         parse_analysis_result,component = software_analysis.get_parames(conn,request_param)
+#         if not save:
+#             return parse_analysis_result
+#         return await software_analysis.save_analysis(conn,request_param,parse_analysis_result,component,is_submit) 
+  
+    # return software_analysis.save_analysis(request_param)
+    # return {"msg":"success"}
+
+
+@analysis_api.post("/fast-api/analysis-controller")
+@inject
+async def save_script_analysis(
+    request_param: Dict[str, Any],
+    type:Optional[str]="nextflow",
+    save:Optional[bool]=False,
+    is_submit:Optional[bool]=False,
+    app_container:AppContainer = Depends(Provide[AppContainer])
+    ): # request_param: Dict[str, Any]
+    
+    if  type=="script":
+        analysis_controller = app_container.script_analysis()
+    else:
+        analysis_controller = app_container.nextflow_analysis()
+
+    with get_engine().begin() as conn:
+        parse_analysis_result,component = analysis_controller.get_parames(conn,request_param)
+        if not save:
+            return parse_analysis_result
+        return await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component,is_submit) 
+  
+
+
+@analysis_api.get("/get-executor-logs/{analysis_id}")
+@inject
+def get_executor_logs(analysis_id,job_executor_selector:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])):
+    return job_executor_selector.get_logs(analysis_id)
+
+
+
+
 @analysis_api.post("/run-analysis-v2/{analysis_id}")
+@inject
 async def run_analysis_v2(
     analysis_id,
     auto_parse:Optional[bool]=True,
-    executor: JobExecutor = Depends(get_executor_dep),
+    # executor: JobExecutor = Depends(get_executor_dep),
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
     ):
 
     # manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
@@ -532,15 +398,20 @@ async def run_analysis_v2(
         if analysis_ is None:
             raise HTTPException(status_code=404, detail="Analysis not found")
         # process_id = analysis_['process_id']
-        job_id = await executor.submit_job(LocalJobSpec(
-            job_id=analysis_id,
-            command=["bash", "run.sh"],
-            output_dir=analysis_['output_dir'],
-            process_id=analysis_['process_id']
-        ))
-        stmt = analysis.update().values({"job_id":job_id,"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
+        analysis_ = AnalysisExecuterModal(**analysis_)
+        stmt = analysis.update().values({"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
         conn.execute(stmt)
-        return {"job_id":job_id}
+        await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
+        
+        
+        # job_id = await executor.submit_job(LocalJobSpec(
+        #     job_id=analysis_id,
+        #     command=["bash", "run.sh"],
+        #     output_dir=analysis_['output_dir'],
+        #     process_id=analysis_['process_id']
+        # ))
+    
+        return {"msg":"success"}
 
     #     analysis_dict = dict(analysis_)
     #     analysis_dict['job_id'] = job_id
@@ -594,16 +465,19 @@ async def find_analysis_by_id(analysis_id):
 
 @analysis_api.get("/get-cache-analysis-result-by-id/{analysis_id}")
 @inject
-def get_cache_analysis_result_by_id(analysis_id,analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
+async def get_cache_analysis_result_by_id(analysis_id,analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
     return analysis_result_parse_service.cached_analysis_result()[analysis_id]
 
 @analysis_api.get("/get-cache-analysis-result")
 @inject
-def get_cache_analysis_result(analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
+async def get_cache_analysis_result(analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
     return analysis_result_parse_service.cached_analysis_result()
 
 
 @analysis_api.get("/get-cache-analysis-params")
 @inject
-def get_cache_params(analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
+async def get_cache_params(analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
     return analysis_result_parse_service.cached_params()
+
+
+

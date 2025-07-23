@@ -50,9 +50,9 @@ def get_one_df(file,sample_key):
     df = df.set_index(["clade_name","ncbi_tax_id"])
     return df
 
-def get_abundance(metaphlan_sam_abundance):
     # metaphlan_sam_abundance = db_dict['metaphlan_sam_abundance']
-    df_list = [get_one_df(item.content['profile'],item.sample_key) for item in metaphlan_sam_abundance]
+def get_abundance(metaphlan_sam_abundance):
+    df_list = [get_one_df(item['content']['profile'],item['sample_name']) for item in metaphlan_sam_abundance]
     df = reduce(lambda x,y:pd.merge(x,y,left_index=True,right_index=True, how="outer"),df_list)
     df = df.reset_index()
     df['taxonomy'] = df.apply(lambda x : get_last(x['clade_name']) ,axis=1)
@@ -74,12 +74,12 @@ def get_abundance(metaphlan_sam_abundance):
 #     return metadata
 
 def get_metadata_group(db_dict,group,group_name):
-    return pd.DataFrame([(item.sample_key,group_name) for item in db_dict[group] ],columns=['sample_key','group'])
+    return pd.DataFrame([(item['sample_name'],group_name) for item in db_dict[group] ], columns=['sample_name','group'])
 
 def get_metadata(db_dict,groups):
    df_list = [get_metadata_group(db_dict,group,group_name) for group,group_name in groups.items()]
    metadata = pd.concat(df_list, ignore_index=True)
-   metadata = metadata.set_index("sample_key")
+   metadata = metadata.set_index("sample_name")
    return metadata
 
 

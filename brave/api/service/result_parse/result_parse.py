@@ -1,0 +1,51 @@
+import json
+from brave.api.core import evenet_bus
+from brave.api.core.evenet_bus import EventBus
+from brave.api.core.routers_name import RoutersName
+from brave.api.schemas.analysis import Analysis
+from brave.api.schemas.analysis_result import AnalysisResult, AnalysisResultParseModal
+from brave.api.service import analysis_result_service
+from brave.api.service.analysis_result_parse import AnalysisResultParse
+from brave.api.config.db import get_engine
+from brave.api.core.event import AnalysisResultEvent
+
+class ResultParse:
+    def __init__(self,analysis_id,evenet_bus:EventBus) -> None:
+        self.analysis_id = analysis_id
+        self.event_bus = evenet_bus
+        self.analysis_result_parse_service = AnalysisResultParse()
+
+    async def parse(self):
+        with get_engine().begin() as conn:
+            params,result_list,result_dict = self.analysis_result_parse_service.parse_analysis_result(conn,self.analysis_id,True)
+            print("result_list",json.dumps(result_list,indent=4))
+            for item in result_list:    
+                result = self.analysis_result_parse_service.find_analysis_result_exist(conn,self.analysis_id,item['component_id'],item['file_name'],item['project'],True)
+                if not result:
+                    find_sample = self.analysis_result_parse_service.find_by_sample_name_and_project(conn,item['file_name'],item['project'])
+                    if find_sample:
+                        item['sample_id'] = find_sample['sample_id']
+                    analysis_result_service.add_analysis_result(conn,item)
+                    analsyis = dict(params['analysis'])
+                    analsyis = Analysis(**analsyis)
+                    analysis_result = AnalysisResultParseModal(**item)
+                    await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_ADD, analsyis, analysis_result)
+                    # await self.listener_files_service.execute_listener("analysis_result_add",{
+                    #     "analysis":params['analysis'],
+                    #     "analysis_result":item,
+                    #     "sse_service":self.sse_service
+                    # })
+                    # data = json.dumps({
+                    #     "msg":f"分析{analysis_id}，文件{item['file_name']}保存成功!",
+                    #     "component_id":item['component_id'],
+                    #     "msgType":"analysis_result"
+                    # })
+                    # msg = {"group": "default", "data": data}
+                    # await self.sse_service.push_message(msg)
+                else:
+                    if item['analysis_result_hash']!= result['analysis_result_hash']:
+                        analysis_result_service.update_analysis_result(conn,result.id,item)
+                        analsyis = dict(params['analysis'])
+                        analsyis = Analysis(**analsyis)
+                        analysis_result = AnalysisResultParseModal(**item)
+                        await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_UPDATE, analsyis, analysis_result)

@@ -18,4 +18,15 @@ class WorkflowEvent(str,Enum):
     WORKFLOW_CLEANUP="workflow_cleanup"
 
 class AnalysisExecutorEvent(str,Enum):
+    ON_ANALYSIS_SUBMITTED="on_analysis_submitted"
     ON_ANALYSIS_COMPLETE="on_analysis_complete"
+
+class AnalysisResultEvent(str,Enum):
+    ON_ANALYSIS_RESULT_ADD="on_analysis_result_add"
+    ON_ANALYSIS_RESULT_UPDATE="on_analysis_result_update"
+    ON_ANALYSIS_RESULT_DELETE="on_analysis_result_delete"
+    ON_ANALYSIS_RESULT_QUERY="on_analysis_result_query"
+    ON_ANALYSIS_RESULT_QUERY_BY_ID="on_analysis_result_query_by_id"
+    ON_ANALYSIS_RESULT_QUERY_BY_ANALYSIS_ID="on_analysis_result_query_by_analysis_id"
+    ON_ANALYSIS_RESULT_QUERY_BY_COMPONENT_ID="on_analysis_result_query_by_component_id"
+    ON_ANALYSIS_RESULT_QUERY_BY_SAMPLE_ID="on_analysis_result_query_by_sample_id"

@@ -94,7 +94,8 @@ class SSESessionService:
                     msg = await asyncio.wait_for(client_queue.get(), timeout=10)
                     yield f"data: {msg}\n\n"
                 except asyncio.TimeoutError:
-                    yield ": keep-alive\n\n"
+                    # yield ": keep-alive\n\n"
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
         except asyncio.CancelledError:
             pass
         finally:

@@ -66,7 +66,8 @@ def model_dump_one(item):
     if item.get("content_type")=="json" and  isinstance(item.get("content"), dict):
         return{
             **{k:v for k,v in item.items() if k!="content"},
-            **item['content']
+            **item['content'],
+            'content':item['content']
         }
     return item
 

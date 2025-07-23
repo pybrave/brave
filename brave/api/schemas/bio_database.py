@@ -11,6 +11,7 @@ class QueryBiodatabase(BaseModel):
 class AddBioDatabase(BaseModel):
     name:str
     path:str
+    db_index:Optional[str] = None
     type:str
 
 class UpdateBioDatabase(BaseModel):
@@ -18,3 +19,4 @@ class UpdateBioDatabase(BaseModel):
     name:Optional[str] = None
     path:Optional[str] = None
     type:Optional[str] = None
+    db_index:Optional[str] = None

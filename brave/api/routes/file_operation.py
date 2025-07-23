@@ -1,3 +1,4 @@
+import glob
 import os
 from fastapi import APIRouter, HTTPException, Query
 import asyncio
@@ -125,4 +126,34 @@ def list_dir_v2(
         "total": total,
         "page": page,
         "limit": limit,
+    }
+
+
+
+
+def format_img_path(path):
+    settings = get_settings()
+    base_dir = settings.BASE_DIR
+    file_name = path.replace(str(base_dir),"")
+    # img_base64 = base64.b64encode(open(path, 'rb').read()).decode('utf-8')
+    return {
+        "data":f"/brave-api/dir{file_name}",
+        "type":"img",
+        "url":f"/brave-api/dir{file_name}"
+    }
+
+@file_operation.get("/file-operation/visualization-results")
+async def visualization_results(path):
+
+    path = f"{path}/output"
+    images = []
+    for ext in ("*.png", "*.jpg", "*.jpeg"):
+        images.extend(glob.glob(os.path.join(path, ext)))
+    images = [format_img_path(image) for image in images]
+    tables = []
+    for ext in ("*.csv", "*.tsv", "*.txt","*.xlsx"):
+        tables.extend(glob.glob(os.path.join(path, ext)))
+    return {
+        "images": images,
+        "tables": tables
     }
