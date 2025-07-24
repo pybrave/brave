@@ -1,4 +1,5 @@
 import json
+import textwrap
 from typing import Any, Optional
 from .base_analysis import BaseAnalysis
 import  brave.api.service.pipeline as pipeline_service
@@ -17,3 +18,28 @@ class NextflowAnalysis(BaseAnalysis):
         elif component.component_type == "script":
             return ['metaphlan_sam_abundance']
     
+    
+
+    def _get_command(self,analysis_id,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
+        command =  textwrap.dedent(f"""
+            export BRAVE_WORKFLOW_ID={analysis_id}
+            export NXF_CACHE_DIR={cache_dir}
+            nextflow -log {executor_log} run -offline -resume  \\
+                -ansi-log false \\
+                {component_script} \\
+                -params-file {params_path} \\
+                -w {work_dir} \\
+                -plugins nf-hello@0.7.0 \\
+                -with-trace {trace_file} | tee {workflow_log_file}
+            """)
+        return command
+        
+    def write_config(self,output_dir,component_script):
+        script_config_file = f"{output_dir}/nextflow.config"
+        script_config =  textwrap.dedent(f"""
+        trace.overwrite = true
+        """)
+        with open(script_config_file, "w") as f:
+            f.write(script_config)
+        return script_config_file
+  

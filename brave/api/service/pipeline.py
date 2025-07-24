@@ -13,6 +13,7 @@ from brave.api.models.core import t_namespace, t_pipeline_components, t_pipeline
 import importlib.resources as resources
 from sqlalchemy import delete, select, and_, join, func,insert,update
 from datetime import datetime
+from brave.api.enum.component_script import ScriptName
 
 
 
@@ -32,44 +33,93 @@ def get_module_name(item):
     # return {os.path.basename(item).replace(".py",""):item_module} 
     # f'reads-alignment-based-abundance-analysis.py_plot.{module_name}'
 
-def find_module(namespace,module_type,module_dir,module_name,file_type):
-    if not module_name:
-        if module_type == "nextflow":
-            module_name = "main"
+def find_component_module(component,script_name:ScriptName) -> dict:
+    content = json.loads(component.content)
+    if "script_type" not in content:
+        raise HTTPException(status_code=500, detail=f"script_type not found!")
+    if script_name == ScriptName.main:
+        script_type = content['script_type']
+        if script_type == "nextflow":
+            file_type = "nf"
+        elif script_type == "python":
+            file_type = "py"
+        elif script_type == "shell":
+            file_type = "sh"
+        elif script_type == "r":
+            file_type = "r"
         else:
-            return get_default_module(module_type)
+            raise HTTPException(status_code=500, detail=f"script_type {script_type} not found!")
+    else:
+        file_type = "py"
+    module_info = find_module(component.namespace,component.component_id,script_name,file_type)
+    if module_info:
+        return module_info
+    else:
+        if script_name == ScriptName.main:
+            create_file(component.namespace,component.component_id,content,component.component_type,file_type)
+            module_info = find_module(component.namespace,component.component_id,script_name,file_type)
+            if not module_info:
+                raise HTTPException(status_code=500, detail=f"组件{component.component_id}的{script_name.value}模块没有找到!")
+            return module_info
+        else:
+            default_module = get_default_module(script_name)
+            return default_module
+        # else:
+        #     raise HTTPException(status_code=500, detail=f"{script_name.value}没有找到默认模块!")
+    # try:
+    # except Exception as e:
+    #     print(f"Component with id {component.component_id} not found or missing content.")
+    #     module_path =  create_file(component.namespace,component.component_id,content,component.component_type,file_type)
+
+    # return module_path
+
+
+
+
+def find_module(namespace,module_dir,script_name:ScriptName,file_type):
+    # if script_name == ScriptName.input_parse:
+    # if not module_name:
+    #     if  module_type == "script":
+    #         module_name = "main"
+    #     else:
+    #         return get_default_module(module_type)
 
         # raise HTTPException(status_code=500, detail=f"模块名称不能为空!")
     # if module_name =="default":
        
-    all_module = get_all_module(namespace,file_type)
-    if module_name is None: 
-        module_name = module_type
-    if module_dir not in all_module:
+    path_dict = get_all_module(namespace,file_type)
+    # if module_name is None: 
+    #     module_name = module_type
+    if module_dir in path_dict:
+        module_dict = path_dict[module_dir]
+        if script_name.value in module_dict:
+            module_info = module_dict[script_name.value]
+            return module_info
+    return None
         # return get_default_module(module_type)
-        raise HTTPException(status_code=500, detail=f"目录{module_type}: {module_dir}/{module_name}没有找到!")
-    py_module_dir = all_module[module_dir]
+        # raise HTTPException(status_code=500, detail=f"目录{module_type}: {module_dir}没有找到!")
+    
 
-    if module_name not in py_module_dir:
-        #  return get_default_module(module_type)
-        raise HTTPException(status_code=500, detail=f"目录{module_type}: {module_dir}/{module_name}没有找到!")
-    py_module = py_module_dir[module_name]
-    return py_module
+    # if script_name.value not in py_module_dir:
+    #     raise HTTPException(status_code=500, detail=f"目录{module_type}: {module_dir}/{script_name.value}没有找到!")
 
-def get_default_module(module_type):
-    if module_type == "py_parse_analysis":
+    
+    # return py_module
+
+def get_default_module(script_name:ScriptName):
+    if script_name == ScriptName.input_parse:
         py_parse_analysis = resources.files("brave.parse").joinpath("py_parse_analysis.py")
         return {
             "module":"brave.parse.py_parse_analysis",
             "path":str(py_parse_analysis)
         }
-    if module_type == "py_parse_analysis_result":
+    if script_name == ScriptName.output_parse:
         py_parse_analysis_result = resources.files("brave.parse").joinpath("py_parse_analysis_result.py")
         return {
             "module":"brave.parse.py_parse_analysis_result",
             "path":str(py_parse_analysis_result)
         }
-    raise HTTPException(status_code=500, detail=f"{module_type}没有找到默认模块!")
+    raise HTTPException(status_code=500, detail=f"{script_name.value}没有找到默认模块!")
 def get_all_module(namespace,file_type):
     suffix = file_type
     # if module_type.startswith("py_"):
@@ -86,8 +136,12 @@ def get_all_module(namespace,file_type):
         filename = os.path.basename(item).replace(f".{suffix}","")
         if dir_name not in result:
                 result[dir_name] = {}
+        
         item_module = get_module_name(item)
-        result[dir_name][filename] = {"module":item_module,"path":item}
+        result[dir_name][filename] = {
+            "module":item_module,
+            "path":item
+        }
     
   
     # nextflow_dict = {os.path.basename(item).replace(".py",""):get_module_name(item) for item in nextflow_list}
@@ -114,11 +168,11 @@ def delete_wrap_pipeline_dir(pipeline_key):
     #     if not os.path.exists(item):
     #         os.makedirs(item) 
 
-def create_file(namespace,component_id,content,component_type):
+def create_file(namespace,component_id,content,component_type,script_type):
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{namespace}"
     if component_type == "pipeline":
-        analysisPipline = f"{pipeline_dir}/pipeline/{component_id}/main.nf"
+        analysisPipline = f"{pipeline_dir}/pipeline/{component_id}/main.{script_type}"
         # pipelinieJson = f"{pipeline_dir}/main.json"
         if not os.path.exists(analysisPipline):
             dir_ = os.path.dirname(analysisPipline)
@@ -126,13 +180,14 @@ def create_file(namespace,component_id,content,component_type):
                 os.makedirs(dir_) 
             with open(analysisPipline,"w") as f:
                 f.write("")
+        return analysisPipline
         # if not os.path.exists(parseAnalysisModule):
         #     with open(parseAnalysisModule,"w") as f:
         #         f.write("")
 
     if component_type == "software":
         # parseAnalysisModule = f"{pipeline_dir}/software/{component_id}/main.py"
-        analysisPipline = f"{pipeline_dir}/software/{component_id}/main.nf"
+        analysisPipline = f"{pipeline_dir}/software/{component_id}/main.{script_type}"
         # dir_list = [parseAnalysisModule,analysisPipline]
         # for item in dir_list:
         dir_ = os.path.dirname(analysisPipline)
@@ -144,6 +199,7 @@ def create_file(namespace,component_id,content,component_type):
                 content_text = f.read()
             with open(analysisPipline,"w") as f:
                 f.write(content_text)
+        return analysisPipline
         # if not os.path.exists(parseAnalysisModule):
         #     with resources.files("brave.templete").joinpath("py_parse_analysis.py").open("r") as f:
         #         content_text = f.read()
@@ -164,7 +220,8 @@ def create_file(namespace,component_id,content,component_type):
         #                 f.write(content_text)
 
     if component_type == "script":
-        py_plot = f"{pipeline_dir}/script/{component_id}/{content['moduleName']}.py"
+
+        py_plot = f"{pipeline_dir}/script/{component_id}/main.{script_type}"
         py_plot_dir = os.path.dirname(py_plot)
         if not os.path.exists(py_plot):
             if not os.path.exists(py_plot_dir):
@@ -173,7 +230,11 @@ def create_file(namespace,component_id,content,component_type):
                 content_text = f.read()
             with open(py_plot,"w") as f:
                 f.write(content_text)
-                        
+        return py_plot
+    raise HTTPException(status_code=500, detail=f"component_type {component_type} not create file!")
+
+
+
 def find_pipeline_by_id(conn,component_id):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
     find_pipeine = conn.execute(stmt).mappings().first()

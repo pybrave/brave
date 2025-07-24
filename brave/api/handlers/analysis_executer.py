@@ -32,14 +32,17 @@ def setup_handlers(
             jsb_spec = JobSpec(
                 job_id= payload.analysis_id,
                 command=["bash", "run.sh"],
-                output_dir= payload.output_dir 
+                output_dir= payload.output_dir,
+                command_log_path= payload.command_log_path,
+
             )
         elif executer_type=="docker":
             jsb_spec = DockerJobSpec(
                 job_id= payload.analysis_id,
-                command=["bash","./run.sh"],
+                command_log_path= payload.command_log_path,
+                command=["./run.sh"],
                 output_dir= payload.output_dir,
-                image="registry.cn-hangzhou.aliyuncs.com/wybioinfo/nextflow:25.06.0",
+                image=payload.image,
                 env={},
                 resources={}
             )
@@ -48,13 +51,20 @@ def setup_handlers(
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE)
     async def on_analysis_complete(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_complete] {payload.analysis_id}")
-        asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id))
+        asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"finished"))
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
             "event": "analysis_complete"
             })})
 
-
+    @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_FAILED)
+    async def on_analysis_failed(payload:AnalysisExecuterModal):
+        print(f"🚀 [on_analysis_failed] {payload.analysis_id}")
+        asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"failed"))
+        await sse_service.push_message({"group": "default", "data": json.dumps({
+            "analysis_id": payload.analysis_id,
+            "event": "analysis_failed"
+            })})
         # await sse_service.push_message({"group": "default", "data": json.dumps(msg)})
         # asyncio.create_task(analysis_service.finished_analysis(analysis.analysis_id))
         # result_parse_manage.remove(analysis.analysis_id)

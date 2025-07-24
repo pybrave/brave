@@ -9,6 +9,7 @@ import  brave.api.service.pipeline as pipeline_service
 import importlib
 import hashlib
 import os
+from brave.api.enum.component_script import ScriptName
 
 def get_parse_analysis_result_params(conn,analysis_id):
     stmt = select(t_analysis).where(t_analysis.c.analysis_id == analysis_id)
@@ -40,7 +41,12 @@ def get_parse_analysis_result_params(conn,analysis_id):
         # raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
 
 
-    py_module = pipeline_service.find_module(component_.namespace,"py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
+    # py_module = pipeline_service.find_module(component_.namespace,"py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
+    module_info = pipeline_service.find_component_module(component_, ScriptName.output_parse)
+    if not module_info:
+        raise HTTPException(status_code=500, detail=f"组件{component_id}的输出解析模块没有找到!")
+
+    py_module = module_info['module']
     module = importlib.import_module(py_module)
     parse = getattr(module, "parse")
 
@@ -107,16 +113,16 @@ def find_analysis_by_id(conn,analysis_id):
     return result
 
 
-async def finished_analysis(analysis_id):
+async def finished_analysis(analysis_id,status):
     with get_engine().begin() as conn:  
         stmt = (
             update(t_analysis)
             .where(t_analysis.c.analysis_id == analysis_id)
-            .values(process_id=None,analysis_status = "finished")
+            .values(process_id=None,analysis_status = status)
         )
         conn.execute(stmt)
         conn.commit()
-    print(f"Analysis {analysis_id} finished")
+    print(f"Analysis {analysis_id} {status}")
 
 
 

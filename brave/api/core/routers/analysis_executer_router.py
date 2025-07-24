@@ -20,11 +20,12 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
         #     if not isinstance(payload, expected_type):
         #         raise TypeError(f"[EventRouter] Expected payload type {expected_type}, got {type(payload)}")
 
-        if event == AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE and  isinstance(payload, AnalysisId):
-            with get_engine().begin() as conn:
-                analysis =  analysis_service.find_analysis_by_id(conn,payload.analysis_id)
-                if analysis:
-                    payload = AnalysisExecuterModal(**analysis)
+        if event == AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE or event == AnalysisExecutorEvent.ON_ANALYSIS_FAILED:    
+            if isinstance(payload, AnalysisId):
+                with get_engine().begin() as conn:
+                    analysis =  analysis_service.find_analysis_by_id(conn,payload.analysis_id)
+                    if analysis:
+                        payload = AnalysisExecuterModal(**analysis)
                 # payload = AnalysisExecuterModal(analysis_id=payload.analysis_id)
 
         if not isinstance(payload, AnalysisExecuterModal):

@@ -55,6 +55,8 @@ class AnalysisExecuterModal(BaseModel):
     parse_analysis_module: Optional[str]
     process_id: Optional[str]
     analysis_status: Optional[str]
+    command_log_path: str
+    image: str
 
 class AnalysisId(BaseModel):
     analysis_id: str

@@ -1,6 +1,7 @@
 from fastapi import APIRouter,Depends,Request,HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any
+from brave.api.enum.component_script import ScriptName
 from brave.api.service.pipeline  import find_module
 # from brave.api.config.db import conn
 # from models.user import users
@@ -73,7 +74,7 @@ def parse_result(request_param,module_name):
 
         # if "module_dir" in request_param:
         #     module_dir = request_param['module_dir']
-        py_module = find_module(component.namespace,"py_plot",module_dir,module_name,'py')['module']
+        py_module = find_module(component.namespace,module_dir,ScriptName.output_parse,'py')['module']
         # if module_dir not in all_module:
         #     raise HTTPException(status_code=500, detail=f"py_plot: 目录{module_dir}没有找到!")
         # py_module_dir = all_module[module_dir]

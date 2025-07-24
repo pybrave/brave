@@ -51,7 +51,9 @@ analysis = Table(
     Column("process_id", String(255)),
     Column("script_config_file", String(255)),
     Column("analysis_status", String(255)),
-    Column("job_id", String(255))
+    Column("job_id", String(255)),
+    Column("command_log_path", String(255)),
+    Column("image", String(255))
 )
 
 analysis_result = Table(
@@ -229,3 +231,16 @@ t_namespace = Table(
 # )
 # # meta.create_all(engine)
 
+
+
+t_application = Table(
+    "application",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("application_id", String(255)),
+    Column("name", String(255)),
+    Column("image", String(255)),
+    Column("description", String(255)),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
+)

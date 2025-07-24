@@ -6,6 +6,7 @@ import json
 import os
 import glob
 from brave.api.config.config import get_settings
+from brave.api.enum.component_script import ScriptName
 from brave.api.service import namespace_service
 from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
 from collections import defaultdict
@@ -453,22 +454,25 @@ def build_pipeline_structure(id_to_node,children_map,root_item):
 
 
   
-@pipeline.post("/get-module-content",tags=['pipeline'])
-async def get_module_content(queryModule:QueryModule):
-    module_dir = queryModule.component_id
+@pipeline.get("/get-component-module-content/{component_id}",tags=['pipeline'])
+async def get_module_content(component_id,script_name:ScriptName):
+    # module_dir = queryModule.component_id
     with get_engine().begin() as conn:
-        find_pipeine = pipeline_service.find_pipeline_by_id(conn,queryModule.component_id)
-        if not find_pipeine:
-            raise HTTPException(status_code=500, detail=f"根据{queryModule.component_id}不能找到记录!")
+        find_component = pipeline_service.find_pipeline_by_id(conn,component_id)
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"根据{component_id}不能找到记录!")
     # if queryModule.module_dir:
     #     module_dir = queryModule.module_dir
-    py_module = pipeline_service.find_module(find_pipeine.namespace,queryModule.module_type,module_dir,queryModule.module_name,queryModule.file_type)
-    py_module_path = py_module['path']
-    if os.path.exists(py_module_path):
-        with open(py_module_path,"r") as f:
-            py_module_content = f.read()
-    py_module['content'] = py_module_content
-    return py_module
+    module_info:dict = pipeline_service.find_component_module(find_component,script_name)
+    # py_module_path = py_module['path']
+    if module_info and os.path.exists(module_info['path']):
+        with open(module_info['path'],"r") as f:
+            module_content = f.read()
+    # py_module['content'] = py_module_content
+    return {
+        "path":module_info['path'], 
+        "content":module_content
+    }
     
 
 def get_pipeine_content(json_file):
@@ -776,7 +780,7 @@ async def save_pipeline(savePipeline:SavePipeline):
                     # pipeline_id=savePipeline.pipeline_id
                 ))
         content = json.loads(save_pipeline_dict['content'])
-        await run_in_threadpool(pipeline_service.create_file,namespace, component_id,content ,component_type)
+        await run_in_threadpool(pipeline_service.create_file,namespace, component_id,content ,component_type,content['script_type'])
         pipeline_service.write_all_component(conn,namespace)
     
     # t0 = time.time()

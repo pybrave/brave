@@ -6,6 +6,7 @@ from typing import Any, Optional
 from brave.api.config.db import get_engine
 from fastapi import HTTPException
 from brave.api.core.evenet_bus import EventBus
+from brave.api.enum.component_script import ScriptName
 from brave.api.schemas.analysis import AnalysisExecuterModal
 import  brave.api.service.pipeline as pipeline_service
 import  brave.api.service.analysis_result_service as analysis_result_service
@@ -30,7 +31,29 @@ class BaseAnalysis(ABC):
     def _get_query_db_field(self,conn,component):
         pass
     
-    async def save_analysis(self,conn,request_param,parse_analysis_result,component,is_submit):
+    @abstractmethod
+    def _get_command(self,analysis_id,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
+        pass
+    
+    @abstractmethod
+    def write_config(self,output_dir,component_script) -> str:
+        pass
+    
+  
+    # def get_script(self,namespace,component_id,script_type) -> str:
+    #     if script_type == "nextflow":
+    #         component_script = pipeline_service.find_module(namespace,"nextflow",component_id,None,"nf")['path']
+    #     elif script_type == "python":
+    #     elif script_type == "shell":
+    #         component_script = pipeline_service.find_module(namespace,"script",component_id,None,"sh")['path']
+    #     elif script_type == "r":
+    #         component_script = pipeline_service.find_module(namespace,"script",component_id,None,"r")['path']
+    #     else:
+    #         raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found or missing content.")
+    #     return component_script
+
+
+    async def save_analysis(self,conn,request_param,parse_analysis_result,component,component_content,is_submit):
         # parse_analysis_result,component = self.get_parames(request_param)
 
 
@@ -98,9 +121,9 @@ class BaseAnalysis(ABC):
             work_dir = f"{work_dir}/{request_param['project']}"
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
+            command_log_path= f"{output_dir}/run.log"
 
             executor_log = f"{output_dir}/.nextflow.log"
-            script_config_file = f"{output_dir}/nextflow.config"
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             if not os.path.exists(work_dir):
@@ -110,31 +133,41 @@ class BaseAnalysis(ABC):
             # script_dir = pipeline_id
             # if "scriptDir" in component_content:
             #     script_dir = component_content['scriptDir']
-            component_script = find_module(component.namespace,"nextflow",component.component_id,None,"nf")['path']
+            component_script = pipeline_service.find_component_module(component,ScriptName.main)['path']
+            # try:
+                
 
+            #     # component_script = self.get_script(component.namespace,component.component_id,component_content['script_type'])
+            # except Exception as e:
+            #     print(f"Component with id {component.component_id} not found or missing content.")
+            #     pipeline_service.create_file(component.namespace,component.component_id,component_content,component.component_type,component_content['script_type'])
+            #     component_script = self.get_script(component.namespace,component.component_id,component_content['script_type'])
+            
             # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
             new_analysis['pipeline_script'] = component_script
+            command = self._get_command(str_uuid,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file)
 
-            command =  textwrap.dedent(f"""
-            export BRAVE_WORKFLOW_ID={str_uuid}
-            export NXF_CACHE_DIR={cache_dir}
-            nextflow -log {executor_log} run -offline -resume  \\
-                -ansi-log false \\
-                {component_script} \\
-                -params-file {params_path} \\
-                -w {work_dir} \\
-                -plugins nf-hello@0.7.0 \\
-                -with-trace {trace_file} | tee {workflow_log_file}
-            """)
+            # command =  textwrap.dedent(f"""
+            # export BRAVE_WORKFLOW_ID={str_uuid}
+            # export NXF_CACHE_DIR={cache_dir}
+            # nextflow -log {executor_log} run -offline -resume  \\
+            #     -ansi-log false \\
+            #     {component_script} \\
+            #     -params-file {params_path} \\
+            #     -w {work_dir} \\
+            #     -plugins nf-hello@0.7.0 \\
+            #     -with-trace {trace_file} | tee {workflow_log_file}
+            # """)
     
             
-            
-            script_config =  textwrap.dedent(f"""
-            trace.overwrite = true
+            script_config_file = self.write_config(output_dir,component_script)
+            # script_config_file = f"{output_dir}/nextflow.config"
+            # script_config =  textwrap.dedent(f"""
+            # trace.overwrite = true
           
-            """)
-            with open(script_config_file, "w") as f:
-                f.write(script_config)
+            # """)
+            # with open(script_config_file, "w") as f:
+            #     f.write(script_config)
 
             new_analysis['work_dir'] = work_dir
             new_analysis['output_dir'] = output_dir
@@ -145,6 +178,8 @@ class BaseAnalysis(ABC):
             new_analysis['workflow_log_file'] = workflow_log_file
             new_analysis['executor_log_file'] = executor_log
             new_analysis['script_config_file'] = script_config_file
+            new_analysis['command_log_path'] = command_log_path
+            new_analysis['image'] = component_content["image"]
             
             with open(command_path, "w") as f:
                 f.write(command)
@@ -156,21 +191,23 @@ class BaseAnalysis(ABC):
             await self.submit_analysis(new_analysis)
         return new_analysis
 
-    def get_parames(self, conn, request_param: dict[str, Any]):
-         # request_param = analysis_input.model_dump_json()
-        component_id = request_param['component_id']
-        # pipeline_id = request_param['pipeline_id']
-        if component_id is None:
-            raise HTTPException(status_code=500, detail=f"component_id is None")
+    
 
-        component = pipeline_service.find_pipeline_by_id(conn, component_id)
-        if component is None or not hasattr(component, "content"):
-            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found or missing content.")
-        component_content = json.loads(component.content)
+    def get_parames(self, conn, request_param: dict[str, Any],component,component_content):
+         # request_param = analysis_input.model_dump_json()
+        # component_id = request_param['component_id']
+        # pipeline_id = request_param['pipeline_id']
+        # if component_id is None:
+        #     raise HTTPException(status_code=500, detail=f"component_id is None")
+
+        # component = pipeline_service.find_pipeline_by_id(conn, component_id)
+        # if component is None or not hasattr(component, "content"):
+        #     raise HTTPException(status_code=404, detail=f"Component with id {component.component_id} not found or missing content.")
+        # component_content = json.loads(component.content)
         query_name_list = self._get_query_db_field(conn,component)
 
-        parse_analysis_result = self.parse_analysis(conn,request_param,component.namespace,component_id,component_content,query_name_list)
-        return parse_analysis_result,component
+        parse_analysis_result = self.parse_analysis(conn,request_param,component,component_content,query_name_list)
+        return parse_analysis_result
     
         
     
@@ -194,11 +231,14 @@ class BaseAnalysis(ABC):
                 "path":bio_database.get("path")
             }
 
-    def parse_analysis(self,conn,request_param,namespace,component_id,component_content,query_name_list):
-        module_name = component_content.get('parseAnalysisModule')
+    def parse_analysis(self,conn,request_param,component,component_content,query_name_list):
+        # module_name = component_content.get('parseAnalysisModule')
 
-        py_module = find_module(namespace,"py_parse_analysis",component_id,module_name,'py')['module']
-
+        # py_module = find_module(namespace,"py_parse_analysis",component_id,module_name,'py')['module']
+        module_info = pipeline_service.find_component_module(component, ScriptName.input_parse)
+        if not module_info:
+            raise HTTPException(status_code=500, detail=f"组件{component.component_id}的输入解析模块没有找到!")
+        py_module = module_info['module']
         # module_name = f'brave.api.parse_analysis.{module_name}'
         # if importlib.util.find_spec(module) is None:
         #     print(f"{module_name}不存在!")

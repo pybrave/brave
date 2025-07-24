@@ -20,6 +20,7 @@ class WorkflowEvent(str,Enum):
 class AnalysisExecutorEvent(str,Enum):
     ON_ANALYSIS_SUBMITTED="on_analysis_submitted"
     ON_ANALYSIS_COMPLETE="on_analysis_complete"
+    ON_ANALYSIS_FAILED="on_analysis_failed"
 
 class AnalysisResultEvent(str,Enum):
     ON_ANALYSIS_RESULT_ADD="on_analysis_result_add"

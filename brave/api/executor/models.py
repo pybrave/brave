@@ -8,6 +8,7 @@ class JobSpec(BaseModel):
     job_id: str
     command: List[str]
     output_dir: str
+    command_log_path: str
     # image: str = ""
     # env: dict = {}
     # resources: dict = {}

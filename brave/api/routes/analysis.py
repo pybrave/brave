@@ -37,7 +37,6 @@ from brave.api.routes.pipeline import get_pipeline_file
 import textwrap
 # from brave.api.routes.sample_result import find_analyais_result_by_ids
 from brave.api.routes.sample_result import parse_result_one
-from brave.api.service.pipeline  import find_module
 import  brave.api.service.pipeline as pipeline_service
 import brave.api.service.bio_database_service as bio_database_service
 import inspect
@@ -350,11 +349,12 @@ async def run_analysis(
 @inject
 async def save_script_analysis(
     request_param: Dict[str, Any],
-    type:Optional[str]="nextflow",
+    # type:Optional[str]="nextflow",
     save:Optional[bool]=False,
     is_submit:Optional[bool]=False,
     app_container:AppContainer = Depends(Provide[AppContainer])
     ): # request_param: Dict[str, Any]
+    
     
     if  type=="script":
         analysis_controller = app_container.script_analysis()
@@ -362,10 +362,27 @@ async def save_script_analysis(
         analysis_controller = app_container.nextflow_analysis()
 
     with get_engine().begin() as conn:
-        parse_analysis_result,component = analysis_controller.get_parames(conn,request_param)
+        component_id = request_param['component_id']
+        # pipeline_id = request_param['pipeline_id']
+        if component_id is None:
+            raise HTTPException(status_code=500, detail=f"component_id is None")
+        component = pipeline_service.find_pipeline_by_id(conn, component_id)
+        if component is None:
+            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
+        if component is None or not hasattr(component, "content"):
+            raise HTTPException(status_code=404, detail=f"Component with id {component.component_id} not found or missing content.")
+        component_content = json.loads(component.content)
+        script_type = component_content['script_type']
+        if script_type == "python" or script_type == "shell" or script_type == "r":
+            analysis_controller = app_container.script_analysis()
+        else:
+            analysis_controller = app_container.nextflow_analysis()
+
+        parse_analysis_result = analysis_controller.get_parames(conn,request_param,component,component_content)
+
         if not save:
             return parse_analysis_result
-        return await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component,is_submit) 
+        return await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component,component_content,is_submit) 
   
 
 
