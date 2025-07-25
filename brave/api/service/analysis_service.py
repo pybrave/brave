@@ -1,6 +1,6 @@
 from operator import and_
 from brave.api.config.db import get_engine
-from brave.api.models.core import analysis as t_analysis, t_pipeline_components
+from brave.api.models.core import analysis as t_analysis, t_pipeline_components,t_project
 from sqlalchemy import select,update
 from fastapi import HTTPException
 import json
@@ -140,11 +140,15 @@ def list_analysis(conn,query:QueryAnalysis):
 
     stmt = select(
         t_analysis,
-        t_pipeline_components.c.name.label("component_name"),
-        t_pipeline_components.c.label.label("component_label"),
-        t_pipeline_components.c.component_type.label("component_type")
+        t_pipeline_components.c.component_name.label("component_name"),
+        # t_pipeline_components.c.label.label("component_label"),
+        t_pipeline_components.c.component_type.label("component_type"),
+        t_project.c.project_name.label("project_name")
     )
-    stmt = stmt.select_from(t_analysis.outerjoin(t_pipeline_components,t_analysis.c.component_id==t_pipeline_components.c.component_id) )
+    stmt = stmt.select_from(
+        t_analysis.outerjoin(t_pipeline_components,t_analysis.c.component_id==t_pipeline_components.c.component_id)
+        .outerjoin(t_project,t_analysis.c.project==t_project.c.project_id)
+        )
     if conditions:
         stmt = stmt.where(and_(*conditions))
     return conn.execute(stmt).mappings().all()

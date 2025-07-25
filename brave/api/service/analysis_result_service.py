@@ -1,6 +1,6 @@
 from brave.api.config.db import get_engine
 from fastapi import HTTPException
-from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components 
+from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components,t_project
 from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
 from sqlalchemy import and_, select
 import json
@@ -11,18 +11,22 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         stmt =  select(
             analysis_result, 
             samples.c.sample_name,
-            samples.c.sample_group,
-            samples.c.sample_group_name,
+            # samples.c.sample_group,
             samples.c.sample_id,
+            samples.c.metadata,
             analysis.c.analysis_name,
-            t_pipeline_components.c.name.label("component_name"),
-            t_pipeline_components.c.label.label("component_label"),
-            t_pipeline_components.c.name.label("analysis_method")
+            t_pipeline_components.c.component_name.label("component_name"),
+            # t_pipeline_components.c.label.label("component_label"),
+            # t_pipeline_components.c.name.label("analysis_method"),
+            t_project.c.project_name.label("project_name"),
+            # t_project.c.metadata_form.label("metadata_form")
+
             ) 
         stmt = stmt.select_from(
             analysis_result.outerjoin(samples,samples.c.sample_id==analysis_result.c.sample_id)
             .outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id)
             .outerjoin(t_pipeline_components,t_pipeline_components.c.component_id==analysis_result.c.component_id)
+            .outerjoin(t_project,t_project.c.project_id==analysis_result.c.project)
             )
         # stmt = stmt.where(samples.c.project == analysisResultQuery.project)
     # if analysisResultQuery.queryAnalysis:
@@ -51,11 +55,12 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     result  = conn.execute(stmt)
     # result = result.fetchall()
     rows = result.mappings().all()
-    result_dict = [AnalysisResult(**row) for row in rows]
+    result_dict = [dict(item) for item in rows ]
+    # result_dict = [AnalysisResult(**row) for row in rows]
     # result_dict = []
     for item in result_dict:
-        if item.content_type=="json" and not isinstance(item.content, dict):
-            item.content = json.loads(item.content)
+        if item['content_type']=="json" and not isinstance(item['content'], dict):
+            item['content'] = json.loads(item['content'])
             
         #     result.append(row)
         # # rows = result.mappings().all()
@@ -66,8 +71,8 @@ def model_dump_one(item):
     if item.get("content_type")=="json" and  isinstance(item.get("content"), dict):
         return{
             **{k:v for k,v in item.items() if k!="content"},
-            **item['content'],
-            'content':item['content']
+            **item['content']
+            # 'content':item['content']
         }
     return item
 
@@ -76,7 +81,7 @@ def find_analyais_result_by_ids( conn,value):
     if not isinstance(value,list):
         ids = [value]
     analysis_result = find_analyais_result(conn,AnalysisResultQuery(ids=ids))
-    analysis_result = [model_dump_one(item.model_dump()) for item in analysis_result]
+    analysis_result = [model_dump_one(item) for item in analysis_result]
     if len(analysis_result)!=len(ids):
         raise HTTPException(status_code=500, detail="数据存在问题!")
     if not isinstance(value,list) and len(analysis_result)==1:

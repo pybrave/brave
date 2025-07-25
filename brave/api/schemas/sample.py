@@ -45,7 +45,7 @@ class Sample(BaseModel):
     sequencing_technique: Optional[str]
     sample_composition: Optional[str]
     sample_group: Optional[str]
-    sample_group_name: Optional[str]
+    metadata: Optional[str]
     sample_source: Optional[str]
     host_disease: Optional[str]
     project: Optional[str]
@@ -61,12 +61,12 @@ class ProjectCount(BaseModel):
 class AddSampleMetadata(BaseModel):
     analysis_result_id: Optional[str]=None
     sample_name: Optional[str]=None
-    sample_group: Optional[str]
-    sample_group_name: Optional[str]=None
+    # sample_group: Optional[str]
+    metadata: Optional[str]=None
     project: Optional[str]=None
 
 class UpdateSampleMetadata(BaseModel):
     sample_id: Optional[str]
     sample_name: Optional[str]=None
-    sample_group: Optional[str]
-    sample_group_name: Optional[str]=None
+    # sample_group: Optional[str]
+    metadata: Optional[str]=None

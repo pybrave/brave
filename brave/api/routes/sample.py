@@ -16,7 +16,7 @@ from brave.api.models.core import samples
 from brave.api.config.db import get_engine
 from io import StringIO
 from fastapi import HTTPException
-
+import json
 
 sample = APIRouter()
 
@@ -132,11 +132,19 @@ async def get_analysis(query:SampleGroupQuery):
 @sample.get(
     "/list-by-project",
     tags=["sample"],
-    response_model=List[Sample] )
+    # response_model=List[Sample] 
+    )
 async def list_by_project(project):
     with get_engine().begin() as conn:
-        return conn.execute(samples.select() \
-            .where(and_(samples.c.project==  project )) ).fetchall()
+        result = conn.execute(samples.select() \
+            .where(and_(samples.c.project==  project )) ).mappings().all()
+        sample_dict = [dict(row) for row in result]
+        for item in sample_dict:
+            if item['metadata']:
+                item['metadata'] = json.loads(item['metadata'])
+            else:
+                item['metadata'] = {}
+        return sample_dict
 
 @sample.get(
     "/list-project",

@@ -7,6 +7,8 @@ from brave.api.schemas.file_operation import WriteFile
 from collections import defaultdict
 from pathlib import Path
 from brave.api.config.config import get_settings
+import pandas as pd
+import json
 
 file_locks = defaultdict(asyncio.Lock)
 
@@ -16,12 +18,12 @@ file_operation = APIRouter()
 @file_operation.get("/file-operation/read-file")
 async def read_file(file_path):
     if not os.path.exists(file_path):
-        return {
-            "content": [],
-            "offset": 0
-        }
-    with open(file_path, 'r') as file:
-        return file.read()
+        return f"{file_path}文件不存在"
+    try:
+        with open(file_path, 'r') as file:
+            return file.read()
+    except Exception as e:
+        return f"{file_path}文件读取失败: {e}"
 
 @file_operation.get("/file-operation/read-log-file")
 async def read_log_file(file_path,offset:int=0):
@@ -142,6 +144,18 @@ def format_img_path(path):
         "url":f"/brave-api/dir{file_name}"
     }
 
+def format_table_output(path):
+    df = pd.read_csv(path,sep="\t")
+    df_json = json.loads(df.to_json(orient="records")) 
+    settings = get_settings()
+    base_dir = settings.BASE_DIR
+    file_name = path.replace(str(base_dir),"")
+    return  {
+        "data":df_json ,
+        "type":"table",
+        "url":f"/brave-api/dir{file_name}"
+    }
+
 @file_operation.get("/file-operation/visualization-results")
 async def visualization_results(path):
 
@@ -153,6 +167,7 @@ async def visualization_results(path):
     tables = []
     for ext in ("*.csv", "*.tsv", "*.txt","*.xlsx"):
         tables.extend(glob.glob(os.path.join(path, ext)))
+    tables = [format_table_output(table) for table in tables]
     return {
         "images": images,
         "tables": tables

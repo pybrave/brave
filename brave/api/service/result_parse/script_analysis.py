@@ -1,4 +1,5 @@
 import textwrap
+import os
 from typing import Any, Optional
 from .base_analysis import BaseAnalysis
 from brave.api.core.evenet_bus import EventBus
@@ -12,9 +13,12 @@ class ScriptAnalysis(BaseAnalysis):
     def _get_query_db_field(self, conn, component):
         return ["metaphlan_sam_abundance"]
     
-    def _get_command(self,analysis_id,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
+    def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
+        output_path = f"{output_dir}/output"
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
         command =  textwrap.dedent(f"""
-            python {component_script} {params_path}
+            python {component_script} {params_path}  {output_path}
             """)
         return command
     

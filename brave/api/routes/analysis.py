@@ -473,10 +473,19 @@ async def run_analysis_v2(
 
 @analysis_api.get("/find-analysis-by-id/{analysis_id}") 
 async def find_analysis_by_id(analysis_id):
+    settings = get_settings()
     with get_engine().begin() as conn:
         stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
         result = conn.execute(stmt)
-        return result.mappings().first()
+        analysis_ = result.mappings().first()
+        if analysis_ is None:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        analysis_dict = dict(analysis_)
+        script_dir = analysis_dict['pipeline_script']
+        script_dir = os.path.dirname(script_dir).replace(str(settings.PIPELINE_DIR)+"/","")
+        jupyter_notebook_path =  f"{script_dir}/main.ipynb"
+        analysis_dict["jupyter_notebook_path"] = jupyter_notebook_path
+        return analysis_dict
 
 
 

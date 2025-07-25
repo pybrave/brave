@@ -5,6 +5,16 @@ from brave.api.config.db import meta
 # from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy import Text
 
+
+t_project = Table(
+    "t_project",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("project_id", String(255)),
+    Column("project_name", String(255)),
+    Column("metadata_form", Text)
+)
+
 samples = Table(
     "t_samples",
     meta,
@@ -14,18 +24,19 @@ samples = Table(
     # Column("sample_key", String(255)),
     # Column("analysis_key", String(255), unique=True),
     Column("sample_name", String(255)),
-    Column("sequencing_target", String(255)),
-    Column("sequencing_technique", String(255)),
-    Column("sample_composition", String(255)),
-    Column("library_name", String(255)),
+    # Column("sequencing_target", String(255)),
+    # Column("sequencing_technique", String(255)),
+    # Column("sample_composition", String(255)),
+    # Column("library_name", String(255)),
     Column("sample_group", String(255)),
-    Column("sample_group_name", String(255)),
-    Column("sample_source", String(255)),
-    Column("host_disease", String(255)),
-    Column("sample_individual", String(255)),
-    Column("is_available", Integer),
-    Column("fastq1", String(255)),
-    Column("fastq2", String(255)),
+    # Column("sample_group_name", String(255)),
+    # Column("sample_source", String(255)),
+    # Column("host_disease", String(255)),
+    # Column("sample_individual", String(255)),
+    # Column("is_available", Integer),
+    # Column("fastq1", String(255)),
+    # Column("fastq2", String(255)),
+    Column("metadata", Text)
 )
 analysis = Table(
     "nextflow",
@@ -132,8 +143,8 @@ t_pipeline_components = Table(
     Column("component_id", String(255)),
     Column("install_key", String(255)),
     Column("component_type", String(255)), 
-    Column("name", String(255)), 
-    Column("label", String(255)), 
+    Column("component_name", String(255)), 
+    # Column("label", String(255)), 
     Column("description", String(255)), 
     Column("img", String(255)), 
     Column("tag", String(255)), 

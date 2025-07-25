@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 
 from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketDisconnect
+from brave.api.routes.project import project_api
 from brave.api.routes.sample_result import sample_result
 from brave.api.routes.file_parse_plot import file_parse_plot
 from brave.api.routes.sample import sample
@@ -46,6 +47,7 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.include_router(file_operation,prefix="/brave-api")
     app.include_router(setting_controller,prefix="/brave-api")
     app.include_router(application_api,prefix="/brave-api")
+    app.include_router(project_api,prefix="/brave-api")
 
     app.get("/brave-api/sse-group")(manager.sse_service.create_endpoint())  
     endpoint = manager.ingress_manager.create_endpoint()

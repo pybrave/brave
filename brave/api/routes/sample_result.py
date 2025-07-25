@@ -34,6 +34,7 @@ from brave.api.service.analysis_result_parse import AnalysisResultParse
 from fastapi import Depends
 from dependency_injector.wiring import inject, Provide
 from brave.app_container import AppContainer
+from collections import defaultdict
 sample_result = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -217,9 +218,31 @@ def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
         result_dict = analysis_result_service.find_analyais_result(conn,analysisResultQuery)
     return result_dict
 
+def get_analysis_result_metadata(item):
+    if item["metadata"]:
+        metadata = json.loads(item["metadata"])
+        item = {**metadata,**item}
+        del item["metadata"]
+    return item
+@sample_result.post(
+    "/analysis-result/list-analysis-result",
+    # response_model=List[AnalysisResult]
+    )
+async def list_analysis_result(analysisResultQuery:AnalysisResultQuery):
+    result_dict = find_analyais_result(analysisResultQuery)
+    result_dict = [get_analysis_result_metadata(item) for item in result_dict]
+            
+        # if item["metadata_form"]:
+        #     item["metadata_form"] = json.loads(item["metadata_form"])
+    # grouped = defaultdict(list)
+    # for item in result_dict:
+    #     grouped[item["component_id"]].append(item)
+    return result_dict
+
 @sample_result.post(
     "/fast-api/find-analyais-result-by-analysis-method",
-    response_model=List[AnalysisResult])
+    # response_model=List[AnalysisResult]
+    )
 async def find_analyais_result_by_analysis_method(analysisResultQuery:AnalysisResultQuery):
     return find_analyais_result(analysisResultQuery)
     # with get_db_session() as session:

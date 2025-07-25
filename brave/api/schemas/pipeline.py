@@ -10,7 +10,7 @@ class SavePipeline(BaseModel):
     component_type: Optional[str]
     content: Optional[str]=None
     namespace:Optional[str]=None
-    name:Optional[str]=None
+    component_name:Optional[str]=None
     description:Optional[str]=None
     tag:Optional[str]=None
     category:Optional[str]=None

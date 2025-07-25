@@ -20,7 +20,7 @@ class NextflowAnalysis(BaseAnalysis):
     
     
 
-    def _get_command(self,analysis_id,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
+    def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
         command =  textwrap.dedent(f"""
             export BRAVE_WORKFLOW_ID={analysis_id}
             export NXF_CACHE_DIR={cache_dir}

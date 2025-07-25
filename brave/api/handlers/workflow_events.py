@@ -41,7 +41,7 @@ def setup_handlers(
     async def on_process_complete(analysis:Analysis,msg: dict):
         print(f"🚀 [on_process_complete] {msg['analysis_id']}")
         await sse_service.push_message({"group": "default", "data": json.dumps(msg)})
-        await result_parse_manage.parse(analysis.analysis_id)
+        # await result_parse_manage.parse(analysis.analysis_id)
 
 
     @router.on_event(WorkflowEvent.ON_FLOW_COMPLETE)

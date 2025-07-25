@@ -221,7 +221,7 @@ async def get_component_parent(component_id,component_type):
         tp1.c.install_key,
         tp1.c.content,
         tp1.c.namespace,
-        tp1.c.name,
+        tp1.c.component_name,
         tn1.c.name.label("namespace_name"),
         rel.c.relation_type,
         rel.c.parent_component_id,
@@ -308,7 +308,7 @@ async def get_pipeline_v2(name,component_type="pipeline"):
         t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
         t_pipeline_components.c.namespace,
-        t_pipeline_components.c.name,
+        t_pipeline_components.c.component_name,
         t_namespace.c.name.label("namespace_name"),
         cast(null(), String(255)).label("relation_type"),
         cast(null(), String(255)).label("parent_component_id"),
@@ -337,7 +337,7 @@ async def get_pipeline_v2(name,component_type="pipeline"):
         tp1.c.install_key,
         tp1.c.content,
         tp1.c.namespace,
-        tp1.c.name,
+        tp1.c.component_name,
         tn1.c.name.label("namespace_name"),
         rel.c.relation_type,
         rel.c.parent_component_id,
@@ -780,7 +780,8 @@ async def save_pipeline(savePipeline:SavePipeline):
                     # pipeline_id=savePipeline.pipeline_id
                 ))
         content = json.loads(save_pipeline_dict['content'])
-        await run_in_threadpool(pipeline_service.create_file,namespace, component_id,content ,component_type,content['script_type'])
+        if component_type == "software" or component_type =="script":
+            await run_in_threadpool(pipeline_service.create_file,namespace, component_id,content ,component_type,content['script_type'])
         pipeline_service.write_all_component(conn,namespace)
     
     # t0 = time.time()
