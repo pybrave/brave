@@ -196,7 +196,7 @@ async def get_component_parent(component_id,component_type):
         t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
         t_pipeline_components.c.namespace,
-        t_pipeline_components.c.name,
+        t_pipeline_components.c.component_name,
         t_namespace.c.name.label("namespace_name"),
         cast(null(), String(255)).label("relation_type"),
         cast(null(), String(255)).label("parent_component_id"),
@@ -242,10 +242,18 @@ async def get_component_parent(component_id,component_type):
     if not child_item:
         raise HTTPException(status_code=500, detail=f"{component_id}没有找到!")  
 
+    if component_type == "script":
+        child_item = {
+            **child_item,
+            **json.loads(child_item["content"])
+        }
+        del child_item["content"]
+
     parent_item_list = [dict(item) for item in data if item['component_type'] != component_type]
-    child_item = dict(child_item)
-    child_item['parent'] = parent_item_list
-    return child_item
+    resul_dict= {}
+    resul_dict['script'] = dict(child_item)
+    resul_dict['parent'] = parent_item_list
+    return resul_dict
 
 @pipeline.get("/get-pipeline-v2/{name}",tags=['pipeline'])
 async def get_pipeline_v2(name,component_type="pipeline"):
