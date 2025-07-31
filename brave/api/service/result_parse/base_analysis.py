@@ -18,7 +18,7 @@ import textwrap
 import uuid
 from brave.api.service.pipeline  import find_module
 import importlib
-from brave.api.utils.get_db_utils import get_ids
+from brave.api.utils.get_db_utils import get_ids,get_group
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
 
@@ -27,10 +27,21 @@ class BaseAnalysis(ABC):
     def __init__(self, event_bus:EventBus) -> None:
         self.event_bus = event_bus
 
-    @abstractmethod
+    # @abstractmethod
+    # def _get_query_db_field(self,conn,component):
+    #     pass
     def _get_query_db_field(self,conn,component):
-        pass
-    
+        if component['component_type']=="software":
+            component_file_list = pipeline_service.find_component_by_parent_id(conn,component['component_id'],"software_input_file")
+            component_file_name_list = [json.loads(item.content)['name'] for item in component_file_list]
+            return component_file_name_list
+        elif component['component_type'] == "script":
+            if "dbInputFiled" in component:
+                return component['dbInputFiled']
+        elif component['component_type'] == "pipeline":
+            input_file_list = component['inputFile']
+            return [item['name'] for item in input_file_list]
+
     @abstractmethod
     def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
         pass
@@ -53,7 +64,7 @@ class BaseAnalysis(ABC):
     #     return component_script
 
 
-    async def save_analysis(self,conn,request_param,parse_analysis_result,component,component_content,is_submit):
+    async def save_analysis(self,conn,request_param,parse_analysis_result,component,is_submit):
         # parse_analysis_result,component = self.get_parames(request_param)
 
 
@@ -62,7 +73,8 @@ class BaseAnalysis(ABC):
             "analysis_name":request_param['analysis_name'],
             "request_param":json.dumps(request_param),
             # "analysis_method":component_script,
-            "component_id":component.component_id,
+            "component_id":component['component_id'],
+            "data_component_ids":request_param['data_component_ids'],
             "analysis_status": "running" if is_submit else "created"
             # "parse_analysis_module":parse_analysis_module
         }
@@ -114,9 +126,9 @@ class BaseAnalysis(ABC):
             cache_dir = f"{project_dir}/.nextflow"
             if "pipeline_id" in request_param:  
                 pipeline_id = request_param['pipeline_id']
-                output_dir = f"{project_dir}/{pipeline_id}/{component.component_id}/{str_uuid}"
+                output_dir = f"{project_dir}/{pipeline_id}/{component['component_id']}/{str_uuid}"
             else:
-                output_dir = f"{project_dir}/{component.component_id}/{str_uuid}"
+                output_dir = f"{project_dir}/{component['component_id']}/{str_uuid}"
             # /data/wangyang/nf_work/
             work_dir = f"{work_dir}/{request_param['project']}"
             params_path = f"{output_dir}/params.json"
@@ -179,7 +191,7 @@ class BaseAnalysis(ABC):
             new_analysis['executor_log_file'] = executor_log
             new_analysis['script_config_file'] = script_config_file
             new_analysis['command_log_path'] = command_log_path
-            new_analysis['image'] = component_content["image"]
+            new_analysis['image'] = component["image"]
             
             with open(command_path, "w") as f:
                 f.write(command)
@@ -193,7 +205,7 @@ class BaseAnalysis(ABC):
 
     
 
-    def get_parames(self, conn, request_param: dict[str, Any],component,component_content):
+    def get_parames(self, conn, request_param: dict[str, Any],component):
          # request_param = analysis_input.model_dump_json()
         # component_id = request_param['component_id']
         # pipeline_id = request_param['pipeline_id']
@@ -203,10 +215,9 @@ class BaseAnalysis(ABC):
         # component = pipeline_service.find_pipeline_by_id(conn, component_id)
         # if component is None or not hasattr(component, "content"):
         #     raise HTTPException(status_code=404, detail=f"Component with id {component.component_id} not found or missing content.")
-        # component_content = json.loads(component.content)
         query_name_list = self._get_query_db_field(conn,component)
 
-        parse_analysis_result = self.parse_analysis(conn,request_param,component,component_content,query_name_list)
+        parse_analysis_result = self.parse_analysis(conn,request_param,component,query_name_list)
         return parse_analysis_result
     
         
@@ -231,13 +242,12 @@ class BaseAnalysis(ABC):
                 "path":bio_database.get("path")
             }
 
-    def parse_analysis(self,conn,request_param,component,component_content,query_name_list):
-        # module_name = component_content.get('parseAnalysisModule')
+    def parse_analysis(self,conn,request_param,component,query_name_list):
 
         # py_module = find_module(namespace,"py_parse_analysis",component_id,module_name,'py')['module']
         module_info = pipeline_service.find_component_module(component, ScriptName.input_parse)
         if not module_info:
-            raise HTTPException(status_code=500, detail=f"组件{component.component_id}的输入解析模块没有找到!")
+            raise HTTPException(status_code=500, detail=f"组件{component['component_id']}的输入解析模块没有找到!")
         py_module = module_info['module']
         # module_name = f'brave.api.parse_analysis.{module_name}'
         # if importlib.util.find_spec(module) is None:
@@ -254,22 +264,25 @@ class BaseAnalysis(ABC):
         #     db_field = get_db_field()
         db_ids_dict = {key: get_ids(request_param[key]) for key in query_name_list if key in request_param}
         db_dict = { key:analysis_result_service.find_analyais_result_by_ids(conn,value) for key,value in  db_ids_dict.items()}
+        
+        groups_name = {key:get_group(request_param[key]) for key in query_name_list if key in request_param }
+        
         extra_dict={}
-        if "upstreamFormJson" in component_content:
-            upstream_form_json = component_content['upstreamFormJson']
+        if "upstreamFormJson" in component:
+            upstream_form_json = component['upstreamFormJson']
             upstream_form_json_names = [item['name'] for item in upstream_form_json]
             extra_dict = {key: request_param[key] for key in upstream_form_json_names if key in request_param}
 
 
-        if "formJson" in component_content:
-            form_json = component_content['formJson']
+        if "formJson" in component:
+            form_json = component['formJson']
             form_json_names = [item['name'] for item in form_json]
             extra_dict = {key: request_param[key] for key in form_json_names if key in request_param}
 
         
         database_dict={}
-        if "databases" in component_content:
-            bio_database = component_content['databases']
+        if "databases" in component:
+            bio_database = component['databases']
             bio_database_data_type_list = [item['name'] for item in bio_database]
             db_ids_dict = {key: request_param[key] for key in bio_database_data_type_list if key in request_param}
             database_dict = { key:self.get_database_dict(conn,value) for key,value in  db_ids_dict.items()}
@@ -278,7 +291,9 @@ class BaseAnalysis(ABC):
            
             "database_dict":database_dict,
             "extra_dict":extra_dict,
-            "analysis_dict":db_dict
+            "analysis_dict":db_dict,
+            "groups_name":groups_name,
+            "groups":query_name_list
         }
 
         parse_data = getattr(module, "parse_data")

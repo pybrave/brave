@@ -367,22 +367,29 @@ async def save_script_analysis(
         if component_id is None:
             raise HTTPException(status_code=500, detail=f"component_id is None")
         component = pipeline_service.find_pipeline_by_id(conn, component_id)
+        if component.component_type == "pipeline":
+            component = pipeline_service.get_pipeline_v2(conn,component_id)
         if component is None:
             raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
-        if component is None or not hasattr(component, "content"):
+        if component is None or "content" not in component:
             raise HTTPException(status_code=404, detail=f"Component with id {component.component_id} not found or missing content.")
-        component_content = json.loads(component.content)
-        script_type = component_content['script_type']
+        
+        # component_content = 
+        component_obj = {
+            **{ k:v for k,v in component.items() if k != "content"},
+            **json.loads(component['content'])
+        }
+        script_type = component_obj['script_type']
         if script_type == "python" or script_type == "shell" or script_type == "r":
             analysis_controller = app_container.script_analysis()
         else:
             analysis_controller = app_container.nextflow_analysis()
 
-        parse_analysis_result = analysis_controller.get_parames(conn,request_param,component,component_content)
+        parse_analysis_result = analysis_controller.get_parames(conn,request_param,component_obj)
 
         if not save:
             return parse_analysis_result
-        return await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component,component_content,is_submit) 
+        return await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_submit) 
   
 
 

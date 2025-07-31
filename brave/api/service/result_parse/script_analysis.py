@@ -10,8 +10,8 @@ class ScriptAnalysis(BaseAnalysis):
         super().__init__(event_bus)
 
 
-    def _get_query_db_field(self, conn, component):
-        return ["metaphlan_sam_abundance"]
+    # def _get_query_db_field(self, conn, component):
+    #     return ["metaphlan_sam_abundance"]
     
     def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
         output_path = f"{output_dir}/output"

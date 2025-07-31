@@ -20,22 +20,43 @@ def get_parse_analysis_result_params(conn,analysis_id):
     component_ = pipeline_service.find_pipeline_by_id(conn, component_id)
     if not component_:
         raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
-    try:
-        component_content = json.loads(component_.content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
-    parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
-    
-    component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
+  
     file_format_list = []
+    if component_.component_type == "pipeline":
+        component_ = pipeline_service.get_pipeline_v2(conn,component_id)
+        softwareList = component_['software']
+        component_file_list = [outputFile for item in softwareList if 'outputFile' in item for outputFile in item['outputFile']]
+        file_format_list = [
+            {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
+            for item in component_file_list if 'fileFormat' in item
+        ]
+        pass
+    else:
+     
+        component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
+        component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
+        file_format_list = [
+            {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
+            for item in component_file_content_list if 'fileFormat' in item
+        ]
+        # component_file_list = []
+    # component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
+    component_ = {
+            **{k:v for k,v in component_.items() if k != "content"},
+            **json.loads(component_['content'])
+        }
+    # try:
+    #     component_content = json.loads(component_.content)
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"Failed to parse component content: {e}")
+    # parse_analysis_result_module = component_content.get('parseAnalysisResultModule')
+    
+    
+    
     # if len(component_file_list) == 0:
     #     return {"error":"组件没有添加输出文件,请检查!"}
         # raise HTTPException(status_code=500, detail=f"组件{component_id}没有添加输出文件,请检查!")
-    component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
-    file_format_list = [
-        {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
-        for item in component_file_content_list if 'fileFormat' in item
-    ]
+    
     # if not file_format_list:
     #     return {"error":"组件的输出文件没有配置fileFormat!请检查!"}
         # raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
@@ -137,6 +158,8 @@ def list_analysis(conn,query:QueryAnalysis):
         conditions.append(t_analysis.c.component_id == query.component_id)
     if query.project:
         conditions.append(t_analysis.c.project == query.project)
+    if query.component_ids:
+        conditions.append(t_analysis.c.component_id.in_(query.component_ids))
 
     stmt = select(
         t_analysis,

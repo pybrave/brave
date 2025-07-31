@@ -7,3 +7,12 @@ def get_ids(values):
         else:
             return []
     return values
+
+def get_group(values):
+    if isinstance(values, dict):
+        if "group" in  values:
+            if len(values["group"]) ==1:
+                return values["group"][0]
+            elif len(values["group"]) >1:
+                return "-".join(values["group"])
+    return "-"

@@ -1,19 +1,22 @@
+from collections import defaultdict
 import json
 import os
 import glob
 
 from dependency_injector.wiring import Provide
+from sqlalchemy.orm import aliased
 from brave.api.config.config import get_settings
 from pathlib import Path
 import shutil
 from fastapi import Depends, HTTPException
-from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule
+from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule,SaveOrder,SavePipelineComponentsEdges
 from brave.api.config.db import get_engine
-from brave.api.models.core import t_namespace, t_pipeline_components, t_pipeline_components_relation
+from brave.api.models.core import t_namespace, t_pipeline_components, t_pipeline_components_edges, t_pipeline_components_relation
 import importlib.resources as resources
 from sqlalchemy import delete, select, and_, join, func,insert,update
 from datetime import datetime
 from brave.api.enum.component_script import ScriptName
+from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 
 
 
@@ -34,11 +37,11 @@ def get_module_name(item):
     # f'reads-alignment-based-abundance-analysis.py_plot.{module_name}'
 
 def find_component_module(component,script_name:ScriptName) -> dict:
-    content = json.loads(component.content)
-    if "script_type" not in content:
+    # content = json.loads(component['content'])
+    if "script_type" not in component:
         raise HTTPException(status_code=500, detail=f"script_type not found!")
     if script_name == ScriptName.main:
-        script_type = content['script_type']
+        script_type = component['script_type']
         if script_type == "nextflow":
             file_type = "nf"
         elif script_type == "python":
@@ -51,13 +54,13 @@ def find_component_module(component,script_name:ScriptName) -> dict:
             raise HTTPException(status_code=500, detail=f"script_type {script_type} not found!")
     else:
         file_type = "py"
-    module_info = find_module(component.namespace,component.component_id,script_name,file_type)
+    module_info = find_module(component['namespace'],component['component_id'],script_name,file_type)
     if module_info:
         return module_info
     else:
         if script_name == ScriptName.main:
-            create_file(component.namespace,component.component_id,content,component.component_type,file_type)
-            module_info = find_module(component.namespace,component.component_id,script_name,file_type)
+            create_file(component['namespace'],component['component_id'],component['component_type'],file_type)
+            module_info = find_module(component['namespace'],component['component_id'],script_name,file_type)
             if not module_info:
                 raise HTTPException(status_code=500, detail=f"组件{component.component_id}的{script_name.value}模块没有找到!")
             return module_info
@@ -168,7 +171,7 @@ def delete_wrap_pipeline_dir(pipeline_key):
     #     if not os.path.exists(item):
     #         os.makedirs(item) 
 
-def create_file(namespace,component_id,content,component_type,script_type):
+def create_file(namespace,component_id,component_type,script_type):
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{namespace}"
     if component_type == "pipeline":
@@ -262,8 +265,8 @@ def find_component_by_parent_id(conn,parent_id,relation_type=None):
     return result
 
 
-def list_pipeline(conn,queryPipeline:QueryPipeline):
 
+def list_pipeline(conn,queryPipeline:QueryPipeline):
     stmt = t_pipeline_components.select() 
   
     conditions = []
@@ -396,7 +399,7 @@ def get_child_depend_component(conn,namespace, component_id):
         t_pipeline_components_relation.c.relation_type,
         t_pipeline_components.c.component_id,
         t_pipeline_components.c.component_type,
-        t_pipeline_components.c.name,
+        t_pipeline_components.c.component_name,
         t_pipeline_components.c.description,
         t_pipeline_components.c.namespace
         ).select_from(
@@ -420,7 +423,7 @@ def get_parent_depend_component(conn, namespace, component_id):
         t_pipeline_components_relation.c.relation_type,
         t_pipeline_components.c.component_id,   
         t_pipeline_components.c.component_type,
-        t_pipeline_components.c.name,
+        t_pipeline_components.c.component_name,
         t_pipeline_components.c.description,
         t_pipeline_components.c.namespace
     ).select_from(
@@ -444,3 +447,204 @@ def get_child_component_count(conn,namespace, component_id,relation_type):
         t_pipeline_components_relation.c.namespace == namespace
     )
     return conn.execute(stmt).scalar()
+
+
+def save_order(conn,saveOrderList:list[SaveOrder]):
+    for saveOrder in saveOrderList:
+        stmt = update(t_pipeline_components_relation).where(t_pipeline_components_relation.c.relation_id == saveOrder.relation_id).values(order_index=saveOrder.order_index)
+        conn.execute(stmt)
+
+
+
+def save_pipeline_components_edges(conn,savePipelineComponentsEdges:SavePipelineComponentsEdges):
+    # stmt = delete(t_pipeline_components_edges).where(t_pipeline_components_edges.c.pipeline_id == savePipelineComponentsEdges.component_id)
+    # conn.execute(stmt)
+    # for pipeline_components_edge in savePipelineComponentsEdges.pipeline_components_edges:
+    #     stmt = insert(t_pipeline_components_edges).values(
+    #         source=pipeline_components_edge.source,
+    #         sourceHandle=pipeline_components_edge.sourceHandle,
+    #         target=pipeline_components_edge.target,
+    #         targetHandle=pipeline_components_edge.targetHandle,
+    #         pipeline_id=savePipelineComponentsEdges.component_id
+    #     )
+    #     conn.execute(stmt)
+        
+    update_stmt = update(t_pipeline_components).where(
+        t_pipeline_components.c.component_id == savePipelineComponentsEdges.component_id
+        ).values(position=savePipelineComponentsEdges.position,
+        edges=savePipelineComponentsEdges.edges  )
+    conn.execute(update_stmt)
+
+
+
+
+
+def get_pipeline_v2(conn,name,component_type="pipeline"):
+    base = (select(
+        t_pipeline_components.c.component_id,
+        t_pipeline_components.c.component_type,
+        t_pipeline_components.c.install_key,
+        t_pipeline_components.c.content,
+        t_pipeline_components.c.namespace,
+        t_pipeline_components.c.component_name,
+        t_pipeline_components.c.position,
+        t_pipeline_components.c.edges,
+        t_namespace.c.name.label("namespace_name"),
+        cast(null(), String(255)).label("relation_type"),
+        cast(null(), String(255)).label("parent_component_id"),
+        cast(null(), String(255)).label("order_index"),
+        cast(null(), String(255)).label("relation_id"),
+    ).select_from(
+        t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
+    ).where(
+        t_pipeline_components.c.component_id == name,
+        t_pipeline_components.c.component_type == component_type,
+    ).cte(name="base", recursive=True))
+
+
+    # 递归 CTE 定义
+    # cte = base.cte(name="full_pipeline", recursive=True)
+
+    tp1 = aliased(t_pipeline_components)
+    tn1 = aliased(t_namespace)
+    rel = t_pipeline_components_relation
+    # fp = aliased(cte)  # 引用递归CTE自身
+    base_alias = base.alias()
+
+    recursive = select(
+        tp1.c.component_id,
+        tp1.c.component_type,
+        tp1.c.install_key,
+        tp1.c.content,
+        tp1.c.namespace,
+        tp1.c.component_name,
+        tn1.c.name.label("namespace_name"),
+        tp1.c.position,
+        tp1.c.edges,
+        rel.c.relation_type,
+        rel.c.parent_component_id,
+        rel.c.order_index,
+        rel.c.relation_id,
+    ).select_from(
+        tp1.outerjoin(tn1, tp1.c.namespace == tn1.c.namespace_id)
+        .join(rel, tp1.c.component_id == rel.c.component_id)
+        .join(base_alias, rel.c.parent_component_id == base_alias.c.component_id)
+    )
+
+    # # 合并 base 和 recursive，生成完整的递归CTE
+    cte = base.union_all(recursive) #.cte(name="full_pipeline", recursive=True)
+
+    # # 最终查询排序
+    final_query = select(cte).order_by(
+        case((cte.c.order_index == None, 1), else_=0),
+        cte.c.order_index
+        # func.coalesce(cte.c.order_index, cte.c.relation_id),
+    )
+    # 执行查询
+    # with get_engine().begin() as conn:
+    data = conn.execute(final_query).mappings().all()
+    if  len(data) < 0:
+        raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
+    id_to_node = {(item["component_id"], item["relation_type"]): get_one_data(item) for item in data}
+    children_map = defaultdict(list)
+    for item in data:
+        parent_id = item.get("parent_component_id")
+        if parent_id:
+            # parent_key = (parent_id, item["relation_id"])  # parent 的唯一标识
+            child_key = (item["component_id"], item["relation_type"])
+            children_map[parent_id].append(child_key)
+    # 获取根 pipeline_id
+    root_item  = next((item for item in data if item["component_type"] == component_type),None)
+    if not root_item:
+        raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
+    # root_key = (root_item["component_id"], None)
+    if component_type == "software":
+        result = build_software_structure(id_to_node,children_map,root_item)
+    elif component_type == "pipeline":
+        result = build_pipeline_structure(id_to_node,children_map,root_item)
+    elif component_type == "file":
+        result = build_file_structure(id_to_node,children_map,root_item)
+    else:
+        raise HTTPException(status_code=500, detail=f"{component_type}没有结构解析!")  
+    return result
+
+def get_one_data(item):
+    content = json.loads(item["content"])
+    item = {k:v for k,v in item.items() if k!="content"}
+    return { **content,**item }
+
+def build_file_structure(id_to_node,children_map,root_item):
+    
+    item = {**root_item, "downstreamAnalysis": []}
+    for ds_id in children_map.get(item["component_id"], []):
+        downstream = id_to_node[ds_id]
+        item["downstreamAnalysis"].append(downstream)
+    return item
+
+def  build_software_structure(id_to_node,children_map,root_item):
+    # result = {**root_item}
+    item = {**root_item}
+    input_files = []
+    output_files = []
+    for sub_id in children_map.get(root_item["component_id"], []):
+        sub = id_to_node[sub_id]
+        sub_content = sub
+        if sub["relation_type"] == "software_input_file":
+            input_files.append(sub_content)
+        elif sub["relation_type"] == "software_output_file":
+            sub_out = {**sub_content, "downstreamAnalysis": []}
+            for ds_id in children_map.get(sub["component_id"], []):
+                downstream = id_to_node[ds_id]
+                sub_out["downstreamAnalysis"].append(downstream)
+            output_files.append(sub_out)    
+    return {**item, "inputFile":input_files, "outputFile":output_files}
+
+def build_pipeline_structure(id_to_node,children_map,root_item):
+    # node = id_to_node[pid]
+    result = {**root_item}
+    items = []
+    for child_id in children_map.get(root_item["component_id"], []):
+        child = id_to_node[child_id]
+        content = child
+        if child["component_type"] == "software":
+            item = {**content}
+            input_files = []
+            output_files = []
+            for sub_id in children_map.get(child_id[0], []):
+                sub = id_to_node[sub_id]
+                sub_content = sub
+                if sub["relation_type"] == "software_input_file":
+                    input_files.append(sub_content)
+                elif sub["relation_type"] == "software_output_file":
+                    sub_out = {**sub_content, "downstreamAnalysis": []}
+                    for ds_id in children_map.get(sub["component_id"], []):
+                        downstream = id_to_node[ds_id]
+                        sub_out["downstreamAnalysis"].append(downstream)
+                    output_files.append(sub_out)
+
+
+            if input_files:
+                item["inputFile"] = input_files
+            if output_files:
+                item["outputFile"] = output_files
+            if "upstreamFormJson" in content:
+                item["upstreamFormJson"] = content["upstreamFormJson"]
+            items.append(item)
+    if items:
+        # result["items"] = items
+        # item["databases"] for item in items if "databases" in item
+        result["databases"] = [
+             db for item in items if "databases" in item for db in item["databases"]
+        ]
+        result["upstreamFormJson"] = [
+            db for item in items if "upstreamFormJson" in item and isinstance(item["upstreamFormJson"],list) and len(item["upstreamFormJson"]) > 0   for db in item["upstreamFormJson"]
+        ]
+        result["software"] = items
+        if items and len(items) > 0 and "inputFile" in items[0]:
+            result["inputFile"] = items[0]["inputFile"]
+        else:
+            result["inputFile"] = []
+    return result
+
+
+  

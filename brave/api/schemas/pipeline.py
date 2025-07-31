@@ -5,7 +5,7 @@ from pydantic import BaseModel
 class SavePipeline(BaseModel):
     component_id: Optional[str]=None
     parent_component_id:Optional[str]=None
-    pipeline_id: Optional[str]=None
+    # pipeline_id: Optional[str]=None
     relation_type: Optional[str]=None
     component_type: Optional[str]
     content: Optional[str]=None
@@ -49,6 +49,7 @@ class Pipeline(BaseModel):
     # pipeline_key: Optional[str]
     order_index: Optional[int]
     component_type: Optional[str]
+    component_name: Optional[str]
     content: Optional[str]
     namespace:Optional[str]
 
@@ -58,3 +59,21 @@ class QueryModule(BaseModel):
     component_id:Optional[str]
     file_type:Optional[str]=None
     # module_dir: Optional[str]=None
+
+
+class SaveOrder(BaseModel):
+    relation_id:Optional[str]=None
+    order_index:Optional[int]=None
+
+# class PipelineComponentsEdges(BaseModel):
+#     source: str
+#     sourceHandle: str
+#     target: str
+#     targetHandle: str
+
+
+
+class SavePipelineComponentsEdges(BaseModel):
+    component_id: str
+    edges: str
+    position:str

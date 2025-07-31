@@ -64,7 +64,8 @@ analysis = Table(
     Column("analysis_status", String(255)),
     Column("job_id", String(255)),
     Column("command_log_path", String(255)),
-    Column("image", String(255))
+    Column("image", String(255)),
+    Column("data_component_ids",Text)
 )
 
 analysis_result = Table(
@@ -144,15 +145,15 @@ t_pipeline_components = Table(
     Column("install_key", String(255)),
     Column("component_type", String(255)), 
     Column("component_name", String(255)), 
-    # Column("label", String(255)), 
     Column("description", String(255)), 
     Column("img", String(255)), 
     Column("tag", String(255)), 
     Column("category", String(255)), 
     Column("namespace", String(255)),
-    # Column("parent_pipeline_id", String(255)),
     Column("content", Text),
-    Column("order_index", Integer)
+    Column("order_index", Integer),
+    Column("position", Text),
+    Column("edges", Text)
 
 )
 # relation_type: pipeline_software software_input_file  software_ouput_file  file_script
@@ -173,6 +174,17 @@ t_pipeline_components_relation = Table(
 
 )
 
+t_pipeline_components_edges = Table(
+    "pipeline_components_edges",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("edge_id", String(255)),
+    Column("source", String(255)),
+    Column("sourceHandle", String(255)),
+    Column("target", String(255)),
+    Column("targetHandle", String(255)),
+    Column("pipeline_id", String(255))
+)
 
 t_bio_database = Table(
     "bio_database",

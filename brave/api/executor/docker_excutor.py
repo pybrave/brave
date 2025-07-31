@@ -1,5 +1,6 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import os
 from typing import Dict
 import docker
 from docker.models.containers import Container
@@ -92,11 +93,13 @@ class DockerExecutor(JobExecutor):
         #     self.to_remove.append(job.job_id)
         #     raise e  # 其他错误不应吞掉
 
-       
+        user_id = os.getuid() 
         try:
             container: Container = self.client.containers.run(
             image=job.image,
             name=job.job_id,
+            user=user_id,
+            group_add=["users"],
             command=f"bash -c  \"bash {job.command[0]}  2>&1 | tee {job.command_log_path}; exit ${{PIPESTATUS[0]}}\"",
             volumes={
                 job.output_dir: {

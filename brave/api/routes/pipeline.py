@@ -13,9 +13,9 @@ from collections import defaultdict
 from brave.api.models.core import t_pipeline_components,t_pipeline_components_relation,t_namespace
 import uuid
 from brave.api.config.db import get_engine
-from sqlalchemy import select, and_, join, func,insert,update
+from sqlalchemy import or_, select, and_, join, func,insert,update
 import re
-from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule,SavePipelineRelation
+from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
 import brave.api.service.pipeline  as pipeline_service
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
@@ -255,210 +255,65 @@ async def get_component_parent(component_id,component_type):
     resul_dict['parent'] = parent_item_list
     return resul_dict
 
+
+@pipeline.get("/get-pipeline-dag/{pipeline_id}",tags=['pipeline'])
+async def get_pipeline_dag(pipeline_id):
+    s_alias = t_pipeline_components.alias("s")
+    t_alias = t_pipeline_components.alias("t")
+    stmt1 = (
+        select(
+            t_pipeline_components_relation.c.parent_component_id.label("source"),
+            t_pipeline_components_relation.c.component_id.label("target"),
+            s_alias.c.component_name.label("source_name"),
+            t_alias.c.component_name.label("target_name"),
+        )
+        .select_from(
+            t_pipeline_components_relation
+            .join(s_alias, t_pipeline_components_relation.c.parent_component_id == s_alias.c.component_id)
+            .join(t_alias, t_pipeline_components_relation.c.component_id == t_alias.c.component_id)
+        )
+        .where(
+            and_(
+                t_pipeline_components_relation.c.relation_type == "pipeline_software",
+                t_pipeline_components_relation.c.pipeline_id == pipeline_id
+            )
+        )
+    )
+    stmt2 = (
+        select(t_pipeline_components)
+        .distinct()
+        .select_from(
+            t_pipeline_components_relation
+            .join(
+                t_pipeline_components,
+                or_(
+                    t_pipeline_components.c.component_id == t_pipeline_components_relation.c.parent_component_id,
+                    t_pipeline_components.c.component_id == t_pipeline_components_relation.c.component_id
+                )
+            )
+        )
+        .where(
+            and_(
+                t_pipeline_components_relation.c.relation_type == "pipeline_software",
+                t_pipeline_components_relation.c.pipeline_id == pipeline_id
+            )
+        )
+    )
+    stmt3 = select(t_pipeline_components).where(t_pipeline_components.c.component_id == pipeline_id)
+    with get_engine().begin() as conn:
+        data = conn.execute(stmt1).mappings().all()
+        data2 = conn.execute(stmt2).mappings().all()
+        data3 = conn.execute(stmt3).mappings().first()
+    return {
+        **data3,
+        "edges":data,
+        "nodes":data2
+    }
+
 @pipeline.get("/get-pipeline-v2/{name}",tags=['pipeline'])
 async def get_pipeline_v2(name,component_type="pipeline"):
-   # 创建递归 CTE
-    # base = select(
-    #     t_pipeline_components.c.component_id,
-    #     t_pipeline_components.c.component_type,
-    #     t_pipeline_components.c.install_key,
-    #     t_pipeline_components.c.content,
-    #     t_pipeline_components.c.namespace,
-    #     t_namespace.c.name.label("namespace_name"),
-    #     cast(null(), String).label("relation_type"),
-    #     cast(null(), String).label("parent_component_id"),
-    #     # cast(null(), String).label("pipeline_id"),
-    #     cast(null(), String).label("order_index"),
-    #     cast(null(), String).label("relation_id")
-    # ).select_from(
-    #     t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
-    # ).where(
-    #     t_pipeline_components.c.component_id == name,
-    #     t_pipeline_components.c.component_type == "pipeline"
-    # )
-
-    # # 递归部分
-    # tp2 = aliased(t_pipeline_components)
-    # trp = t_pipeline_components_relation
-    # fp = aliased(t_pipeline_components)
-    # tn = aliased(t_namespace)
-
-    # recursive = select(
-    #     tp2.c.component_id,
-    #     tp2.c.component_type,
-    #     tp2.c.install_key,
-    #     tp2.c.content,
-    #     tp2.c.namespace,
-    #     tn.c.name.label("namespace_name"),
-    #     trp.c.relation_type,
-    #     trp.c.parent_component_id,
-    #     trp.c.order_index ,
-    #     trp.c.relation_id
-    # ).select_from(
-    #     tp2.outerjoin(tn, tp2.c.namespace == tn.c.namespace_id)
-    #     .join(trp, tp2.c.component_id == trp.c.component_id)
-    #     .join(fp, fp.c.component_id == trp.c.parent_component_id)
-    # )
-    # # .where(trp.c.pipeline_id == name)
-
-    # # union_all 并组成 CTE
-    # cte = base.union_all(recursive).cte("full_pipeline", recursive=True)
-    # # 查询最终结果
-    # final_query = select(cte)
-    # # .order_by(
-    # #     case((cte.c.order_index == None, 1), else_=0),
-    # #     func.coalesce(cte.c.order_index, cte.c.relation_id)
-    # # )
-
-    base = (select(
-        t_pipeline_components.c.component_id,
-        t_pipeline_components.c.component_type,
-        t_pipeline_components.c.install_key,
-        t_pipeline_components.c.content,
-        t_pipeline_components.c.namespace,
-        t_pipeline_components.c.component_name,
-        t_namespace.c.name.label("namespace_name"),
-        cast(null(), String(255)).label("relation_type"),
-        cast(null(), String(255)).label("parent_component_id"),
-        cast(null(), String(255)).label("order_index"),
-        cast(null(), String(255)).label("relation_id"),
-    ).select_from(
-        t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
-    ).where(
-        t_pipeline_components.c.component_id == name,
-        t_pipeline_components.c.component_type == component_type,
-    ).cte(name="base", recursive=True))
-
-
-    # 递归 CTE 定义
-    # cte = base.cte(name="full_pipeline", recursive=True)
-
-    tp1 = aliased(t_pipeline_components)
-    tn1 = aliased(t_namespace)
-    rel = t_pipeline_components_relation
-    # fp = aliased(cte)  # 引用递归CTE自身
-    base_alias = base.alias()
-
-    recursive = select(
-        tp1.c.component_id,
-        tp1.c.component_type,
-        tp1.c.install_key,
-        tp1.c.content,
-        tp1.c.namespace,
-        tp1.c.component_name,
-        tn1.c.name.label("namespace_name"),
-        rel.c.relation_type,
-        rel.c.parent_component_id,
-        rel.c.order_index,
-        rel.c.relation_id,
-    ).select_from(
-        tp1.outerjoin(tn1, tp1.c.namespace == tn1.c.namespace_id)
-        .join(rel, tp1.c.component_id == rel.c.component_id)
-        .join(base_alias, rel.c.parent_component_id == base_alias.c.component_id)
-    )
-
-    # # 合并 base 和 recursive，生成完整的递归CTE
-    cte = base.union_all(recursive) #.cte(name="full_pipeline", recursive=True)
-
-    # # 最终查询排序
-    final_query = select(cte).order_by(
-        case((cte.c.order_index == None, 1), else_=0),
-        cte.c.order_index
-        # func.coalesce(cte.c.order_index, cte.c.relation_id),
-    )
-    # 执行查询
     with get_engine().begin() as conn:
-        data = conn.execute(final_query).mappings().all()
-    if  len(data) < 0:
-        raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
-    id_to_node = {(item["component_id"], item["relation_type"]): get_one_data(item) for item in data}
-    children_map = defaultdict(list)
-    for item in data:
-        parent_id = item.get("parent_component_id")
-        if parent_id:
-            # parent_key = (parent_id, item["relation_id"])  # parent 的唯一标识
-            child_key = (item["component_id"], item["relation_type"])
-            children_map[parent_id].append(child_key)
-    # 获取根 pipeline_id
-    root_item  = next((item for item in data if item["component_type"] == component_type),None)
-    if not root_item:
-        raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
-    # root_key = (root_item["component_id"], None)
-    if component_type == "software":
-        result = build_software_structure(id_to_node,children_map,root_item)
-    elif component_type == "pipeline":
-        result = build_pipeline_structure(id_to_node,children_map,root_item)
-    elif component_type == "file":
-        result = build_file_structure(id_to_node,children_map,root_item)
-    else:
-        raise HTTPException(status_code=500, detail=f"{component_type}没有结构解析!")  
-    return result
-
-def get_one_data(item):
-    content = json.loads(item["content"])
-    item = {k:v for k,v in item.items() if k!="content"}
-    return { **content,**item }
-
-def build_file_structure(id_to_node,children_map,root_item):
-    
-    item = {**root_item, "downstreamAnalysis": []}
-    for ds_id in children_map.get(item["component_id"], []):
-        downstream = id_to_node[ds_id]
-        item["downstreamAnalysis"].append(downstream)
-    return item
-
-def  build_software_structure(id_to_node,children_map,root_item):
-    # result = {**root_item}
-    item = {**root_item}
-    input_files = []
-    output_files = []
-    for sub_id in children_map.get(root_item["component_id"], []):
-        sub = id_to_node[sub_id]
-        sub_content = sub
-        if sub["relation_type"] == "software_input_file":
-            input_files.append(sub_content)
-        elif sub["relation_type"] == "software_output_file":
-            sub_out = {**sub_content, "downstreamAnalysis": []}
-            for ds_id in children_map.get(sub["component_id"], []):
-                downstream = id_to_node[ds_id]
-                sub_out["downstreamAnalysis"].append(downstream)
-            output_files.append(sub_out)    
-    return {**item, "inputFile":input_files, "outputFile":output_files}
-
-def build_pipeline_structure(id_to_node,children_map,root_item):
-    # node = id_to_node[pid]
-    result = {**root_item}
-    items = []
-    for child_id in children_map.get(root_item["component_id"], []):
-        child = id_to_node[child_id]
-        content = child
-        if child["component_type"] == "software":
-            item = {**content}
-            input_files = []
-            output_files = []
-            for sub_id in children_map.get(child_id[0], []):
-                sub = id_to_node[sub_id]
-                sub_content = sub
-                if sub["relation_type"] == "software_input_file":
-                    input_files.append(sub_content)
-                elif sub["relation_type"] == "software_output_file":
-                    sub_out = {**sub_content, "downstreamAnalysis": []}
-                    for ds_id in children_map.get(sub["component_id"], []):
-                        downstream = id_to_node[ds_id]
-                        sub_out["downstreamAnalysis"].append(downstream)
-                    output_files.append(sub_out)
-
-
-            if input_files:
-                item["inputFile"] = input_files
-            if output_files:
-                item["outputFile"] = output_files
-            if "upstreamFormJson" in content:
-                item["upstreamFormJson"] = content["upstreamFormJson"]
-            items.append(item)
-    if items:
-        result["items"] = items
-    return result
+        return pipeline_service.get_pipeline_v2(conn,name,component_type)
 
 
   
@@ -467,6 +322,10 @@ async def get_module_content(component_id,script_name:ScriptName):
     # module_dir = queryModule.component_id
     with get_engine().begin() as conn:
         find_component = pipeline_service.find_pipeline_by_id(conn,component_id)
+        find_component = {
+            **{k:v for k,v in find_component.items() if k != "content"},
+            **json.loads(find_component.content)
+        }
         if not find_component:
             raise HTTPException(status_code=500, detail=f"根据{component_id}不能找到记录!")
     # if queryModule.module_dir:
@@ -662,6 +521,12 @@ async def page_pipeline(query:PagePipelineQuery ):
         return pipeline_service.page_pipeline(conn,query)
 
 
+@pipeline.post("/save-pipeline-components-edges",tags=['pipeline'])
+async def save_pipeline_components_edges(savePipelineComponentsEdges:SavePipelineComponentsEdges):
+    with get_engine().begin() as conn:
+        pipeline_service.save_pipeline_components_edges(conn,savePipelineComponentsEdges)
+    return {"message":"success"}    
+
 # def get_pipeline_id_by_parent_id(conn, start_id: str) -> str | None:
 #     sql = text("""
 #         WITH RECURSIVE ancestor_path AS (
@@ -708,7 +573,7 @@ async def save_pipeline_relation_controller(savePipelineRelation:SavePipelineRel
 
 async def save_pipeline_relation(conn,savePipelineRelation):
     save_pipeline_relation_dict = savePipelineRelation.dict()
-    save_pipeline_relation_dict = {k:v for k,v in save_pipeline_relation_dict.items() if k!="pipeline_id"}
+    # save_pipeline_relation_dict = {k:v for k,v in save_pipeline_relation_dict.items() if k!="pipeline_id"}
     if savePipelineRelation.parent_component_id:
         parent_component = pipeline_service.find_pipeline_by_id(conn,savePipelineRelation.parent_component_id)
         if parent_component:
@@ -789,7 +654,8 @@ async def save_pipeline(savePipeline:SavePipeline):
                 ))
         content = json.loads(save_pipeline_dict['content'])
         if component_type == "software" or component_type =="script":
-            await run_in_threadpool(pipeline_service.create_file,namespace, component_id,content ,component_type,content['script_type'])
+            if "script_type" in content:
+                await run_in_threadpool(pipeline_service.create_file,namespace, component_id ,component_type,content['script_type'])
         pipeline_service.write_all_component(conn,namespace)
     
     # t0 = time.time()
@@ -881,3 +747,14 @@ async def get_depend_component(component_id):
         child_depend_component = pipeline_service.get_child_depend_component(conn, namespace, component_id)
         parent_depend_component = pipeline_service.get_parent_depend_component(conn, namespace, component_id)
         return list(child_depend_component) + list(parent_depend_component)
+
+
+@pipeline.post("/save-component-relation-order",tags=['pipeline'])
+async def save_component_relation_order(saveOrder:list[SaveOrder]):
+    with get_engine().begin() as conn:
+        pipeline_service.save_order(conn,saveOrder)
+    return {"message":"success"}
+
+
+
+

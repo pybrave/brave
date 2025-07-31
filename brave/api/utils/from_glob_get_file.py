@@ -34,7 +34,10 @@ def from_glob_get_file(content,dir=None):
                 file_name = match.group(1)
                 result_dict[file_name] = file
         form_data[k] = result_dict
-    common_samples = reduce(lambda  x,y: set(x.keys()) & set(y.keys()), form_data.values())
+    # common_samples = reduce(lambda  x,y: set(x.keys()) & set(y.keys()), list(form_data.values()))
+    # dicts = list(form_data.values())
+    # common_samples = reduce(lambda x, y: set(x) & set(y), (d.keys() for d in dicts))
+    common_samples =  set.intersection(*(set(d.keys()) for d in form_data.values()))
     result = []
     for name in  common_samples:
         result_dict = { "sample_name":name}
