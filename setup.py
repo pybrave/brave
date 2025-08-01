@@ -14,7 +14,10 @@ setup(
         "click==8.1.8",
         "dependency-injector>=4.0,<5.0",
         "docker",
-        "kubernetes"
+        "kubernetes",
+        "psutil",
+        "httpx",
+        "nbformat"
         ],
     entry_points={
         "console_scripts": [
