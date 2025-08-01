@@ -36,14 +36,15 @@ class BaseAnalysis(ABC):
             component_file_name_list = [json.loads(item.content)['name'] for item in component_file_list]
             return component_file_name_list
         elif component['component_type'] == "script":
-            if "dbInputFiled" in component:
-                return component['dbInputFiled']
+            if "formJson" in component:
+                return [item['name'] for item in component['formJson'] if "db" in item and  item['db']]
         elif component['component_type'] == "pipeline":
             input_file_list = component['inputFile']
             return [item['name'] for item in input_file_list]
+        return []
 
     @abstractmethod
-    def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file) -> str:
+    def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace) -> str:
         pass
     
     @abstractmethod
@@ -113,17 +114,19 @@ class BaseAnalysis(ABC):
             settings = get_settings()
             base_dir = settings.BASE_DIR
             work_dir = settings.WORK_DIR
+            pieline_dir = settings.PIPELINE_DIR
             str_uuid = str(uuid.uuid4())
-    
+            namespace = component["namespace"]
+            pieline_dir_with_namespace = f"{pieline_dir}/{namespace}"
             # /ssd1/wy/workspace2/nextflow_workspace
             # wrap_analysis_pipline = ""
             # if 'wrap_analysis_pipeline' in request_param:
             # wrap_analysis_pipline = request_param['wrap_analysis_pipeline']
+            
 
             project_dir = f"{base_dir}/{request_param['project']}"
             trace_file = f"{base_dir}/monitor/{str_uuid}.trace.log"
             workflow_log_file = f"{base_dir}/monitor/{str_uuid}.workflow.log"
-            cache_dir = f"{project_dir}/.nextflow"
             if "pipeline_id" in request_param:  
                 pipeline_id = request_param['pipeline_id']
                 output_dir = f"{project_dir}/{pipeline_id}/{component['component_id']}/{str_uuid}"
@@ -134,7 +137,8 @@ class BaseAnalysis(ABC):
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
             command_log_path= f"{output_dir}/run.log"
-
+            # cache_dir = f"{project_dir}/.nextflow"
+            cache_dir = f"{output_dir}/.nextflow"
             executor_log = f"{output_dir}/.nextflow.log"
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
@@ -157,7 +161,7 @@ class BaseAnalysis(ABC):
             
             # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
             new_analysis['pipeline_script'] = component_script
-            command = self._get_command(str_uuid,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file)
+            command = self._get_command(str_uuid,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace)
 
             # command =  textwrap.dedent(f"""
             # export BRAVE_WORKFLOW_ID={str_uuid}

@@ -2,7 +2,7 @@ from brave.api.config.db import get_engine
 from fastapi import HTTPException
 from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components,t_project
 from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
-from sqlalchemy import and_, select
+from sqlalchemy import and_, desc, select
 import json
 import uuid
 def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):

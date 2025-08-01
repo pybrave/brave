@@ -437,6 +437,16 @@ async def update_sample_metadata(sample_metadata:UpdateSampleMetadata    ):
         conn.commit()
     return {"message":"success"}
 
+@sample_result.post("/sample/update-sample-metadata-list",tags=['sample'])
+async def update_sample_metadata(sample_metadata_list:list[UpdateSampleMetadata]):
+    for sample_metadata in sample_metadata_list:
+        data = sample_metadata.model_dump()
+        data = {k:v for k,v in data.items() if v is not None and k!="sample_id" }
+        with get_engine().begin() as conn:
+            stmt = samples.update().where(samples.c.sample_id==sample_metadata.sample_id).values(data)
+            conn.execute(stmt)
+            # conn.commit()
+    return {"message":"success"}
 @sample_result.get("/sample/find-sample-metadata-by-id/{sample_id}",tags=['sample'])
 async def find_sample_metadata_by_id(sample_id:str):
     with get_engine().begin() as conn:

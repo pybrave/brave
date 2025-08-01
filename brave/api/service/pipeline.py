@@ -171,11 +171,20 @@ def delete_wrap_pipeline_dir(pipeline_key):
     #     if not os.path.exists(item):
     #         os.makedirs(item) 
 
-def create_file(namespace,component_id,component_type,script_type):
+def create_file(namespace,component_id,component_type,file_type):
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{namespace}"
+
+    content_text = ""
+    if file_type == "py":
+        with resources.files("brave.templete").joinpath(f"{file_type}.py").open("r") as f:
+            content_text = f.read()
+    elif file_type == "nf":
+        with resources.files("brave.templete").joinpath("nextflow.nf").open("r") as f:
+            content_text = f.read()
+    
     if component_type == "pipeline":
-        analysisPipline = f"{pipeline_dir}/pipeline/{component_id}/main.{script_type}"
+        analysisPipline = f"{pipeline_dir}/pipeline/{component_id}/main.{file_type}"
         # pipelinieJson = f"{pipeline_dir}/main.json"
         if not os.path.exists(analysisPipline):
             dir_ = os.path.dirname(analysisPipline)
@@ -190,7 +199,7 @@ def create_file(namespace,component_id,component_type,script_type):
 
     if component_type == "software":
         # parseAnalysisModule = f"{pipeline_dir}/software/{component_id}/main.py"
-        analysisPipline = f"{pipeline_dir}/software/{component_id}/main.{script_type}"
+        analysisPipline = f"{pipeline_dir}/software/{component_id}/main.{file_type}"
         # dir_list = [parseAnalysisModule,analysisPipline]
         # for item in dir_list:
         dir_ = os.path.dirname(analysisPipline)
@@ -198,8 +207,7 @@ def create_file(namespace,component_id,component_type,script_type):
             os.makedirs(dir_) 
         
         if not os.path.exists(analysisPipline):
-            with resources.files("brave.templete").joinpath("nextflow.nf").open("r") as f:
-                content_text = f.read()
+  
             with open(analysisPipline,"w") as f:
                 f.write(content_text)
         return analysisPipline
@@ -224,13 +232,12 @@ def create_file(namespace,component_id,component_type,script_type):
 
     if component_type == "script":
 
-        py_plot = f"{pipeline_dir}/script/{component_id}/main.{script_type}"
+        py_plot = f"{pipeline_dir}/script/{component_id}/main.{file_type}"
         py_plot_dir = os.path.dirname(py_plot)
         if not os.path.exists(py_plot):
             if not os.path.exists(py_plot_dir):
                 os.makedirs(py_plot_dir)
-            with resources.files("brave.templete").joinpath("py_plot.py").open("r") as f:
-                content_text = f.read()
+  
             with open(py_plot,"w") as f:
                 f.write(content_text)
         return py_plot

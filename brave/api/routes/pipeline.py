@@ -652,10 +652,10 @@ async def save_pipeline(savePipeline:SavePipeline):
                     relation_type=savePipeline.relation_type,
                     # pipeline_id=savePipeline.pipeline_id
                 ))
-        content = json.loads(save_pipeline_dict['content'])
-        if component_type == "software" or component_type =="script":
-            if "script_type" in content:
-                await run_in_threadpool(pipeline_service.create_file,namespace, component_id ,component_type,content['script_type'])
+        # content = json.loads(save_pipeline_dict['content'])
+        # if component_type == "software" or component_type =="script":
+        #     if "script_type" in content:
+        #         await run_in_threadpool(pipeline_service.create_file,namespace, component_id ,component_type,content['script_type'])
         pipeline_service.write_all_component(conn,namespace)
     
     # t0 = time.time()

@@ -139,12 +139,16 @@ async def list_by_project(project):
         result = conn.execute(samples.select() \
             .where(and_(samples.c.project==  project )) ).mappings().all()
         sample_dict = [dict(row) for row in result]
+        result_dict = []
         for item in sample_dict:
             if item['metadata']:
-                item['metadata'] = json.loads(item['metadata'])
+                # item['metadata'] = 
+                result_dict.append({**json.loads(item['metadata']),**{k:v for k,v in item.items() if k!="metadata"}})
             else:
-                item['metadata'] = {}
-        return sample_dict
+                result_dict.append(item)
+            # else:
+            #     item['metadata'] = {}
+        return result_dict
 
 @sample.get(
     "/list-project",
