@@ -1,0 +1,1 @@
+const l=e=>e.replace("/ssd1/wy/workspace2","http://10.110.1.11:8000"),a=["magenta","red","volcano","orange","gold","lime","green","cyan","blue","geekblue","purple","magenta","red","volcano","orange","gold","lime","green","cyan","blue","geekblue","purple","magenta","red","volcano","orange","gold","lime","green","cyan","blue","geekblue","purple"];export{a as c,l as f};

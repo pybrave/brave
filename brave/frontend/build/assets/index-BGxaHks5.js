@@ -1,1 +1,0 @@
-import{L as s,j as t,ab as r}from"./index-BaBKrGkd.js";const i=()=>{const{project:e}=s();return t.jsx("div",{style:{maxWidth:"1500px",margin:"1rem auto"},children:t.jsx(r,{project:e,setRecord:o=>{}})})};export{i as default};
