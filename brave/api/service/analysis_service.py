@@ -173,5 +173,5 @@ def list_analysis(conn,query:QueryAnalysis):
         .outerjoin(t_project,t_analysis.c.project==t_project.c.project_id)
         )
     if conditions:
-        stmt = stmt.where(and_(*conditions))
+        stmt = stmt.where(and_(*conditions) if len(conditions) > 1 else conditions[0])
     return conn.execute(stmt).mappings().all()
