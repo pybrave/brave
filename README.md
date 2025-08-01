@@ -30,3 +30,8 @@ git clone https://github.com/pybrave/pipeline-metagenomics.git ~/.brave/pipeline
 
 ![](https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/install.png)
 
+
+## docker 
+```
+docker run --rm -p 5000:5000  -v  /var/run/docker.sock:/var/run/docker.sock  registry.cn-hangzhou.aliyuncs.com/wybioinfo/pybrave
+```
