@@ -35,3 +35,15 @@ git clone https://github.com/pybrave/pipeline-metagenomics.git ~/.brave/pipeline
 ```
 docker run --rm -p 5000:5000  -v  /var/run/docker.sock:/var/run/docker.sock  registry.cn-hangzhou.aliyuncs.com/wybioinfo/pybrave
 ```
+
+## development
+```
+mkdir -p development/pipeline-dev
+mkdir -p development/base-dev 
+python  -m brave \
+   --port 5000 \
+   --pipeline-dir development/pipeline-dev \
+   --base-dir development/base-dev 
+git clone https://github.com/pybrave/pipeline-metagenomics.git  development/pipeline-dev/7530139e-8985-423f-9fb6-32650828ca40
+``
+
