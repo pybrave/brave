@@ -21,11 +21,12 @@ brave
 ```
 + <http://localhost:5000>
 
+
 install pipeline
 ```
 git clone https://github.com/pybrave/pipeline-metagenomics.git ~/.brave/pipeline/7530139e-8985-423f-9fb6-32650828ca40
 
 ```
 
-![https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/install.png]
+![](https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/install.png)
 
