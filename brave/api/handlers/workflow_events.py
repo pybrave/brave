@@ -26,13 +26,13 @@ def setup_handlers(
     async def on_flow_begin(analysis:Analysis,msg: dict):
         print(f"🚀 [on_flow_begin] {msg['analysis_id']}")
         await sse_service.push_message({"group": "default", "data": json.dumps(msg)})
-        result_parse_manage.create(analysis.analysis_id)
+        # result_parse_manage.create(analysis.analysis_id)
 
     @router.on_event(WorkflowEvent.ON_FILE_PUBLISH)
     async def on_file_publish(analysis:Analysis,msg: dict):
         print(f"✅ [on_file_publish] {msg['analysis_id']}")
         await sse_service.push_message({"group": "default", "data": json.dumps(msg)})
-        await result_parse_manage.parse(analysis.analysis_id)
+        # await result_parse_manage.parse(analysis.analysis_id)
 
 
 
@@ -48,7 +48,10 @@ def setup_handlers(
     async def on_flow_complete(analysis:Analysis,msg: dict):
         print(f"🚀 [on_flow_complete] {msg['analysis_id']}")
         await sse_service.push_message({"group": "default", "data": json.dumps(msg)})
-        result_parse_manage.remove(analysis.analysis_id)
+        # await result_parse_manage.parse(analysis.analysis_id)
+
+        # result_parse_manage.remove(analysis.analysis_id)
+        
 
 
     # @router.on_event(WorkflowEvent.ON_JOB_SUBMITTED)

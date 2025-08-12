@@ -496,6 +496,7 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
         t_pipeline_components.c.component_name,
         t_pipeline_components.c.position,
         t_pipeline_components.c.edges,
+        t_pipeline_components.c.description,
         t_namespace.c.name.label("namespace_name"),
         cast(null(), String(255)).label("relation_type"),
         cast(null(), String(255)).label("parent_component_id"),
@@ -525,9 +526,10 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
         tp1.c.content,
         tp1.c.namespace,
         tp1.c.component_name,
-        tn1.c.name.label("namespace_name"),
         tp1.c.position,
         tp1.c.edges,
+        tp1.c.description,
+        tn1.c.name.label("namespace_name"),
         rel.c.relation_type,
         rel.c.parent_component_id,
         rel.c.order_index,
@@ -549,6 +551,7 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
     )
     # 执行查询
     # with get_engine().begin() as conn:
+    # [dict(item) for item in data]
     data = conn.execute(final_query).mappings().all()
     if  len(data) < 0:
         raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
@@ -655,3 +658,7 @@ def build_pipeline_structure(id_to_node,children_map,root_item):
 
 
   
+def update_component_description(conn, component_id,description):
+    stmt = t_pipeline_components.update().where(t_pipeline_components.c.component_id ==component_id).values(description=description)
+    conn.execute(stmt)
+    # pass

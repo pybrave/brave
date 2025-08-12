@@ -756,5 +756,10 @@ async def save_component_relation_order(saveOrder:list[SaveOrder]):
     return {"message":"success"}
 
 
+@pipeline.post("/update-component-description/{component_id}",tags=['pipeline'])
+async def update_component_description(component_id,description ):
+    with get_engine().begin() as conn:
+        pipeline_service.update_component_description(conn,component_id,description)
+    return {"message":"success"}
 
 

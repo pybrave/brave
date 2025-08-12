@@ -4,6 +4,7 @@ from sqlalchemy.sql.sqltypes import Integer, String
 from brave.api.config.db import meta
 # from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy import Text
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 
 t_project = Table(
@@ -145,7 +146,7 @@ t_pipeline_components = Table(
     Column("install_key", String(255)),
     Column("component_type", String(255)), 
     Column("component_name", String(255)), 
-    Column("description", String(255)), 
+    Column("description", Text().with_variant(LONGTEXT(), "mysql")), 
     Column("img", String(255)), 
     Column("tag", String(255)), 
     Column("category", String(255)), 
