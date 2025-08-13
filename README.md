@@ -33,10 +33,15 @@ git clone https://github.com/pybrave/pipeline-metagenomics.git ~/.brave/pipeline
 
 ## docker 
 ```
+mkdir $PWD/data
 docker run --rm -p 5000:5000  \
+  --user $(id -u):$(id -g) \
   -v  /var/run/docker.sock:/var/run/docker.sock  \
   -v /tmp/brave.sock:/tmp/brave.sock \
+  -v $PWD/data:/.brave \
   registry.cn-hangzhou.aliyuncs.com/wybioinfo/pybrave
+
+git clone https://github.com/pybrave/pipeline-metagenomics.git  $PWD/data/pipeline/7530139e-8985-423f-9fb6-32650828ca40
 ```
 
 ## development

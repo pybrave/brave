@@ -22,3 +22,4 @@ pipeline-dev2/
 __init__.pyc
 nf-hello/
 development/
+data/
