@@ -15,7 +15,7 @@ class NextflowAnalysis(BaseAnalysis):
     
     
 
-    def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace) -> str:
+    def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace,script_type) -> str:
         nextflow_config =  f"{pieline_dir_with_namespace}/nextflow.config"
         if  not os.path.exists(nextflow_config):
             # config_arg = f" -c {nextflow_config}"

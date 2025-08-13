@@ -69,6 +69,11 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
 
 def model_dump_one(item):
     if item.get("content_type")=="json" and  isinstance(item.get("content"), dict):
+        if item["metadata"]:
+            metadata = json.loads(item["metadata"])
+            item = {**metadata,**item}
+            del item["metadata"]
+
         return{
             **{k:v for k,v in item.items() if k!="content"},
             **item['content']

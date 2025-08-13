@@ -17,7 +17,7 @@ from sqlalchemy import delete, select, and_, join, func,insert,update
 from datetime import datetime
 from brave.api.enum.component_script import ScriptName
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
-
+from .notebook import generate_notebook
 
 
 def get_pipeline_dir():
@@ -49,7 +49,7 @@ def find_component_module(component,script_name:ScriptName) -> dict:
         elif script_type == "shell":
             file_type = "sh"
         elif script_type == "r":
-            file_type = "r"
+            file_type = "R"
         else:
             raise HTTPException(status_code=500, detail=f"script_type {script_type} not found!")
     else:
@@ -177,12 +177,14 @@ def create_file(namespace,component_id,component_type,file_type):
 
     content_text = ""
     if file_type == "py":
-        with resources.files("brave.templete").joinpath(f"{file_type}.py").open("r") as f:
+        with resources.files("brave.templete").joinpath(f"py_plot.py").open("r") as f:
             content_text = f.read()
     elif file_type == "nf":
         with resources.files("brave.templete").joinpath("nextflow.nf").open("r") as f:
             content_text = f.read()
-    
+    elif file_type == "R":
+        with resources.files("brave.templete").joinpath("py_plot.R").open("r") as f:
+            content_text = f.read()
     if component_type == "pipeline":
         analysisPipline = f"{pipeline_dir}/pipeline/{component_id}/main.{file_type}"
         # pipelinieJson = f"{pipeline_dir}/main.json"
@@ -231,6 +233,7 @@ def create_file(namespace,component_id,component_type,file_type):
         #                 f.write(content_text)
 
     if component_type == "script":
+   
 
         py_plot = f"{pipeline_dir}/script/{component_id}/main.{file_type}"
         py_plot_dir = os.path.dirname(py_plot)
@@ -240,6 +243,11 @@ def create_file(namespace,component_id,component_type,file_type):
   
             with open(py_plot,"w") as f:
                 f.write(content_text)
+
+        nb_file = f"{pipeline_dir}/script/{component_id}/main.ipynb"
+        if not os.path.exists(nb_file):
+            generate_notebook(nb_file)
+
         return py_plot
     raise HTTPException(status_code=500, detail=f"component_type {component_type} not create file!")
 
@@ -579,7 +587,14 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
     return result
 
 def get_one_data(item):
-    content = json.loads(item["content"])
+    try:
+        content = json.loads(item["content"])
+    except Exception as e:
+        print("component json error",json.dumps(dict(item),indent=4))
+        print("component json error",e)
+        content = {}
+    # end try
+    
     item = {k:v for k,v in item.items() if k!="content"}
     return { **content,**item }
 

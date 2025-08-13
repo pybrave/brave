@@ -44,7 +44,7 @@ class BaseAnalysis(ABC):
         return []
 
     @abstractmethod
-    def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace) -> str:
+    def _get_command(self,analysis_id,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace,script_type) -> str:
         pass
     
     @abstractmethod
@@ -161,7 +161,7 @@ class BaseAnalysis(ABC):
             
             # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
             new_analysis['pipeline_script'] = component_script
-            command = self._get_command(str_uuid,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace)
+            command = self._get_command(str_uuid,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace,component["script_type"])
 
             # command =  textwrap.dedent(f"""
             # export BRAVE_WORKFLOW_ID={str_uuid}

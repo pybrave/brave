@@ -145,7 +145,15 @@ def format_img_path(path):
     }
 
 def format_table_output(path):
-    df = pd.read_csv(path,sep="\t")
+    # pd.set_option("display.max_rows", 1000)     # 最多显示 1000 行
+    # pd.set_option("display.max_columns", 500)   # 最多显示 500 列
+    if path.endswith("xlsx"):
+        df = pd.read_excel(path, nrows=100).iloc[:, :50]
+    else:
+        df = pd.read_csv(path,sep="\t", nrows=100).iloc[:, :50]
+        # df = pd.read_csv(path,sep="\t")
+
+    
     df_json = json.loads(df.to_json(orient="records")) 
     settings = get_settings()
     base_dir = settings.BASE_DIR
