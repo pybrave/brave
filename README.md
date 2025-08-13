@@ -43,7 +43,26 @@ docker run --rm -p 5000:5000  \
 
 git clone https://github.com/pybrave/pipeline-metagenomics.git  $PWD/data/pipeline/7530139e-8985-423f-9fb6-32650828ca40
 ```
+```
+docker run --rm -p 5000:5000  \
+  --user $(id -u):$(id -g) \
+ --group-add $(stat -c '%g' /var/run/docker.sock) \
+  -v  /var/run/docker.sock:/var/run/docker.sock  \
+  -v /tmp/brave.sock:/tmp/brave.sock \
+  -v ~/.brave:/.brave \
+  -v /ssd1:/ssd1 \
+  -v /data:/data \
+  registry.cn-hangzhou.aliyuncs.com/wybioinfo/pybrave \
+  brave --pipeline-dir /ssd1/wy/workspace2/nextflow-fastapi/pipeline-dev \
+  --base-dir /ssd1/wy/workspace2/nextflow_workspace \
+  --work-dir /data/wangyang/nf_work \
+  --literature-dir /ssd1/wy/workspace2/nextflow-fastapi/literature \
+  --db-type mysql \
+  --mysql-url root:123456@192.168.3.60:53306/pipeline \
+  --port 5000 
+```
 
+                
 ## development
 ```
 mkdir -p development/pipeline-dev
