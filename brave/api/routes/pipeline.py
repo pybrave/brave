@@ -324,7 +324,7 @@ async def get_module_content(component_id,script_name:ScriptName):
         find_component = pipeline_service.find_pipeline_by_id(conn,component_id)
         find_component = {
             **{k:v for k,v in find_component.items() if k != "content"},
-            **json.loads(find_component.content)
+            **json.loads(find_component["content"])
         }
         if not find_component:
             raise HTTPException(status_code=500, detail=f"根据{component_id}不能找到记录!")

@@ -101,7 +101,7 @@ class BaseAnalysis(ABC):
 
             with open(params_path, "w") as f:
                 json.dump(parse_analysis_result,f)
-                
+
             new_analysis['container_id'] = component["container_id"]
 
             # new_analysis['output_format'] = parse_analysis_result_module
@@ -129,13 +129,13 @@ class BaseAnalysis(ABC):
             project_dir = f"{base_dir}/{request_param['project']}"
             trace_file = f"{base_dir}/monitor/{str_uuid}.trace.log"
             workflow_log_file = f"{base_dir}/monitor/{str_uuid}.workflow.log"
-            if "pipeline_id" in request_param:  
-                pipeline_id = request_param['pipeline_id']
-                output_dir = f"{project_dir}/{pipeline_id}/{component['component_id']}/{str_uuid}"
-            else:
-                output_dir = f"{project_dir}/{component['component_id']}/{str_uuid}"
+            # if "pipeline_id" in request_param:  
+            #     pipeline_id = request_param['pipeline_id']
+            #     output_dir = f"{project_dir}/{pipeline_id}/{component['component_id']}/{str_uuid}"
+            # else:
+            output_dir = f"{project_dir}/{component['component_id']}/{str_uuid}"
             # /data/wangyang/nf_work/
-            work_dir = f"{work_dir}/{request_param['project']}"
+            work_dir = f"{work_dir}/{request_param['project']}/{component['component_id']}/{str_uuid}"
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
             command_log_path= f"{output_dir}/run.log"
