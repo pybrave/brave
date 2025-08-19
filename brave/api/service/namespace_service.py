@@ -10,8 +10,8 @@ import uuid
 from brave.api.service.pipeline import get_pipeline_dir 
 
 def save_namespace(conn,saveNamespace):
-    str_uuid = str(uuid.uuid4())     
-    saveNamespace["namespace_id"] = str_uuid
+    # str_uuid = str(uuid.uuid4())     
+    # saveNamespace["namespace_id"] = str_uuid
     stmt = t_namespace.insert().values(saveNamespace)
     conn.execute(stmt)
 

@@ -7,7 +7,7 @@ class JobExecutor(ABC):
         pass
     async def submit_job(self, job_spec: JobSpec) -> str:
         if self.is_already_running(job_spec.job_id):
-            self.remove_job(job_spec.job_id)
+            await self.remove_job(job_spec.job_id)
             # raise Exception(f"Job {job_spec.job_id} is already running")
         await self._do_submit_job(job_spec)
         # await self.router.dispatch(WorkflowEvent.ON_JOB_SUBMITTED,{"event": "on_job_submitted", "job_id": job_spec.job_id})
@@ -30,5 +30,5 @@ class JobExecutor(ABC):
     def is_already_running(self, job_id: str) -> bool:
         return False 
     
-    def remove_job(self, job_id: str) -> None:
+    async def remove_job(self, job_id: str) -> None:
         pass

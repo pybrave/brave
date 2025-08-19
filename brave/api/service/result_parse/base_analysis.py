@@ -102,6 +102,8 @@ class BaseAnalysis(ABC):
             with open(params_path, "w") as f:
                 json.dump(parse_analysis_result,f)
                 
+            new_analysis['container_id'] = component["container_id"]
+
             # new_analysis['output_format'] = parse_analysis_result_module
             stmt = t_analysis.update().values(new_analysis).where(t_analysis.c.analysis_id==request_param['analysis_id'])
             conn.execute(stmt)
@@ -195,7 +197,7 @@ class BaseAnalysis(ABC):
             new_analysis['executor_log_file'] = executor_log
             new_analysis['script_config_file'] = script_config_file
             new_analysis['command_log_path'] = command_log_path
-            new_analysis['image'] = component["image"]
+            new_analysis['container_id'] = component["container_id"]
             
             with open(command_path, "w") as f:
                 f.write(command)

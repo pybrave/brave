@@ -31,6 +31,15 @@ git clone https://github.com/pybrave/pipeline-metagenomics.git ~/.brave/pipeline
 ![](https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/install.png)
 
 
+```
+brave --base-dir /ssd1/wy/workspace2/nextflow_workspace \
+    --work-dir /data/wangyang/nf_work \
+    --pipeline-dir /ssd1/wy/workspace2/nextflow-fastapi/pipeline-dev \
+    --literature-dir /ssd1/wy/workspace2/nextflow-fastapi/literature \
+    --db-type mysql --mysql-url root:123456@192.168.3.60:53306/pipeline  \
+    --port 5000
+```
+
 ## docker 
 ```
 mkdir $PWD/data

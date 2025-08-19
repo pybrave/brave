@@ -22,7 +22,7 @@ from brave.api.models.core import samples
 from brave.api.config.db import get_engine
 from brave.api.schemas.analysis import AnalysisInput,Analysis,QueryAnalysis,AnalysisExecuterModal
 from typing import Dict, Any
-from brave.api.models.core import analysis
+from brave.api.models.core import analysis,t_container
 import json
 import importlib
 import importlib.util
@@ -57,7 +57,12 @@ from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.service.result_parse.script_analysis import ScriptAnalysis
 from brave.api.service.result_parse.nextflow_analysis import NextflowAnalysis
+from brave.api.utils.file_utils import delete_all_in_dir
+import  brave.api.service.file_operation  as file_operation_service
+import pandas as pd
+import brave.api.service.container_service as container_service
 analysis_api = APIRouter()
+
 
 
 def update_or_save_result(db,project,sample_name,file_type,file_path,log_path,verison,analysis_name,software):
@@ -367,12 +372,12 @@ async def save_script_analysis(
         if component_id is None:
             raise HTTPException(status_code=500, detail=f"component_id is None")
         component = pipeline_service.find_pipeline_by_id(conn, component_id)
-        if component.component_type == "pipeline":
+        if component["component_type"] == "pipeline":
             component = pipeline_service.get_pipeline_v2(conn,component_id)
         if component is None:
             raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
         if component is None or "content" not in component:
-            raise HTTPException(status_code=404, detail=f"Component with id {component.component_id} not found or missing content.")
+            raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found or missing content.")
         
         # component_content = 
         component_obj = {
@@ -405,6 +410,7 @@ def get_executor_logs(analysis_id,job_executor_selector:JobExecutor = Depends(Pr
 @inject
 async def run_analysis_v2(
     analysis_id,
+    clean_output:bool=False,
     auto_parse:Optional[bool]=True,
     # executor: JobExecutor = Depends(get_executor_dep),
     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
@@ -422,7 +428,21 @@ async def run_analysis_v2(
         if analysis_ is None:
             raise HTTPException(status_code=404, detail="Analysis not found")
         # process_id = analysis_['process_id']
+        component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
+        component_type = component['component_type']
+        if component_type=="script":
+            output_dir = f"{analysis_['output_dir']}/output"
+            # if os.path.exists(output_dir):
+            delete_all_in_dir(output_dir)
+        
+        if not analysis_["container_id"]:
+            raise HTTPException(status_code=500, detail=f"please config container id") 
+
+        find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
+        analysis_ = dict(analysis_)
+        analysis_["image"] = find_container["image"]
         analysis_ = AnalysisExecuterModal(**analysis_)
+        # analysis_.image = find_container["image"]
         stmt = analysis.update().values({"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
         conn.execute(stmt)
         await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
@@ -434,6 +454,31 @@ async def run_analysis_v2(
         #     output_dir=analysis_['output_dir'],
         #     process_id=analysis_['process_id']
         # ))
+    
+        return {"msg":"success"}
+
+
+@analysis_api.post("/analysis/stop-analysis/{analysis_id}")
+@inject
+async def stop_analysis(
+    analysis_id,
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+
+
+    with get_engine().begin() as conn:
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        result = conn.execute(stmt)
+        analysis_ = result.mappings().first()
+        if analysis_ is None:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        
+
+        analysis_ = AnalysisExecuterModal(**analysis_)
+        # stmt = analysis.update().values({"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
+        # conn.execute(stmt)
+        await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)
+        
     
         return {"msg":"success"}
 
@@ -482,7 +527,15 @@ async def run_analysis_v2(
 async def find_analysis_by_id(analysis_id):
     settings = get_settings()
     with get_engine().begin() as conn:
-        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        stmt = select(
+            analysis,
+            t_container.c.name.label("container_name"),
+            t_container.c.image.label("container_image")
+        )
+        stmt = stmt.select_from(
+             analysis.outerjoin(t_container, analysis.c.container_id == t_container.c.container_id)
+        )
+        stmt = stmt.where(analysis.c.analysis_id == analysis_id)
         result = conn.execute(stmt)
         analysis_ = result.mappings().first()
         if analysis_ is None:
@@ -492,6 +545,7 @@ async def find_analysis_by_id(analysis_id):
         script_dir = os.path.dirname(script_dir).replace(str(settings.PIPELINE_DIR)+"/","")
         jupyter_notebook_path =  f"{script_dir}/main.ipynb"
         analysis_dict["jupyter_notebook_path"] = jupyter_notebook_path
+        
         return analysis_dict
 
 
@@ -513,4 +567,23 @@ async def get_cache_params(analysis_result_parse_service:AnalysisResultParse = D
     return analysis_result_parse_service.cached_params()
 
 
+
+@analysis_api.get("/analysis/visualization-results/{analysis_id}")
+async def visualization_results(analysis_id):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
+    file_result = file_operation_service.visualization_results(find_analysis["output_dir"])
+    
+    file_result['description'] = find_component["description"]
+    file_result['analysis_name'] = find_analysis["analysis_name"]
+    return file_result
+
+@analysis_api.get("/analysis/analysis-progress/{analysis_id}")
+async def analysis_progress(analysis_id):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+    trace_file = find_analysis["trace_file"]
+    df = pd.read_csv(trace_file,sep="\t")
+    return df.to_dict(orient="records")
 

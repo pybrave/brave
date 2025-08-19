@@ -65,7 +65,7 @@ analysis = Table(
     Column("analysis_status", String(255)),
     Column("job_id", String(255)),
     Column("command_log_path", String(255)),
-    Column("image", String(255)),
+    Column("container_id", String(255)),
     Column("data_component_ids",Text)
 )
 
@@ -148,6 +148,7 @@ t_pipeline_components = Table(
     Column("component_name", String(255)), 
     Column("description", Text().with_variant(LONGTEXT(), "mysql")), 
     Column("img", String(255)), 
+    Column("container_id", String(255)),
     Column("tag", String(255)), 
     Column("category", String(255)), 
     Column("namespace", String(255)),
@@ -257,14 +258,27 @@ t_namespace = Table(
 
 
 
-t_application = Table(
-    "application",
+# t_application = Table(
+#     "application",
+#     meta,
+#     Column("id", Integer, primary_key=True),
+#     Column("application_id", String(255)),
+#     Column("name", String(255)),
+#     Column("image", String(255)),
+#     Column("description", String(255)),
+#     Column("created_at", DateTime, default=datetime.now),
+#     Column("updated_at", DateTime, onupdate=datetime.now)
+# )
+
+t_container = Table(
+    "container",
     meta,
     Column("id", Integer, primary_key=True),
-    Column("application_id", String(255)),
+    Column("container_id", String(255)),
     Column("name", String(255)),
     Column("image", String(255)),
     Column("description", String(255)),
+    Column("namespace", String(255)),
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)
 )

@@ -20,7 +20,7 @@ from brave.api.routes.setting import setting_controller
 from brave.api.config.config import get_settings
 from fastapi.responses import FileResponse
 from brave.app_manager import AppManager    
-from brave.api.routes.application import application_api
+from brave.api.routes.container import container_controller
 import httpx
 import websockets
 
@@ -46,7 +46,7 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.include_router(namespace,prefix="/brave-api")
     app.include_router(file_operation,prefix="/brave-api")
     app.include_router(setting_controller,prefix="/brave-api")
-    app.include_router(application_api,prefix="/brave-api")
+    app.include_router(container_controller,prefix="/brave-api")
     app.include_router(project_api,prefix="/brave-api")
 
     app.get("/brave-api/sse-group")(manager.sse_service.create_endpoint())  

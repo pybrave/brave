@@ -58,7 +58,7 @@ class AnalysisExecuterModal(BaseModel):
     process_id: Optional[str]
     analysis_status: Optional[str]
     command_log_path: str
-    image: str
+    image: Optional[str]=None
 
 class AnalysisId(BaseModel):
     analysis_id: str

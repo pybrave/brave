@@ -51,6 +51,13 @@ def setup_handlers(
             )
         await job_executor.submit_job(jsb_spec)
 
+
+    @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STOPED)
+    async def on_analysis_stoped(payload:AnalysisExecuterModal):
+        print(f"🚀 [on_analysis_stoped] {payload.analysis_id}")
+        await job_executor.remove_job(payload.analysis_id)
+
+    
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE)
     async def on_analysis_complete(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_complete] {payload.analysis_id}")

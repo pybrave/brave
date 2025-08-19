@@ -26,7 +26,7 @@ import asyncio
 import time
 from starlette.concurrency import run_in_threadpool
 from typing import List
-
+import brave.api.service.container_service as container_service
 from brave.app_container import AppContainer
 
 pipeline = APIRouter()
@@ -698,10 +698,15 @@ async def delete_component(component_id: str):
         if  parent_find_pipeine or child_find_pipeine:
             raise HTTPException(status_code=500, detail=f"不能删除存在关联!") 
         else:
+            find_component = pipeline_service.find_component_by_id(component_id)
             stmt = t_pipeline_components.delete().where(t_pipeline_components.c.component_id == component_id)
             conn.execute(stmt)
             pipeline_service.delete_wrap_pipeline_dir(component_id)
-            return {"message":"success"}
+
+    with get_engine().begin() as conn:   
+        pipeline_service.write_all_component(conn,find_component["namespace"])
+        pipeline_service.write_all_component_relation(conn,find_component["namespace"])
+    return {"message":"success"}
 
 @pipeline.get("/find-by-component-id/{component_id}",tags=['pipeline'])
 async def find_by_components_id(component_id):
@@ -717,6 +722,7 @@ async def import_namespace_component(namespace:str,force:bool=False):
         pipeline_service.import_component(conn,namespace,force)
         pipeline_service.import_component_relation(conn,namespace,force)
         namespace_service.import_namespace(conn,namespace,force)
+        container_service.import_container(conn,namespace,force)
     return {"message":"success"}
 
 def get_namespace_by_file(file):

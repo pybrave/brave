@@ -15,7 +15,7 @@ from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
 from brave.api.config.config import get_settings
 from brave.api.config.db import get_engine
 from docker.errors import NotFound, APIError
-
+import traceback
 
 class DockerExecutor(JobExecutor):
 
@@ -150,49 +150,55 @@ class DockerExecutor(JobExecutor):
 
     async def _monitor_containers(self):
         while True:
-            for job_id, container in list(self.containers.items()):
-                try:
-                    container.reload()
+            try:
+                for job_id, container in list(self.containers.items()):
+                    try:
+                        container.reload()
+                        analysis_id = AnalysisId(analysis_id=job_id)
+                        if container.status in ("exited", "dead"):
+                            exit_code = container.attrs["State"]["ExitCode"]
+
+                            if exit_code == 0:
+                                # 成功退出，自动删除容器
+                                print(f"[{job_id}] 执行成功，删除容器")
+                                container.remove(force=True)
+                                self.containers.pop(job_id, None)
+                                
+                                await self.event_bus.dispatch(
+                                    RoutersName.ANALYSIS_EXECUTER_ROUTER,
+                                    AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE,
+                                    analysis_id
+                                )
+                            else:
+                                # 执行失败，保留容器调试
+                                print(f"[{job_id}] 执行失败（ExitCode={exit_code}），保留容器")
+                                self.containers.pop(job_id, None)  # 不删除容器，仅移出监控
+                                await self.event_bus.dispatch(
+                                    RoutersName.ANALYSIS_EXECUTER_ROUTER,
+                                    AnalysisExecutorEvent.ON_ANALYSIS_FAILED,
+                                    analysis_id
+                                )  
+                    except Exception as e:
+                        print(f"Error monitoring container {job_id}: {e}")
+                        self.to_remove.append(job_id)
+
+
+                for job_id in self.to_remove:
+                    if job_id in self.containers:
+                        self.containers.pop(job_id, None)
                     analysis_id = AnalysisId(analysis_id=job_id)
-                    if container.status in ("exited", "dead"):
-                        exit_code = container.attrs["State"]["ExitCode"]
-
-                        if exit_code == 0:
-                            # 成功退出，自动删除容器
-                            print(f"[{job_id}] 执行成功，删除容器")
-                            container.remove(force=True)
-                            self.containers.pop(job_id, None)
-                            
-                            await self.event_bus.dispatch(
-                                RoutersName.ANALYSIS_EXECUTER_ROUTER,
-                                AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE,
-                                analysis_id
-                            )
-                        else:
-                            # 执行失败，保留容器调试
-                            print(f"[{job_id}] 执行失败（ExitCode={exit_code}），保留容器")
-                            self.containers.pop(job_id, None)  # 不删除容器，仅移出监控
-                            await self.event_bus.dispatch(
-                                RoutersName.ANALYSIS_EXECUTER_ROUTER,
-                                AnalysisExecutorEvent.ON_ANALYSIS_FAILED,
-                                analysis_id
-                            )  
-                except Exception as e:
-                    print(f"Error monitoring container {job_id}: {e}")
-                    self.to_remove.append(job_id)
-
-
-            for job_id in self.to_remove:
-                if job_id in self.containers:
-                    self.containers.pop(job_id, None)
-                analysis_id = AnalysisId(analysis_id=job_id)
-                await self.event_bus.dispatch(
-                        RoutersName.ANALYSIS_EXECUTER_ROUTER,
-                        AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE,
-                        analysis_id
-                    )
-                del self.to_remove[job_id]
-            await asyncio.sleep(self._monitor_interval)
+                    await self.event_bus.dispatch(
+                            RoutersName.ANALYSIS_EXECUTER_ROUTER,
+                            AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE,
+                            analysis_id
+                        )
+                    self.to_remove.remove(job_id)
+                await asyncio.sleep(self._monitor_interval)
+            except Exception as e:
+            
+                print(f"Error removing container {job_id}: {e}")
+                traceback.print_exc()
+                pass
 
     def get_logs(self, job_id: str) -> str:
         try:
@@ -212,7 +218,7 @@ class DockerExecutor(JobExecutor):
             print(f"Error stopping container {job_id}: {e}")
             pass
     
-    def remove_job(self, job_id: str) -> None:
+    async def remove_job(self, job_id: str) -> None:
         try:
             self.client.containers.get(job_id).remove(force=True)
         except Exception as e:

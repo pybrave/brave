@@ -18,7 +18,7 @@ from datetime import datetime
 from brave.api.enum.component_script import ScriptName
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from .notebook import generate_notebook
-
+import brave.api.service.container_service as container_service
 
 def get_pipeline_dir():
     settings = get_settings()
@@ -252,11 +252,21 @@ def create_file(namespace,component_id,component_type,file_type):
     raise HTTPException(status_code=500, detail=f"component_type {component_type} not create file!")
 
 
-
-def find_pipeline_by_id(conn,component_id):
+def find_component_by_id(conn,component_id):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
     find_pipeine = conn.execute(stmt).mappings().first()
     return find_pipeine
+
+def find_pipeline_by_id(conn,component_id):
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
+    find_component = conn.execute(stmt).mappings().first()
+    find_component = dict(find_component)
+    component_type = find_component["component_type"]
+    if find_component["container_id"]:
+        find_container = container_service.find_container_by_id(conn,find_component["container_id"])
+        find_component['container'] = find_container
+        # find_component['container_name'] = find_container["name"]
+    return find_component
 
 def find_component_by_parent_id(conn,parent_id,relation_type=None):
     stmt = (
@@ -406,6 +416,9 @@ def find_component_by_namespace(conn,namespace):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
     return conn.execute(stmt).mappings().all()
 
+def find_component_by_container_id(conn,container_id):
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.container_id == container_id)
+    return conn.execute(stmt).mappings().all()
 
 def get_child_depend_component(conn,namespace, component_id):
     
