@@ -70,7 +70,7 @@ class LocalExecutor(JobExecutor):
             print(f"[JobManager] Process {job_id} with PID {pid} exited and cleaned.")
         return _wait
 
-    async def _do_submit_job(self, job_spec: JobSpec) -> str:
+    async def _do_submit_job(self, job_spec) -> str:
         if job_spec.job_id in self._processes:
             pid = self._processes[job_spec.job_id]
             try:

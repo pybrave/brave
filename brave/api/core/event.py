@@ -21,6 +21,7 @@ class AnalysisExecutorEvent(str,Enum):
     ON_ANALYSIS_SUBMITTED="on_analysis_submitted"
     ON_ANALYSIS_COMPLETE="on_analysis_complete"
     ON_ANALYSIS_FAILED="on_analysis_failed"
+    ON_ANALYSIS_STARTED="on_analysis_started"
     ON_ANALYSIS_STOPED="on_analysis_stoped"
 
 class AnalysisResultEvent(str,Enum):

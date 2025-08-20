@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, DateTime, Table
-from sqlalchemy.sql.sqltypes import Integer, String
+from sqlalchemy.sql.sqltypes import Integer, String,Boolean
 from brave.api.config.db import meta
 # from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy import Text
@@ -64,6 +64,8 @@ analysis = Table(
     Column("script_config_file", String(255)),
     Column("analysis_status", String(255)),
     Column("job_id", String(255)),
+    Column("ports", String(255)),
+    Column("run_type", String(255)),
     Column("command_log_path", String(255)),
     Column("container_id", String(255)),
     Column("data_component_ids",Text)
@@ -279,6 +281,10 @@ t_container = Table(
     Column("image", String(255)),
     Column("description", String(255)),
     Column("namespace", String(255)),
+    Column("envionment", String(255)),
+    Column("command", String(255)),
+    Column("port", String(255)),
+    Column("change_uid", Boolean, default=True),
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)
 )

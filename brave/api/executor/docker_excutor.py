@@ -16,6 +16,10 @@ from brave.api.config.config import get_settings
 from brave.api.config.db import get_engine
 from docker.errors import NotFound, APIError
 import traceback
+import brave.api.service.container_service as container_service
+from brave.api.config.db import get_engine
+import json
+from brave.api.schemas.analysis import AnalysisExecuterModal
 
 class DockerExecutor(JobExecutor):
 
@@ -42,7 +46,20 @@ class DockerExecutor(JobExecutor):
 
         for job in running_jobs:
             try:
-                container = self.client.containers.get(job.analysis_id)
+                # containers = self.client.containers.list(
+                #     all=True,
+                #     filters={"label": f"run_type=job"}
+                # )
+
+                # # 找到匹配的容器
+                # container = next(
+                #     (c for c in containers if c.name == job.analysis_id),
+                #     None
+                # )
+                # if container:
+                #     container = self.client.containers.get(job.analysis_id)
+                #     self.containers[job.analysis_id] = container
+                container = self.client.containers.get(job.analysis_id) 
                 self.containers[job.analysis_id] = container
             except Exception as e:
                 print(f"Error recovering container {job.analysis_id}: {e}")
@@ -57,7 +74,7 @@ class DockerExecutor(JobExecutor):
 
         # if self.containers and self._monitor_task is None:
         # self._monitor_task = asyncio.create_task(self._monitor_containers())
-    async def _do_submit_job(self, job: DockerJobSpec) :
+    async def _do_submit_job(self, job: AnalysisExecuterModal) :
         # loop = asyncio.get_running_loop()
         # await loop.run_in_executor(
         #     self.executor,
@@ -76,7 +93,23 @@ class DockerExecutor(JobExecutor):
         except NotFound:
             return False
 
-    def _sync_submit_job(self, job: DockerJobSpec) -> str:
+
+
+#  job_id= payload.analysis_id,
+#                 command_log_path= payload.command_log_path,
+#                 command=["./run.sh"],
+#                 output_dir= payload.output_dir,
+#                 container_id=payload.container_id,
+#                 run_type=payload.run_type,
+#                 change_uid=
+#                 resources={}
+    def _sync_submit_job(self, job: AnalysisExecuterModal) -> str:
+        with get_engine().begin() as conn: 
+            find_container = container_service.find_container_by_id(conn,job.container_id)
+
+        envionment = {}
+        if find_container["envionment"]:
+            envionment = json.loads(find_container["envionment"]) 
         settings = get_settings()
         work_dir = str(settings.WORK_DIR)
         pipeline_dir = str(settings.PIPELINE_DIR)
@@ -96,57 +129,78 @@ class DockerExecutor(JobExecutor):
         user_id = os.getuid() 
         sock_gid = os.stat('/var/run/docker.sock').st_gid
 
+        command = f"bash -c  \"bash ./run.sh  2>&1 | tee {job.command_log_path}; exit ${{PIPESTATUS[0]}}\""
+        port = {}
+        if job.run_type=="server":
+            command = find_container["command"]
+            port = find_container["port"]
+            port =  {f"{port}/tcp":None}
         try:
             container: Container = self.client.containers.run(
-            image=job.image,
-            name=job.job_id,
-            user=user_id,
-            group_add=["users",str(sock_gid)],
-            command=f"bash -c  \"bash {job.command[0]}  2>&1 | tee {job.command_log_path}; exit ${{PIPESTATUS[0]}}\"",
-            volumes={
-                job.output_dir: {
-                    "bind": job.output_dir,
-                    "mode": "rw"
+                image=find_container.image,
+                name=job.analysis_id,
+                user= user_id if find_container["change_uid"] else None,
+                group_add=["users",str(sock_gid)],
+                command=command,
+                volumes={
+                    job.output_dir: {
+                        "bind": job.output_dir,
+                        "mode": "rw"
+                    },
+                    work_dir: {
+                        "bind": work_dir,
+                        "mode": "rw"
+                    },
+                    pipeline_dir: {
+                        "bind": pipeline_dir,
+                        "mode": "rw"
+                    },
+                    base_dir: {
+                        "bind": base_dir,
+                        "mode": "rw"
+                    },
+                    "/tmp/brave.sock": {
+                        "bind": "/tmp/brave.sock",
+                        "mode": "rw"
+                    },
+                    "/var/run/docker.sock": {
+                        "bind": "/var/run/docker.sock",
+                        "mode": "rw"
+                    }
                 },
-                work_dir: {
-                    "bind": work_dir,
-                    "mode": "rw"
+                environment=envionment,
+                working_dir=job.output_dir,
+                detach=True,
+                labels={
+                    "job_id": job.analysis_id,
+                    "project": "brave",
+                    "user": str(user_id),
+                    "run_type":job.run_type
                 },
-                pipeline_dir: {
-                    "bind": pipeline_dir,
-                    "mode": "rw"
-                },
-                base_dir: {
-                    "bind": base_dir,
-                    "mode": "rw"
-                },
-                "/tmp/brave.sock": {
-                    "bind": "/tmp/brave.sock",
-                    "mode": "rw"
-                },
-                "/var/run/docker.sock": {
-                    "bind": "/var/run/docker.sock",
-                    "mode": "rw"
-                }
-            },
-            environment=job.env,
-            working_dir=job.output_dir,
-            detach=True,
-            # remove=True
+                 ports=port
+                # remove=True
             )
         except Exception as e:
-            print(f"Error running container {job.job_id}: {e}")
-            self.to_remove.append(job.job_id)
+            print(f"Error running container {job.analysis_id}: {e}")
+            self.to_remove.append(job.analysis_id)
             raise e
         if container.id is None:
             raise RuntimeError("Container did not return a valid ID")
-
-        self.containers[job.job_id] = container
-
+        
+        self.containers[job.analysis_id] = container
+        container.reload()
+        ports = container.attrs['NetworkSettings']['Ports']
+        job.ports = ports
         # if self._monitor_task is None:
         #     self._monitor_task = asyncio.create_task(self._monitor_containers())
-
+        asyncio.run(self.event_bus.dispatch(
+            RoutersName.ANALYSIS_EXECUTER_ROUTER,
+            AnalysisExecutorEvent.ON_ANALYSIS_STARTED,
+            job
+        ) )  
         return container.id
+
+
 
     async def _monitor_containers(self):
         while True:

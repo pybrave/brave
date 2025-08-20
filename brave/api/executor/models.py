@@ -26,9 +26,10 @@ class LocalJobSpec(JobSpec):
 
 
 class DockerJobSpec(JobSpec):
-    image: str
-    env: dict
+    container_id: str
     resources: dict
+    run_type:str
+    change_uid:bool
 
 
 class JobStatus(BaseModel):

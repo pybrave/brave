@@ -11,7 +11,7 @@ class K8sExecutor(JobExecutor):
         self.api = client.CoreV1Api()
         self.batch_api = client.BatchV1Api()
 
-    async def _do_submit_job(self, job_spec: JobSpec) -> str:
+    async def _do_submit_job(self, job_spec) -> str:
         # 这里应构造 Job YAML spec
         job = client.V1Job(...)  # 构建 Job 对象
         self.batch_api.create_namespaced_job(namespace="default", body=job)

@@ -29,27 +29,28 @@ def setup_handlers(
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED)
     async def on_analysis_submitted(payload:AnalysisExecuterModal):
-        executer_type = "docker"
+        # executer_type = "docker"
         print(f"🚀 [on_analysis_submitted] {payload.analysis_id}")
-        if executer_type=="local":
-            jsb_spec = JobSpec(
-                job_id= payload.analysis_id,
-                command=["bash", "run.sh"],
-                output_dir= payload.output_dir,
-                command_log_path= payload.command_log_path,
+        # if executer_type=="local":
+        #     jsb_spec = JobSpec(
+        #         job_id= payload.analysis_id,
+        #         command=["bash", "run.sh"],
+        #         output_dir= payload.output_dir,
+        #         command_log_path= payload.command_log_path,
 
-            )
-        elif executer_type=="docker":
-            jsb_spec = DockerJobSpec(
-                job_id= payload.analysis_id,
-                command_log_path= payload.command_log_path,
-                command=["./run.sh"],
-                output_dir= payload.output_dir,
-                image=payload.image,
-                env={},
-                resources={}
-            )
-        await job_executor.submit_job(jsb_spec)
+        #     )
+        # elif executer_type=="docker":
+        #     jsb_spec = DockerJobSpec(
+        #         job_id= payload.analysis_id,
+        #         command_log_path= payload.command_log_path,
+        #         command=["./run.sh"],
+        #         output_dir= payload.output_dir,
+        #         container_id=payload.container_id,
+        #         run_type=payload.run_type,
+        #         change_uid=
+        #         resources={}
+        #     )
+        await job_executor.submit_job(payload)
 
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STOPED)
@@ -60,16 +61,42 @@ def setup_handlers(
     
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE)
     async def on_analysis_complete(payload:AnalysisExecuterModal):
-        print(f"🚀 [on_analysis_complete] {payload.analysis_id}")
-        asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
+        print(f"🚀 [on_analysis_complete] {payload.analysis_id} {payload.run_type}")
+        if payload.run_type =="job":
+            asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
+            # await result_parse_manage.parse(payload.analysis_id)
+            await sse_service.push_message({"group": "default", "data": json.dumps({
+                "analysis_id": payload.analysis_id,
+                "event": "analysis_complete"
+                })})
+        elif payload.run_type =="server":
+            await analysis_service.update_ports(payload.analysis_id,None )
+            
         asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"finished"))
-        # await result_parse_manage.parse(payload.analysis_id)
+
+    @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STARTED)
+    async def on_analysis_started(payload:AnalysisExecuterModal):
+        print(f"🚀 [on_analysis_started] {payload.analysis_id} {payload.run_type}")
+        if payload.run_type =="server":
+            host_port = None
+            for p_list in payload.ports.values():
+                if p_list:
+                    host_port = p_list[0]["HostPort"]
+                    break
+            if host_port:
+                await analysis_service.update_ports(payload.analysis_id,host_port )
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
-            "event": "analysis_complete"
+            "event": "analysis_started"
             })})
-
-    @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_FAILED)
+    #         asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
+    #         asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"finished"))
+    #         # await result_parse_manage.parse(payload.analysis_id)
+    #         await sse_service.push_message({"group": "default", "data": json.dumps({
+    #             "analysis_id": payload.analysis_id,
+    #             "event": "analysis_complete"
+    #             })})
+    # @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_FAILED)
     async def on_analysis_failed(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_failed] {payload.analysis_id}")
         asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"failed"))

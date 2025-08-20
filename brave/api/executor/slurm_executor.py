@@ -7,7 +7,7 @@ from brave.api.core.evenet_bus import EventBus
 class SlurmExecutor(JobExecutor):
     def __init__(self,event_bus:EventBus):
         self.event_bus = event_bus
-    async def _do_submit_job(self, job_spec: JobSpec):
+    async def _do_submit_job(self, job_spec):
         pass
         # script_path = job_spec["script_path"]
         # result = subprocess.run(["sbatch", script_path], capture_output=True, text=True)

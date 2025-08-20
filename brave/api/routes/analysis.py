@@ -410,7 +410,7 @@ def get_executor_logs(analysis_id,job_executor_selector:JobExecutor = Depends(Pr
 @inject
 async def run_analysis_v2(
     analysis_id,
-    clean_output:bool=False,
+    run_type:str="job",
     auto_parse:Optional[bool]=True,
     # executor: JobExecutor = Depends(get_executor_dep),
     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
@@ -438,24 +438,25 @@ async def run_analysis_v2(
         if not analysis_["container_id"]:
             raise HTTPException(status_code=500, detail=f"please config container id") 
 
-        find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
+        # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
         analysis_ = dict(analysis_)
-        analysis_["image"] = find_container["image"]
+        analysis_["run_type"] = run_type
+        # analysis_["image"] = find_container["image"]
         analysis_ = AnalysisExecuterModal(**analysis_)
         # analysis_.image = find_container["image"]
-        stmt = analysis.update().values({"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
+        stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
         conn.execute(stmt)
-        await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
-        
-        
-        # job_id = await executor.submit_job(LocalJobSpec(
-        #     job_id=analysis_id,
-        #     command=["bash", "run.sh"],
-        #     output_dir=analysis_['output_dir'],
-        #     process_id=analysis_['process_id']
-        # ))
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
     
-        return {"msg":"success"}
+    
+    # job_id = await executor.submit_job(LocalJobSpec(
+    #     job_id=analysis_id,
+    #     command=["bash", "run.sh"],
+    #     output_dir=analysis_['output_dir'],
+    #     process_id=analysis_['process_id']
+    # ))
+
+    return {"msg":"success"}
 
 
 @analysis_api.post("/analysis/stop-analysis/{analysis_id}")

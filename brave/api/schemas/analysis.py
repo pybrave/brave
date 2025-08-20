@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional,Any
 from pydantic import BaseModel
 
 class AnalysisInput(BaseModel):
@@ -58,7 +58,11 @@ class AnalysisExecuterModal(BaseModel):
     process_id: Optional[str]
     analysis_status: Optional[str]
     command_log_path: str
+    run_type:Optional[str]
     image: Optional[str]=None
+    container_id: Optional[str]=None
+    # change_uid: Optional[str]=None
+    ports: Optional[Any]=None
 
 class AnalysisId(BaseModel):
     analysis_id: str

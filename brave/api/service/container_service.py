@@ -48,8 +48,8 @@ def find_container_by_id(conn,container_id):
 
 
 def save_container(conn,saveContainer):
-    str_uuid = str(uuid.uuid4())     
-    saveContainer["container_id"] = str_uuid
+    # str_uuid = str(uuid.uuid4())     
+    # saveContainer["container_id"] = str_uuid
     stmt = t_container.insert().values(saveContainer)
     conn.execute(stmt)
 
