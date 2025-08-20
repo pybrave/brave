@@ -260,9 +260,10 @@ def find_component_by_id(conn,component_id):
 def find_pipeline_by_id(conn,component_id):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
     find_component = conn.execute(stmt).mappings().first()
-    find_component = dict(find_component)
-    component_type = find_component["component_type"]
-    if find_component["container_id"]:
+    
+    # component_type = find_component["component_type"]
+    if find_component and find_component["container_id"]:
+        find_component = dict(find_component)
         find_container = container_service.find_container_by_id(conn,find_component["container_id"])
         find_component['container'] = find_container
         # find_component['container_name'] = find_container["name"]
