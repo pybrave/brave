@@ -104,16 +104,30 @@ class DockerExecutor(JobExecutor):
 #                 change_uid=
 #                 resources={}
     def _sync_submit_job(self, job: AnalysisExecuterModal) -> str:
+        user_id = os.getuid() 
+        group_id = os.getgid()
         with get_engine().begin() as conn: 
             find_container = container_service.find_container_by_id(conn,job.container_id)
-
+        # {
+        # "DISABLE_AUTH":true,
+        # "USERID":"$USERID",
+        # "GROUPID":"$GROUPID",
+        # "R_USER_WORKDIR":"$OUTPUT_DIR",
+        # "R_SCRIPT":"$SCRIPT_FILE"
+        # }
         envionment = {}
         if find_container["envionment"]:
-            envionment = json.loads(find_container["envionment"]) 
+            envionment = find_container["envionment"]
+            envionment = envionment.replace("$USERID", str(user_id))
+            envionment = envionment.replace("$GROUPID", str(group_id))
+            envionment = envionment.replace("$OUTPUT_DIR", job.output_dir)
+            envionment = envionment.replace("$SCRIPT_FILE", job.pipeline_script)
+            envionment = json.loads(envionment) 
         settings = get_settings()
         work_dir = str(settings.WORK_DIR)
         pipeline_dir = str(settings.PIPELINE_DIR)
         base_dir = str(settings.BASE_DIR)
+        script_dir = os.path.dirname(job.pipeline_script)
         # command = job.command
         # command.extend  (["2>&1","|","tee",f"{job.output_dir}/run.log"])
         # try:
@@ -126,13 +140,14 @@ class DockerExecutor(JobExecutor):
         #     self.to_remove.append(job.job_id)
         #     raise e  # 其他错误不应吞掉
 
-        user_id = os.getuid() 
+
         sock_gid = os.stat('/var/run/docker.sock').st_gid
 
         command = f"bash -c  \"bash ./run.sh  2>&1 | tee {job.command_log_path}; exit ${{PIPESTATUS[0]}}\""
         port = {}
         if job.run_type=="server":
             command = find_container["command"]
+            # command = f"{command}  > {job.command_log_path}"
             port = find_container["port"]
             port =  {f"{port}/tcp":None}
         try:
@@ -145,6 +160,10 @@ class DockerExecutor(JobExecutor):
                 volumes={
                     job.output_dir: {
                         "bind": job.output_dir,
+                        "mode": "rw"
+                    },
+                    script_dir:{
+                        "bind": script_dir,
                         "mode": "rw"
                     },
                     work_dir: {
