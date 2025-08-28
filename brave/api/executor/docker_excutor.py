@@ -148,13 +148,26 @@ class DockerExecutor(JobExecutor):
         command = f"bash -c  \"bash ./run.sh  2>&1 | tee {job.command_log_path}; exit ${{PIPESTATUS[0]}}\""
         port = {}
         docker_uid = user_id
+        labels ={}
+        network = None
+        url_predix = f"container/{job.analysis_id}"
         if job.run_type=="server":
             command = find_container["command"]
             command = command.replace("$SCRIPT_DIR",script_dir)
+            command = command.replace("$URL_PREFIX",url_predix)
             # command = f"{command}  > {job.command_log_path}"
             port = find_container["port"]
             port =  {f"{port}/tcp":None}
             docker_uid = user_id if find_container["change_uid"] else None
+            labels = find_container["labels"]
+            labels = labels.replace("$URL_PREFIX",url_predix)
+            labels = labels.replace("$CONTAINER_NAME",job.analysis_id)
+            labels = json.loads(labels)
+            try:
+                network = self.client.networks.get("traefik_proxy")
+            except docker.errors.NotFound:
+                network = self.client.networks.create("traefik_proxy", driver="bridge")
+            network = "traefik_proxy"
             # $SCRIPT_DIR
         volumes = {}
         if os.path.exists("/data"):
@@ -170,6 +183,7 @@ class DockerExecutor(JobExecutor):
                 user= docker_uid,
                 group_add=["users",str(sock_gid)],
                 command=command,
+                network=network,
                 volumes={
                     job.output_dir: {
                         "bind": job.output_dir,
@@ -213,11 +227,13 @@ class DockerExecutor(JobExecutor):
                     "job_id": job.analysis_id,
                     "project": "brave",
                     "user": str(user_id),
-                    "run_type":job.run_type
+                    "run_type":job.run_type,
+                    **labels
                 },
                  ports=port
                 # remove=True
             )
+            
         except Exception as e:
             print(f"Error running container {job.analysis_id}: {e}")
             self.to_remove.append(job.analysis_id)

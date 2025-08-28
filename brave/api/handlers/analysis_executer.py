@@ -80,13 +80,14 @@ def setup_handlers(
     async def on_analysis_started(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_started] {payload.analysis_id} {payload.run_type}")
         if payload.run_type =="server":
-            host_port = None
-            for p_list in payload.ports.values():
-                if p_list:
-                    host_port = p_list[0]["HostPort"]
-                    break
-            if host_port:
-                await analysis_service.update_ports(payload.analysis_id,host_port )
+            # host_port = None
+            # for p_list in payload.ports.values():
+            #     if p_list:
+            #         host_port = p_list[0]["HostPort"]
+            #         break
+            # if host_port:
+                # await analysis_service.update_ports(payload.analysis_id,host_port )
+            await analysis_service.update_url(payload.analysis_id,f"http://10.110.1.11:5003/container/{payload.analysis_id}")
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
             "event": "analysis_started"
@@ -103,7 +104,7 @@ def setup_handlers(
     async def on_analysis_failed(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_failed] {payload.analysis_id}")
         if payload.run_type =="server":
-            await analysis_service.update_ports(payload.analysis_id,None )
+            await analysis_service.update_url(payload.analysis_id,None )
         asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"failed"))
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,

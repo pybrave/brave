@@ -155,6 +155,16 @@ async def update_ports(analysis_id,ports):
         conn.execute(stmt)
     print(f"Analysis {analysis_id} {ports}")
 
+async def update_url(analysis_id,url):
+    with get_engine().begin() as conn:  
+        stmt = (
+            update(t_analysis)
+            .where(t_analysis.c.analysis_id == analysis_id)
+            .values(url = url)
+        )
+        conn.execute(stmt)
+    print(f"update Analysis {analysis_id} {url}")
+
 
 def list_analysis(conn,query:QueryAnalysis):
     conditions = []

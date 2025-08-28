@@ -14,5 +14,6 @@ class SaveContainer(BaseModel):
     envionment:Optional[str]=None
     command: Optional[str]=None
     port: Optional[str]=None
+    labels: Optional[str]=None
     change_uid:Optional[bool]=True
 

@@ -84,12 +84,61 @@ git clone https://github.com/pybrave/pipeline-metagenomics.git  development/pipe
 ```
 
 ```
+docker network create traefik_proxy
+
 docker run  \
   -p 8089:80 \
   -p 8087:8080 \
+   --network traefik_proxy \
   -v $PWD/traefik.yml:/etc/traefik/traefik.yml \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  registry.cn-hangzhou.aliyuncs.com/wybioinfo/traefik:v3.5
+  registry.cn-hangzhou.aliyuncs.com/wybioinfo/traefik:v3.5  
+
 ```
+```
+
+docker run  \
+  -p 8089:80 \
+  -p 8087:8080 \
+   --network traefik_proxy \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  registry.cn-hangzhou.aliyuncs.com/wybioinfo/traefik:v3.5  \
+  --api.insecure=true \
+  --providers.docker=true \
+  --log.level=DEBUG \
+  --entrypoints.web.address=:80 
+  
+```
+```
+docker run --rm   \
+  --name jupyter \
+  --network traefik_proxy \
+  -e NB_UID=$(id -u) \
+  --label "traefik.enable=true" \
+  --label 'traefik.http.routers.jupyter.rule=PathPrefix(`/jupyter`)' \
+  --label "traefik.http.routers.jupyter.entrypoints=web" \
+  --label "traefik.http.services.jupyter.loadbalancer.server.port=8888" \
+    registry.cn-hangzhou.aliyuncs.com/wybioinfo/datascience-notebook:x86_64-ubuntu-22.04  \
+    start.sh \
+    jupyter notebook    --NotebookApp.password='' --NotebookApp.token='' --NotebookApp.base_url='/jupyter' 
+```
+```
+docker run --rm   \
+  --name rstudio \
+  --network traefik_proxy \
+  -e USERID=$(id -u) \
+  -e DISABLE_AUTH=true \
+  --label "traefik.enable=true" \
+  --label 'traefik.http.routers.rstudio.rule=PathPrefix(`/rstudio`)' \
+  --label "traefik.http.routers.rstudio.entrypoints=web" \
+  --label "traefik.http.services.rstudio.loadbalancer.server.port=8787" \
+  --label "traefik.http.middlewares.rstudio-strip.stripPrefix.prefixes=/rstudio" \
+  --label "traefik.http.middlewares.rstudio-strip.stripPrefix.forceSlash=false" \
+  --label "traefik.http.middlewares.rstudio-server-root-path-header.headers.customrequestheaders.X-RStudio-Root-Path=/rstudio" \
+  --label "traefik.http.routers.rstudio.middlewares=rstudio-strip,rstudio-server-root-path-header" \
+  registry.cn-hangzhou.aliyuncs.com/wybioinfo/maaslin2:1.22 /init 
+```
+
+
 ## contact
 + 1749748955@qq.com

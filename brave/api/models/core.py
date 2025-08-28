@@ -65,6 +65,7 @@ analysis = Table(
     Column("analysis_status", String(255)),
     Column("job_id", String(255)),
     Column("ports", String(255)),
+    Column("url", String(255)),
     Column("run_type", String(255)),
     Column("command_log_path", String(255)),
     Column("container_id", String(255)),
@@ -284,6 +285,7 @@ t_container = Table(
     Column("envionment", String(255)),
     Column("command", String(255)),
     Column("port", String(255)),
+    Column("labels", Text().with_variant(LONGTEXT(), "mysql")),
     Column("change_uid", Boolean, default=True),
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)
