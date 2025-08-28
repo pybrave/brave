@@ -698,7 +698,7 @@ async def delete_component(component_id: str):
         if  parent_find_pipeine or child_find_pipeine:
             raise HTTPException(status_code=500, detail=f"不能删除存在关联!") 
         else:
-            find_component = pipeline_service.find_component_by_id(component_id)
+            find_component = pipeline_service.find_component_by_id(conn,component_id)
             stmt = t_pipeline_components.delete().where(t_pipeline_components.c.component_id == component_id)
             conn.execute(stmt)
             pipeline_service.delete_wrap_pipeline_dir(component_id)
@@ -749,7 +749,7 @@ async def get_depend_component(component_id):
         find_component = pipeline_service.find_pipeline_by_id(conn, component_id)
         if not find_component:
             raise HTTPException(status_code=404, detail=f"Component {component_id} not found")
-        namespace = find_component.namespace
+        namespace = find_component['namespace']
         child_depend_component = pipeline_service.get_child_depend_component(conn, namespace, component_id)
         parent_depend_component = pipeline_service.get_parent_depend_component(conn, namespace, component_id)
         return list(child_depend_component) + list(parent_depend_component)

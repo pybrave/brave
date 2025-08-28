@@ -12,10 +12,11 @@ class SavePipeline(BaseModel):
     namespace:Optional[str]=None
     component_name:Optional[str]=None
     description:Optional[str]=None
-    tag:Optional[str]=None
+    tags:Optional[str]=None
     category:Optional[str]=None
     img:Optional[str]=None
     container_id:Optional[str]=None
+    tags:Optional[str]=None
 
 class SavePipelineRelation(BaseModel):
     relation_id:Optional[str]=None

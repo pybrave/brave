@@ -191,7 +191,7 @@ def list_dir_v2(
 #     }
 @file_operation.get("/file-operation/visualization-results")
 async def visualization_results(path):
-    return file_operation_service.visualization_results(path)
+    return await file_operation_service.visualization_results(path)
     # path = f"{path}/output"
     # images = []
     # for ext in ("*.png", "*.jpg", "*.jpeg"):

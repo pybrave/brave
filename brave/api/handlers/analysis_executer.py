@@ -57,6 +57,7 @@ def setup_handlers(
     async def on_analysis_stoped(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_stoped] {payload.analysis_id}")
         await job_executor.remove_job(payload.analysis_id)
+        asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"failed"))
 
     
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE)

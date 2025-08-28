@@ -574,7 +574,7 @@ async def visualization_results(analysis_id):
     with get_engine().begin() as conn:
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
         find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
-    file_result = file_operation_service.visualization_results(find_analysis["output_dir"])
+    file_result = await file_operation_service.visualization_results(find_analysis["output_dir"])
     
     file_result['description'] = find_component["description"]
     file_result['analysis_name'] = find_analysis["analysis_name"]

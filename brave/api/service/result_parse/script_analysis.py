@@ -23,6 +23,8 @@ class ScriptAnalysis(BaseAnalysis):
             language = "python"
         elif script_type == "r":
             language = "Rscript"
+        elif script_type == "shell":
+            language = "bash"
         command =  textwrap.dedent(f"""
             {language} {component_script} {params_path}  {output_path}
             """)

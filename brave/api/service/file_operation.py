@@ -9,16 +9,44 @@ from pathlib import Path
 from brave.api.config.config import get_settings
 import pandas as pd
 import json
+import fitz  # PyMuPDF
+import base64
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
+def pdf_page_to_base64(pdf_path, page_number=0, zoom=2):
+    """
+    读取 PDF 指定页并转为 base64 图片
+    :param pdf_path: PDF 文件路径
+    :param page_number: 页码 (从0开始)
+    :param zoom: 缩放倍率
+    :return: base64 字符串 (PNG)
+    """
+    doc = fitz.open(pdf_path)
+    page = doc.load_page(page_number)  # 页码从 0 开始
+    mat = fitz.Matrix(zoom, zoom)      # 放大，提高清晰度
+    pix = page.get_pixmap(matrix=mat)
+    img_bytes = pix.tobytes("png")
+
+    # 转 base64
+    base64_str = base64.b64encode(img_bytes).decode("utf-8")
+    return base64_str
 
 def format_img_path(path):
+    # print(f"Processing {path} in thread: {threading.current_thread().name}")
+
     settings = get_settings()
     base_dir = settings.BASE_DIR
     file_name = path.replace(str(base_dir),"")
+    # pdf_file = "example.pdf"
+    b64 = pdf_page_to_base64(path, page_number=0, zoom=2)
+    base64_img = f"data:image/png;base64,{b64}"
+    # print("data:image/png;base64," + b64[:200] + "...")  # 打印前200字符
     # img_base64 = base64.b64encode(open(path, 'rb').read()).decode('utf-8')
     return {
-        "data":f"/brave-api/dir{file_name}",
+        "data":base64_img,
         "type":"img",
+        "filename":os.path.basename(path),
         "url":f"/brave-api/dir{file_name}"
     }
 
@@ -28,7 +56,7 @@ def format_table_output(path):
     data = ""
     data_type="table"
     if path.endswith("xlsx"):
-        df = pd.read_excel(path, nrows=100).iloc[:, :50]
+        df = pd.read_excel(path, nrows=50).iloc[:, :30]
         data = json.loads(df.to_json(orient="records")) 
         data_type="table"
     elif path.endswith("sh") :
@@ -36,7 +64,7 @@ def format_table_output(path):
             data = f.read()
         data_type="text"
     elif path.endswith("tsv"):
-        df = pd.read_csv(path,sep="\t", nrows=100).iloc[:, :50]
+        df = pd.read_csv(path,sep="\t", nrows=50).iloc[:, :30]
         # df = pd.read_csv(path,sep="\t")
         data = json.loads(df.to_json(orient="records")) 
         data_type="table"
@@ -56,6 +84,7 @@ def format_table_output(path):
     return  {
         "data":data ,
         "type":data_type,
+        "filename":os.path.basename(path),
         "url":f"/brave-api/dir{file_name}"
     }
 # def format_table_output(path):
@@ -69,13 +98,20 @@ def format_table_output(path):
 #         "type":"table",
 #         "url":f"/brave-api/dir{file_name}"
 #     }
-def visualization_results(path):
+async def visualization_results(path):
 
     path = f"{path}/output"
     images = []
-    for ext in ("*.png", "*.jpg", "*.jpeg"):
+    for ext in ("*.png", "*.jpg", "*.jpeg","*.pdf"):
         images.extend(glob.glob(os.path.join(path, ext)))
-    images = [format_img_path(image) for image in images]
+    # images = [format_img_path(image) for image in images]
+       # 多线程处理
+    # with ThreadPoolExecutor(max_workers=8) as executor:
+    #     images = list(executor.map(format_img_path, images))
+    # print(f"Processing visualization_results in thread: {threading.current_thread().name}")
+
+    tasks = [asyncio.to_thread(format_img_path, img) for img in images]
+    images = await asyncio.gather(*tasks)
     tables = []
     for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx"):
         tables.extend(glob.glob(os.path.join(path, ext)))

@@ -76,7 +76,7 @@ class BaseAnalysis(ABC):
             # "analysis_method":component_script,
             "component_id":component['component_id'],
             "data_component_ids":request_param['data_component_ids'],
-            "analysis_status": "running" if is_submit else "created"
+            # "analysis_status": "running" if is_submit else "created"
             # "parse_analysis_module":parse_analysis_module
         }
         # module_dir = pipeline_id
@@ -103,7 +103,8 @@ class BaseAnalysis(ABC):
                 json.dump(parse_analysis_result,f)
 
             new_analysis['container_id'] = component["container_id"]
-
+            if result.run_type =="job":
+                new_analysis["analysis_status"] = "updated"
             # new_analysis['output_format'] = parse_analysis_result_module
             stmt = t_analysis.update().values(new_analysis).where(t_analysis.c.analysis_id==request_param['analysis_id'])
             conn.execute(stmt)
@@ -198,7 +199,7 @@ class BaseAnalysis(ABC):
             new_analysis['script_config_file'] = script_config_file
             new_analysis['command_log_path'] = command_log_path
             new_analysis['container_id'] = component["container_id"]
-            
+            new_analysis["analysis_status"] = "created"
             with open(command_path, "w") as f:
                 f.write(command)
             with open(params_path, "w") as f:

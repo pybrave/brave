@@ -12,7 +12,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             analysis_result, 
             samples.c.sample_name,
             # samples.c.sample_group,
-            samples.c.sample_id,
+            # samples.c.sample_id,
             samples.c.metadata,
             analysis.c.analysis_name,
             t_pipeline_components.c.component_name.label("component_name"),

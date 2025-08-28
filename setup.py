@@ -17,7 +17,8 @@ setup(
         "kubernetes",
         "psutil",
         "httpx",
-        "nbformat"
+        "nbformat",
+        "PyMuPDF"
         ],
     entry_points={
         "console_scripts": [

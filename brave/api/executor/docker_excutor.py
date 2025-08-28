@@ -115,6 +115,7 @@ class DockerExecutor(JobExecutor):
         # "R_USER_WORKDIR":"$OUTPUT_DIR",
         # "R_SCRIPT":"$SCRIPT_FILE"
         # }
+        
         envionment = {}
         if find_container["envionment"]:
             envionment = find_container["envionment"]
@@ -128,6 +129,7 @@ class DockerExecutor(JobExecutor):
         pipeline_dir = str(settings.PIPELINE_DIR)
         base_dir = str(settings.BASE_DIR)
         script_dir = os.path.dirname(job.pipeline_script)
+        connom_script_dir = os.path.dirname(script_dir)
         # command = job.command
         # command.extend  (["2>&1","|","tee",f"{job.output_dir}/run.log"])
         # try:
@@ -145,16 +147,27 @@ class DockerExecutor(JobExecutor):
 
         command = f"bash -c  \"bash ./run.sh  2>&1 | tee {job.command_log_path}; exit ${{PIPESTATUS[0]}}\""
         port = {}
+        docker_uid = user_id
         if job.run_type=="server":
             command = find_container["command"]
+            command = command.replace("$SCRIPT_DIR",script_dir)
             # command = f"{command}  > {job.command_log_path}"
             port = find_container["port"]
             port =  {f"{port}/tcp":None}
+            docker_uid = user_id if find_container["change_uid"] else None
+            # $SCRIPT_DIR
+        volumes = {}
+        if os.path.exists("/data"):
+            volumes.update({ "/data": {
+                        "bind": "/data",
+                        "mode": "rw"
+                    }})
+
         try:
             container: Container = self.client.containers.run(
                 image=find_container.image,
                 name=job.analysis_id,
-                user= user_id if find_container["change_uid"] else None,
+                user= docker_uid,
                 group_add=["users",str(sock_gid)],
                 command=command,
                 volumes={
@@ -178,6 +191,7 @@ class DockerExecutor(JobExecutor):
                         "bind": base_dir,
                         "mode": "rw"
                     },
+                    **volumes,
                     "/tmp/brave.sock": {
                         "bind": "/tmp/brave.sock",
                         "mode": "rw"
@@ -187,7 +201,12 @@ class DockerExecutor(JobExecutor):
                         "mode": "rw"
                     }
                 },
-                environment=envionment,
+                environment={
+                    **envionment,
+                    "PIPELINE_DIR": f"{pipeline_dir}",
+                    "OUTPUT_DIR":f"{job.output_dir}",
+                    "COMMON_SCRIPT_DIR":f"{connom_script_dir}/common"
+                },
                 working_dir=job.output_dir,
                 detach=True,
                 labels={

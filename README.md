@@ -83,5 +83,13 @@ python  -m brave \
 git clone https://github.com/pybrave/pipeline-metagenomics.git  development/pipeline-dev/7530139e-8985-423f-9fb6-32650828ca40
 ```
 
+```
+docker run  \
+  -p 8089:80 \
+  -p 8087:8080 \
+  -v $PWD/traefik.yml:/etc/traefik/traefik.yml \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  registry.cn-hangzhou.aliyuncs.com/wybioinfo/traefik:v3.5
+```
 ## contact
 + 1749748955@qq.com
