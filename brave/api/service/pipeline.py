@@ -13,7 +13,7 @@ from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,
 from brave.api.config.db import get_engine
 from brave.api.models.core import t_namespace, t_pipeline_components, t_pipeline_components_edges, t_pipeline_components_relation
 import importlib.resources as resources
-from sqlalchemy import delete, select, and_, join, func,insert,update
+from sqlalchemy import delete, select, and_, join, func,insert,update,or_
 from datetime import datetime
 from brave.api.enum.component_script import ScriptName
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
@@ -326,7 +326,7 @@ def format_pipeline_componnet_one(item):
         if not item['img']:
             item['img'] = f"/brave-api/img/pipeline.jpg"
         else:
-            item['img'] = f"/brave-api/img/{item['namespace']}/{item['component_type']}/{item['component_id']}/{item['img']}"
+            item['img'] = f"/brave-api/pipeline-dir/{item['namespace']}/{item['component_type']}/{item['component_id']}/{item['img']}"
     return item
 
 def page_pipeline(conn,query:PagePipelineQuery):
@@ -343,7 +343,17 @@ def page_pipeline(conn,query:PagePipelineQuery):
     conditions = []
     if query.component_type is not None:
         conditions.append(t_pipeline_components.c.component_type == query.component_type)
-    
+
+    if query.keywords:
+        keyword_pattern = f"%{query.keywords}%"
+        conditions.append(
+            or_(
+                t_pipeline_components.c.component_name.ilike(keyword_pattern),
+                t_pipeline_components.c.tags.ilike(keyword_pattern),
+                t_pipeline_components.c.description.ilike(keyword_pattern)
+            )
+        )
+
     stmt = stmt.where(and_(*conditions))
     count_stmt = select(func.count()).select_from(t_pipeline_components).where(and_(*conditions))
 

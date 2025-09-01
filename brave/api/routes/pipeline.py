@@ -28,7 +28,8 @@ from starlette.concurrency import run_in_threadpool
 from typing import List
 import brave.api.service.container_service as container_service
 from brave.app_container import AppContainer
-
+import brave.api.service.notebook as notebook_service
+import shutil
 pipeline = APIRouter()
 
 def camel_to_snake(name):
@@ -768,4 +769,42 @@ async def update_component_description(component_id,description ):
         pipeline_service.update_component_description(conn,component_id,description)
     return {"message":"success"}
 
+
+
+
+
+@pipeline.post("/component/convert-ipynb/{component_id}",tags=['pipeline'])
+async def convert_ipynb(component_id):
+    # module_dir = queryModule.component_id
+    with get_engine().begin() as conn:
+        find_component = pipeline_service.find_pipeline_by_id(conn,component_id)
+        find_component = {
+            **{k:v for k,v in find_component.items() if k != "content"},
+            **json.loads(find_component["content"])
+        }
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"根据{component_id}不能找到记录!")
+    module_info:dict = pipeline_service.find_component_module(find_component, ScriptName.main)
+    script_path  = module_info['path']
+    ipynb_path = os.path.dirname(script_path)
+    ipynb_path = f"{ipynb_path}/main.ipynb"
+    if os.path.exists(script_path) and os.path.exists(ipynb_path):
+        shutil.copy(script_path, f"{script_path}.tmp")
+        notebook_service.convert_notebook(ipynb_path, script_path)
+        return "success"
+    raise HTTPException(status_code=404, detail=f"{script_path}或{ipynb_path}不存在!")
+
+
+# @analysis_api.post("/analysis/convert-ipynb/{analysis_id}")
+# async def convert_ipynb(analysis_id):
+#     with get_engine().begin() as conn:
+#         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+#     script_path  = find_analysis["pipeline_script"]
+#     ipynb_path = os.path.dirname(script_path)
+#     ipynb_path = f"{ipynb_path}/main.ipynb"
+#     if os.path.exists(script_path) and os.path.exists(ipynb_path):
+#         shutil.copy(script_path, f"{script_path}.tmp")
+#         notebook_service.convert_notebook(ipynb_path, script_path)
+#         return "success"
+#     raise HTTPException(status_code=404, detail=f"{script_path}或{ipynb_path}不存在!")
 
