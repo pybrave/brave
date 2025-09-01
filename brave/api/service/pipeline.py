@@ -50,6 +50,8 @@ def find_component_module(component,script_name:ScriptName) -> dict:
             file_type = "sh"
         elif script_type == "r":
             file_type = "R"
+        elif script_type == "jupyter":
+            file_type = "ipynb"
         else:
             raise HTTPException(status_code=500, detail=f"script_type {script_type} not found!")
     else:
@@ -185,71 +187,76 @@ def create_file(namespace,component_id,component_type,file_type):
     elif file_type == "R":
         with resources.files("brave.templete").joinpath("py_plot.R").open("r") as f:
             content_text = f.read()
-    if component_type == "pipeline":
-        analysisPipline = f"{pipeline_dir}/pipeline/{component_id}/main.{file_type}"
-        # pipelinieJson = f"{pipeline_dir}/main.json"
-        if not os.path.exists(analysisPipline):
-            dir_ = os.path.dirname(analysisPipline)
-            if not os.path.exists(dir_):
-                os.makedirs(dir_) 
-            with open(analysisPipline,"w") as f:
-                f.write("")
-        return analysisPipline
+    # if component_type == "pipeline":
+    analysis_file = f"{pipeline_dir}/{component_type}/{component_id}/main.{file_type}"
+    if not os.path.exists(analysis_file):
+        dir_ = os.path.dirname(analysis_file)
+        if not os.path.exists(dir_):
+            os.makedirs(dir_) 
+        if file_type=="ipynb":
+            generate_notebook(analysis_file)
+        else:
+            with open(analysis_file,"w") as f:
+                f.write(content_text)
+            ipynb_path = os.path.dirname(analysis_file)
+            generate_notebook(f"{ipynb_path}/main.ipynb")
+    
+    return analysis_file
         # if not os.path.exists(parseAnalysisModule):
         #     with open(parseAnalysisModule,"w") as f:
         #         f.write("")
 
-    if component_type == "software":
-        # parseAnalysisModule = f"{pipeline_dir}/software/{component_id}/main.py"
-        analysisPipline = f"{pipeline_dir}/software/{component_id}/main.{file_type}"
-        # dir_list = [parseAnalysisModule,analysisPipline]
-        # for item in dir_list:
-        dir_ = os.path.dirname(analysisPipline)
-        if not os.path.exists(dir_):
-            os.makedirs(dir_) 
+    # if component_type == "software":
+    #     # parseAnalysisModule = f"{pipeline_dir}/software/{component_id}/main.py"
+    #     analysisPipline = f"{pipeline_dir}/software/{component_id}/main.{file_type}"
+    #     # dir_list = [parseAnalysisModule,analysisPipline]
+    #     # for item in dir_list:
+    #     dir_ = os.path.dirname(analysisPipline)
+    #     if not os.path.exists(dir_):
+    #         os.makedirs(dir_) 
         
-        if not os.path.exists(analysisPipline):
+    #     if not os.path.exists(analysisPipline):
   
-            with open(analysisPipline,"w") as f:
-                f.write(content_text)
-        return analysisPipline
-        # if not os.path.exists(parseAnalysisModule):
-        #     with resources.files("brave.templete").joinpath("py_parse_analysis.py").open("r") as f:
-        #         content_text = f.read()
-        #     with open(parseAnalysisModule,"w") as f:
-        #         f.write(content_text)
+    #         with open(analysisPipline,"w") as f:
+    #             f.write(content_text)
+    #     return analysisPipline
+    #     # if not os.path.exists(parseAnalysisModule):
+    #     #     with resources.files("brave.templete").joinpath("py_parse_analysis.py").open("r") as f:
+    #     #         content_text = f.read()
+    #     #     with open(parseAnalysisModule,"w") as f:
+    #     #         f.write(content_text)
         
-        # if "parseAnalysisResultModule" in  content:
-        #     parseAnalysisResultModule = content['parseAnalysisResultModule']
-        #     for item in parseAnalysisResultModule:
-        #         item_file = f"{pipeline_dir}/software/{component_id}/{item['module']}.py"
-        #         dir_ = os.path.dirname(item_file)
-        #         if not os.path.exists(dir_):
-        #             os.makedirs(dir_) 
-        #         if not os.path.exists(item_file):
-        #             with resources.files("brave.templete").joinpath("py_parse_analysis_result.py").open("r") as f:
-        #                 content_text = f.read()
-        #             with open(item_file,"w") as f:
-        #                 f.write(content_text)
+    #     # if "parseAnalysisResultModule" in  content:
+    #     #     parseAnalysisResultModule = content['parseAnalysisResultModule']
+    #     #     for item in parseAnalysisResultModule:
+    #     #         item_file = f"{pipeline_dir}/software/{component_id}/{item['module']}.py"
+    #     #         dir_ = os.path.dirname(item_file)
+    #     #         if not os.path.exists(dir_):
+    #     #             os.makedirs(dir_) 
+    #     #         if not os.path.exists(item_file):
+    #     #             with resources.files("brave.templete").joinpath("py_parse_analysis_result.py").open("r") as f:
+    #     #                 content_text = f.read()
+    #     #             with open(item_file,"w") as f:
+    #     #                 f.write(content_text)
 
-    if component_type == "script":
+    # if component_type == "script":
    
 
-        py_plot = f"{pipeline_dir}/script/{component_id}/main.{file_type}"
-        py_plot_dir = os.path.dirname(py_plot)
-        if not os.path.exists(py_plot):
-            if not os.path.exists(py_plot_dir):
-                os.makedirs(py_plot_dir)
+    #     py_plot = f"{pipeline_dir}/script/{component_id}/main.{file_type}"
+    #     py_plot_dir = os.path.dirname(py_plot)
+    #     if not os.path.exists(py_plot):
+    #         if not os.path.exists(py_plot_dir):
+    #             os.makedirs(py_plot_dir)
   
-            with open(py_plot,"w") as f:
-                f.write(content_text)
+    #         with open(py_plot,"w") as f:
+    #             f.write(content_text)
 
-        nb_file = f"{pipeline_dir}/script/{component_id}/main.ipynb"
-        if not os.path.exists(nb_file):
-            generate_notebook(nb_file)
+    #     nb_file = f"{pipeline_dir}/script/{component_id}/main.ipynb"
+    #     if not os.path.exists(nb_file):
+    #         generate_notebook(nb_file)
 
-        return py_plot
-    raise HTTPException(status_code=500, detail=f"component_type {component_type} not create file!")
+    #     return py_plot
+    # raise HTTPException(status_code=500, detail=f"component_type {component_type} not create file!")
 
 
 def find_component_by_id(conn,component_id):

@@ -25,6 +25,8 @@ class ScriptAnalysis(BaseAnalysis):
             language = "Rscript"
         elif script_type == "shell":
             language = "bash"
+        elif script_type == "jupyter":
+            language = "ipython"
         command =  textwrap.dedent(f"""
             {language} {component_script} {params_path}  {output_path}
             """)

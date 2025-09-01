@@ -61,6 +61,8 @@ from brave.api.utils.file_utils import delete_all_in_dir
 import  brave.api.service.file_operation  as file_operation_service
 import pandas as pd
 import brave.api.service.container_service as container_service
+import shutil
+import brave.api.service.notebook as notebook_service
 analysis_api = APIRouter()
 
 
@@ -210,10 +212,19 @@ async def list_analysis(query:QueryAnalysis):
         return  analysis_service.list_analysis(conn,query)
 
 
-@analysis_api.delete("/fast-api/analysis/{id}",  status_code=HTTP_204_NO_CONTENT)
-def delete_analysis(id: int):
+@analysis_api.delete("/fast-api/analysis/{analysis_id}",  status_code=HTTP_204_NO_CONTENT)
+def delete_analysis(analysis_id: str):
     with get_engine().begin() as conn:
-        conn.execute(analysis.delete().where(analysis.c.id == id))
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        find_analysis_result = analysis_result_service.find_analysis_result_by_analysis_id(conn,analysis_id)
+        if find_analysis_result:
+            raise HTTPException(status_code=500, detail=f"存在分析结果不能删除!")
+        output_dir = find_analysis.output_dir
+        # delete_all_in_dir(output_dir)
+        shutil.rmtree(output_dir)
+        print(f"删除文件夹: {output_dir}")
+        conn.execute(analysis.delete().where(analysis.c.analysis_id == analysis_id))
+
     return {"message":"success"}
 
 
@@ -385,7 +396,7 @@ async def save_script_analysis(
             **json.loads(component['content'])
         }
         script_type = component_obj['script_type']
-        if script_type == "python" or script_type == "shell" or script_type == "r":
+        if script_type == "python" or script_type == "shell" or script_type == "r" or script_type == "jupyter":
             analysis_controller = app_container.script_analysis()
         else:
             analysis_controller = app_container.nextflow_analysis()
@@ -587,4 +598,19 @@ async def analysis_progress(analysis_id):
     trace_file = find_analysis["trace_file"]
     df = pd.read_csv(trace_file,sep="\t")
     return df.to_dict(orient="records")
+
+
+@analysis_api.post("/analysis/convert-ipynb/{analysis_id}")
+async def convert_ipynb(analysis_id):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+    script_path  = find_analysis["pipeline_script"]
+    ipynb_path = os.path.dirname(script_path)
+    ipynb_path = f"{ipynb_path}/main.ipynb"
+    if os.path.exists(script_path) and os.path.exists(ipynb_path):
+        shutil.copy(script_path, f"{script_path}.tmp")
+        notebook_service.convert_notebook(ipynb_path, script_path)
+        return "success"
+    raise HTTPException(status_code=404, detail=f"{script_path}或{ipynb_path}不存在!")
+
 

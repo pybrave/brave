@@ -17,3 +17,6 @@ async def generate_notebook():
 
     with open("generated_notebook.ipynb", "w", encoding="utf-8") as f:
         nbf.write(nb, f)
+
+
+
