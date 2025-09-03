@@ -32,6 +32,9 @@ import brave.api.service.notebook as notebook_service
 import shutil
 from fastapi import  File, UploadFile
 import shutil
+import time
+
+
 pipeline = APIRouter()
 
 def camel_to_snake(name):
@@ -840,5 +843,7 @@ async def upload_image(component_id,file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
     settings = get_settings()
     url_suffix = file_path.replace(str(settings.PIPELINE_DIR),"")
-    url = f"/brave-api/pipeline-dir{url_suffix}"
+    ts_str = str(int(time.time()))
+
+    url = f"/brave-api/pipeline-dir{url_suffix}?v={ts_str}"
     return {"filename": filename, "url":url}

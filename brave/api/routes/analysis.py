@@ -63,6 +63,9 @@ import pandas as pd
 import brave.api.service.container_service as container_service
 import shutil
 import brave.api.service.notebook as notebook_service
+from brave.api.models.core import t_pipeline_components
+from sqlalchemy.orm import aliased
+
 analysis_api = APIRouter()
 
 
@@ -549,13 +552,21 @@ async def stop_analysis(
 async def find_analysis_by_id(analysis_id):
     settings = get_settings()
     with get_engine().begin() as conn:
+        t_sub_container = aliased(t_container)
+
         stmt = select(
             analysis,
             t_container.c.name.label("container_name"),
-            t_container.c.image.label("container_image")
+            t_container.c.image.label("container_image"),
+            t_sub_container.c.name.label("sub_container_name"),
+            t_sub_container.c.image.label("sub_container_image")
         )
+
         stmt = stmt.select_from(
-             analysis.outerjoin(t_container, analysis.c.container_id == t_container.c.container_id)
+                analysis.outerjoin(t_pipeline_components,analysis.c.component_id==t_pipeline_components.c.component_id)
+                .outerjoin(t_container,t_pipeline_components.c.container_id==t_container.c.container_id)
+                .outerjoin(t_sub_container,t_pipeline_components.c.sub_container_id==t_sub_container.c.container_id)
+            #  analysis.outerjoin(t_container, analysis.c.container_id == t_container.c.container_id)
         )
         stmt = stmt.where(analysis.c.analysis_id == analysis_id)
         result = conn.execute(stmt)
