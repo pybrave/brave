@@ -269,10 +269,19 @@ def find_pipeline_by_id(conn,component_id):
     find_component = conn.execute(stmt).mappings().first()
     
     # component_type = find_component["component_type"]
-    if find_component and find_component["container_id"]:
+    if find_component:
         find_component = dict(find_component)
-        find_container = container_service.find_container_by_id(conn,find_component["container_id"])
-        find_component['container'] = find_container
+        if find_component["container_id"]:
+            find_container = container_service.find_container_by_id(conn,find_component["container_id"])
+            find_component['container'] = find_container
+        if find_component["sub_container_id"]:
+            find_container = container_service.find_container_by_id(conn,find_component["sub_container_id"])
+            find_component['sub_container'] = find_container
+
+    # if find_component and find_component["server_container_id"]:
+    #     find_component = dict(find_component)
+    #     find_container = container_service.find_container_by_id(conn,find_component["container_id"])
+    #     find_component['container'] = find_container
         # find_component['container_name'] = find_container["name"]
     return find_component
 
@@ -325,8 +334,8 @@ def format_pipeline_componnet_one(item):
     if 'img' in item:
         if not item['img']:
             item['img'] = f"/brave-api/img/pipeline.jpg"
-        else:
-            item['img'] = f"/brave-api/pipeline-dir/{item['namespace']}/{item['component_type']}/{item['component_id']}/{item['img']}"
+        # else:
+        #     item['img'] = f"/brave-api/pipeline-dir/{item['namespace']}/{item['component_type']}/{item['component_id']}/{item['img']}"
     return item
 
 def page_pipeline(conn,query:PagePipelineQuery):

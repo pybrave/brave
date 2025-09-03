@@ -68,7 +68,8 @@ analysis = Table(
     Column("url", String(255)),
     Column("run_type", String(255)),
     Column("command_log_path", String(255)),
-    Column("container_id", String(255)),
+    # Column("container_id", String(255)),
+    # Column("sub_container_id", String(255)),
     Column("data_component_ids",Text)
 )
 
@@ -152,6 +153,7 @@ t_pipeline_components = Table(
     Column("description", Text().with_variant(LONGTEXT(), "mysql")), 
     Column("img", String(255)), 
     Column("container_id", String(255)),
+    Column("sub_container_id", String(255)),
     Column("tags", String(255)), 
     Column("category", String(255)), 
     Column("namespace", String(255)),

@@ -11,6 +11,8 @@ import hashlib
 import os
 from brave.api.enum.component_script import ScriptName
 from brave.api.models.core import t_container
+from sqlalchemy.orm import aliased
+
 def get_parse_analysis_result_params(conn,analysis_id):
     stmt = select(t_analysis).where(t_analysis.c.analysis_id == analysis_id)
     result = conn.execute(stmt).mappings().first()
@@ -178,6 +180,7 @@ def list_analysis(conn,query:QueryAnalysis):
         conditions.append(t_analysis.c.project == query.project)
     if query.component_ids:
         conditions.append(t_analysis.c.component_id.in_(query.component_ids))
+    t_sub_container = aliased(t_container)
 
     stmt = select(
         t_analysis,
@@ -186,12 +189,16 @@ def list_analysis(conn,query:QueryAnalysis):
         t_pipeline_components.c.component_type.label("component_type"),
         t_project.c.project_name.label("project_name"),
         t_container.c.name.label("container_name"),
-        t_container.c.image.label("container_image")
+        t_container.c.image.label("container_image"),
+        t_sub_container.c.name.label("sub_container_name"),
+        t_sub_container.c.image.label("sub_container_image")
     )
+
     stmt = stmt.select_from(
         t_analysis.outerjoin(t_pipeline_components,t_analysis.c.component_id==t_pipeline_components.c.component_id)
         .outerjoin(t_project,t_analysis.c.project==t_project.c.project_id)
-        .outerjoin(t_container,t_analysis.c.container_id==t_container.c.container_id)
+        .outerjoin(t_container,t_pipeline_components.c.container_id==t_container.c.container_id)
+        .outerjoin(t_sub_container,t_pipeline_components.c.sub_container_id==t_sub_container.c.container_id)
         )
     if conditions:
         stmt = stmt.where(and_(*conditions) if len(conditions) > 1 else conditions[0])

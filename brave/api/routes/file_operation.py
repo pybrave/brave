@@ -10,6 +10,7 @@ from brave.api.config.config import get_settings
 import pandas as pd
 import json
 import brave.api.service.file_operation as file_operation_service
+import aiofiles
 
 file_locks = defaultdict(asyncio.Lock)
 
@@ -30,23 +31,35 @@ async def read_file(file_path):
     except Exception as e:
         return f"{file_path}文件读取失败: {e}"
 
+# @file_operation.get("/file-operation/read-log-file")
+# async def read_log_file(file_path,offset:int=0):
+#     lock = file_locks[file_path]
+#     async with lock:
+#         if not os.path.exists(file_path):
+#             return {
+#                 "content": [],
+#                 "offset": 0
+#             }
+#         with open(file_path, 'r') as file:
+#             file.seek(offset)
+#             return {
+#                 "content": file.readlines(),
+#                 "offset": file.tell()
+#             }
+
 @file_operation.get("/file-operation/read-log-file")
-async def read_log_file(file_path,offset:int=0):
+async def read_log_file(file_path: str, offset: int = 0):
     lock = file_locks[file_path]
     async with lock:
         if not os.path.exists(file_path):
-            return {
-                "content": [],
-                "offset": 0
-            }
-        with open(file_path, 'r') as file:
-            file.seek(offset)
-            return {
-                "content": file.readlines(),
-                "offset": file.tell()
-            }
-
-
+            return {"content": [], "offset": 0}
+        
+        async with aiofiles.open(file_path, 'r') as file:
+            await file.seek(offset)   # aiofiles 支持
+            content = await file.readlines()
+            offset = await file.tell()
+        
+        return {"content": content, "offset": offset}
 
 # @app.get("/logs/delta")
 # def get_incremental_logs(offset: int):

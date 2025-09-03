@@ -34,17 +34,18 @@ def pdf_page_to_base64(pdf_path, page_number=0, zoom=2):
 
 def format_img_path(path):
     # print(f"Processing {path} in thread: {threading.current_thread().name}")
-
     settings = get_settings()
     base_dir = settings.BASE_DIR
     file_name = path.replace(str(base_dir),"")
-    # pdf_file = "example.pdf"
-    b64 = pdf_page_to_base64(path, page_number=0, zoom=2)
-    base64_img = f"data:image/png;base64,{b64}"
+    img_data = f"/brave-api/dir{file_name}"
+    if path.endswith("pdf"):
+        # pdf_file = "example.pdf"
+        b64 = pdf_page_to_base64(path, page_number=0, zoom=2)
+        img_data = f"data:image/png;base64,{b64}"
     # print("data:image/png;base64," + b64[:200] + "...")  # 打印前200字符
     # img_base64 = base64.b64encode(open(path, 'rb').read()).decode('utf-8')
     return {
-        "data":base64_img,
+        "data":img_data,
         "type":"img",
         "filename":os.path.basename(path),
         "url":f"/brave-api/dir{file_name}"

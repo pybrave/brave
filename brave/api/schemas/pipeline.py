@@ -16,6 +16,7 @@ class SavePipeline(BaseModel):
     category:Optional[str]=None
     img:Optional[str]=None
     container_id:Optional[str]=None
+    sub_container_id:Optional[str]=None
     tags:Optional[str]=None
 
 class SavePipelineRelation(BaseModel):

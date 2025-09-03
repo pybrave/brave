@@ -52,6 +52,7 @@ class ResultParse:
                         if item['analysis_result_hash']!= result['analysis_result_hash']:
                             analysis_result_service.update_analysis_result(conn,result.id,item)
                             analsyis = dict(params['analysis'])
-                            analsyis = Analysis(**analsyis)
+                            result = dict(result)
+                            analsyis = Analysis({**analsyis,**result})
                             analysis_result = AnalysisResultParseModal(**item)
                             await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_UPDATE, analsyis, analysis_result)

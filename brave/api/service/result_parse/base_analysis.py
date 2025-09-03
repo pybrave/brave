@@ -102,7 +102,7 @@ class BaseAnalysis(ABC):
             with open(params_path, "w") as f:
                 json.dump(parse_analysis_result,f)
 
-            new_analysis['container_id'] = component["container_id"]
+            # new_analysis['container_id'] = component["container_id"]
             if result.run_type =="job":
                 new_analysis["analysis_status"] = "updated"
             # new_analysis['output_format'] = parse_analysis_result_module
@@ -198,7 +198,7 @@ class BaseAnalysis(ABC):
             new_analysis['executor_log_file'] = executor_log
             new_analysis['script_config_file'] = script_config_file
             new_analysis['command_log_path'] = command_log_path
-            new_analysis['container_id'] = component["container_id"]
+            # new_analysis['container_id'] = component["container_id"]
             new_analysis["analysis_status"] = "created"
             with open(command_path, "w") as f:
                 f.write(command)
@@ -294,13 +294,15 @@ class BaseAnalysis(ABC):
             db_ids_dict = {key: request_param[key] for key in bio_database_data_type_list if key in request_param}
             database_dict = { key:self.get_database_dict(conn,value) for key,value in  db_ids_dict.items()}
 
+        settings = get_settings()
         args = {
            
             "database_dict":database_dict,
             "extra_dict":extra_dict,
             "analysis_dict":db_dict,
             "groups_name":groups_name,
-            "groups":query_name_list
+            "groups":query_name_list,
+            "settings":settings
         }
 
         parse_data = getattr(module, "parse_data")

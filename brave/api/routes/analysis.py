@@ -446,12 +446,22 @@ async def run_analysis_v2(
             # if os.path.exists(output_dir):
             delete_all_in_dir(output_dir)
         
-        if not analysis_["container_id"]:
+        if not component["container_id"]:
             raise HTTPException(status_code=500, detail=f"please config container id") 
 
         # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
         analysis_ = dict(analysis_)
         analysis_["run_type"] = run_type
+        if run_type == "job":
+            analysis_["container_id"] =component["container_id"]
+        else:
+            if component_type=="script":
+                analysis_["container_id"] =component["container_id"]
+            else: 
+                if not component["sub_container_id"]:
+                    raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
+                analysis_["container_id"] = component["sub_container_id"]
+
         # analysis_["image"] = find_container["image"]
         analysis_ = AnalysisExecuterModal(**analysis_)
         # analysis_.image = find_container["image"]
@@ -597,7 +607,7 @@ async def analysis_progress(analysis_id):
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
     trace_file = find_analysis["trace_file"]
     df = pd.read_csv(trace_file,sep="\t")
-    return df.to_dict(orient="records")
+    return json.loads(df.to_json(orient="records"))
 
 
 @analysis_api.post("/analysis/convert-ipynb/{analysis_id}")

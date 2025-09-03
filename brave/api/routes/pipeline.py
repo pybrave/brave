@@ -30,6 +30,8 @@ import brave.api.service.container_service as container_service
 from brave.app_container import AppContainer
 import brave.api.service.notebook as notebook_service
 import shutil
+from fastapi import  File, UploadFile
+import shutil
 pipeline = APIRouter()
 
 def camel_to_snake(name):
@@ -198,6 +200,7 @@ async def get_component_parent(component_id,component_type):
         t_pipeline_components.c.content,
         t_pipeline_components.c.namespace,
         t_pipeline_components.c.component_name,
+        t_pipeline_components.c.tags,
         t_namespace.c.name.label("namespace_name"),
         cast(null(), String(255)).label("relation_type"),
         cast(null(), String(255)).label("parent_component_id"),
@@ -223,6 +226,7 @@ async def get_component_parent(component_id,component_type):
         tp1.c.content,
         tp1.c.namespace,
         tp1.c.component_name,
+        tp1.c.tags,
         tn1.c.name.label("namespace_name"),
         rel.c.relation_type,
         rel.c.parent_component_id,
@@ -251,10 +255,10 @@ async def get_component_parent(component_id,component_type):
         del child_item["content"]
 
     parent_item_list = [dict(item) for item in data if item['component_type'] != component_type]
-    resul_dict= {}
-    resul_dict['script'] = dict(child_item)
-    resul_dict['parent'] = parent_item_list
-    return resul_dict
+    # resul_dict= {}
+    # resul_dict['script'] = dict(child_item)
+    child_item['parent'] = parent_item_list
+    return child_item
 
 
 @pipeline.get("/get-pipeline-dag/{pipeline_id}",tags=['pipeline'])
@@ -578,8 +582,8 @@ async def save_pipeline_relation(conn,savePipelineRelation):
     if savePipelineRelation.parent_component_id:
         parent_component = pipeline_service.find_pipeline_by_id(conn,savePipelineRelation.parent_component_id)
         if parent_component:
-            save_pipeline_relation_dict['namespace'] = parent_component.namespace
-            namespace = parent_component.namespace
+            save_pipeline_relation_dict['namespace'] = parent_component["namespace"]
+            namespace = parent_component["namespace"]
     if savePipelineRelation.relation_id:
         stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
     else:
@@ -808,3 +812,33 @@ async def convert_ipynb(component_id):
 #         return "success"
 #     raise HTTPException(status_code=404, detail=f"{script_path}或{ipynb_path}不存在!")
 
+
+@pipeline.post("/component/upload/{component_id}")
+async def upload_image(component_id,file: UploadFile = File(...)):
+    # 限制只能上传图片类型
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=404, detail=f"只允许上传图片文件!")
+    with get_engine().begin() as conn:
+        find_component = pipeline_service.find_pipeline_by_id(conn,component_id)
+        find_component = {
+            **{k:v for k,v in find_component.items() if k != "content"},
+            **json.loads(find_component["content"])
+        }
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"根据{component_id}不能找到记录!")
+    module_info:dict = pipeline_service.find_component_module(find_component, ScriptName.main)
+    script_path  = module_info['path']
+    file_path = os.path.dirname(script_path)
+    name, ext = os.path.splitext(file.filename)
+
+    # file_path = os.path.join(file_path, file.filename)
+    filename = f"main{ext}"
+    file_path = f"{file_path}/{filename}"
+
+    # 保存文件到本地
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    settings = get_settings()
+    url_suffix = file_path.replace(str(settings.PIPELINE_DIR),"")
+    url = f"/brave-api/pipeline-dir{url_suffix}"
+    return {"filename": filename, "url":url}
