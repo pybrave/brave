@@ -75,11 +75,12 @@ class BaseAnalysis(ABC):
             "request_param":json.dumps(request_param),
             # "analysis_method":component_script,
             "component_id":component['component_id'],
-            "is_report":request_param['is_report'],
+            "is_report":request_param['is_report'] if "is_report" in request_param else False,
             "data_component_ids":request_param['data_component_ids'],
             # "analysis_status": "running" if is_submit else "created"
             # "parse_analysis_module":parse_analysis_module
         }
+        new_analysis = {k:v for k,v in new_analysis.items() if v is not None}
         # module_dir = pipeline_id
         # if "moduleDir" in component_content:
         #     module_dir = component_content['moduleDir']

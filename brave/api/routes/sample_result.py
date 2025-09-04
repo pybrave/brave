@@ -240,6 +240,24 @@ async def list_analysis_result(analysisResultQuery:AnalysisResultQuery):
     return result_dict
 
 @sample_result.post(
+    "/analysis-result/list-analysis-result-grouped",
+    # response_model=List[AnalysisResult]
+    )
+async def list_analysis_result(analysisResultQuery:AnalysisResultQuery):
+    result_dict = find_analyais_result(analysisResultQuery)
+    result_dict = [get_analysis_result_metadata(item) for item in result_dict]
+            
+        # if item["metadata_form"]:
+        #     item["metadata_form"] = json.loads(item["metadata_form"])
+    grouped = defaultdict(list)
+    for item in result_dict:
+        item["label"] = item["sample_name"]
+        item["value"] = item["id"]
+        grouped[item["component_id"]].append(item)
+    return grouped
+
+
+@sample_result.post(
     "/fast-api/find-analyais-result-by-analysis-method",
     # response_model=List[AnalysisResult]
     )

@@ -5,6 +5,28 @@ from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
 from sqlalchemy import and_, desc, select
 import json
 import uuid
+from collections import defaultdict
+
+def get_analysis_result_metadata(item):
+    if item["metadata"]:
+        metadata = json.loads(item["metadata"])
+        item = {**metadata,**item}
+        del item["metadata"]
+    return item
+
+def find_analyais_result_groupd_by_component_ids(conn,component_ids):
+    result_dict =  find_analyais_result(conn,AnalysisResultQuery(component_ids=component_ids))
+    result_dict = [get_analysis_result_metadata(item) for item in result_dict]
+            
+        # if item["metadata_form"]:
+        #     item["metadata_form"] = json.loads(item["metadata_form"])
+    grouped = defaultdict(list)
+    for item in result_dict:
+        item["label"] = item["sample_name"]
+        item["value"] = item["id"]
+        grouped[item["component_id"]].append(item)
+    return grouped
+
 def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     stmt = analysis_result.select() 
     if analysisResultQuery.querySample:

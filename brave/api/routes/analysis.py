@@ -420,11 +420,6 @@ async def save_script_analysis(
     app_container:AppContainer = Depends(Provide[AppContainer])
     ): # request_param: Dict[str, Any]
     
-    
-    if  type=="script":
-        analysis_controller = app_container.script_analysis()
-    else:
-        analysis_controller = app_container.nextflow_analysis()
 
     with get_engine().begin() as conn:
         component_id = request_param['component_id']
@@ -444,7 +439,14 @@ async def save_script_analysis(
             **{ k:v for k,v in component.items() if k != "content"},
             **json.loads(component['content'])
         }
-        script_type = component_obj['script_type']
+
+        script_type = component_obj['script_type']   
+        # if  script_type=="nextflow":
+        #     analysis_controller = app_container.nextflow_analysis()
+        # else:
+        #     analysis_controller = app_container.script_analysis()
+        
+
         if script_type == "python" or script_type == "shell" or script_type == "r" or script_type == "jupyter":
             analysis_controller = app_container.script_analysis()
         else:
@@ -701,3 +703,29 @@ async def update_report(analysis_id):
         else:
             analysis_service.update_report(conn,analysis_id,True)
     return "success"
+
+
+@analysis_api.get("/analysis/edit-params/{analysis_id}")
+async def edit_params(analysis_id):
+    analysis_result={}
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
+        request_param = json.loads(find_analysis["request_param"])
+        if "data_component_ids" in request_param:
+            data_component_ids = request_param["data_component_ids"]
+            data_component_ids = json.loads(data_component_ids)
+            analysis_result = analysis_result_service.find_analyais_result_groupd_by_component_ids(conn,data_component_ids)
+
+    result = {
+        "analysis_name":find_analysis["analysis_name"],
+        "analysis_id":find_analysis["analysis_id"],
+        "component_name":find_component["component_name"],
+        "component_id":find_component["component_id"],
+        "request_param":json.loads(find_analysis["request_param"]),
+        "content":json.loads(find_component["content"]),
+        "analysis_result":analysis_result
+
+    }
+
+    return result
