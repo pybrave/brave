@@ -157,6 +157,14 @@ async def update_ports(analysis_id,ports):
         conn.execute(stmt)
     print(f"Analysis {analysis_id} {ports}")
 
+def update_report(conn,analysis_id,is_report):
+    stmt = (
+        update(t_analysis)
+        .where(t_analysis.c.analysis_id == analysis_id)
+        .values(is_report = is_report)
+    )
+    conn.execute(stmt)
+
 async def update_url(analysis_id,url):
     with get_engine().begin() as conn:  
         stmt = (
@@ -180,11 +188,14 @@ def list_analysis(conn,query:QueryAnalysis):
         conditions.append(t_analysis.c.project == query.project)
     if query.component_ids:
         conditions.append(t_analysis.c.component_id.in_(query.component_ids))
+    if query.is_report:
+        conditions.append(t_analysis.c.is_report)
     t_sub_container = aliased(t_container)
 
     stmt = select(
         t_analysis,
         t_pipeline_components.c.component_name.label("component_name"),
+        t_pipeline_components.c.order_index.label("component_order_index"),
         # t_pipeline_components.c.label.label("component_label"),
         t_pipeline_components.c.component_type.label("component_type"),
         t_project.c.project_name.label("project_name"),

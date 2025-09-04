@@ -65,6 +65,7 @@ import shutil
 import brave.api.service.notebook as notebook_service
 from brave.api.models.core import t_pipeline_components
 from sqlalchemy.orm import aliased
+from collections import defaultdict
 
 analysis_api = APIRouter()
 
@@ -213,6 +214,51 @@ async def parse_analysis_result(
 async def list_analysis(query:QueryAnalysis):
     with get_engine().begin() as conn:
         return  analysis_service.list_analysis(conn,query)
+
+def build_tree(data):
+    grouped = defaultdict(list)
+    for item in data:
+        grouped[item["component_id"]].append(item)
+
+    tree = []
+    for comp_id, items in grouped.items():
+        parent = {
+            "title": items[0]["component_name"],  # 每组的名字
+            "key": comp_id,                       # 用 component_id 当 key
+            "children": []
+        }
+        for i, it in enumerate(items):
+            parent["children"].append({
+                "title": it["analysis_name"],
+                "type":"analysis",
+                "key": it["analysis_id"],
+                "component_id": it["component_id"],
+                "component_name": it["component_name"],
+                "component_type": it["component_type"],
+                "analysis_status": it["analysis_status"],
+                "component_order_index": it["component_order_index"]
+
+            })
+        tree.append(parent)
+    return tree
+
+@analysis_api.post(
+    "/list-analysis-tree",
+    # response_model=List[Analysis],
+)
+async def list_analysis(query:QueryAnalysis):
+    with get_engine().begin() as conn:
+        analysis_list = analysis_service.list_analysis(conn,query)
+    analysis_list = [dict(item) for item in analysis_list]
+    sorted_data = sorted(
+        analysis_list,
+        key=lambda x: (
+            0 if x["component_order_index"] not in (None, "") else 1,   # 有值优先，空值最后
+            -(int(x["component_order_index"])) if x["component_order_index"] not in (None, "") else float("inf")  # 数字取负 → 实现降序
+        )
+    )
+    data = build_tree(sorted_data)
+    return data
 
 
 @analysis_api.delete("/fast-api/analysis/{analysis_id}",  status_code=HTTP_204_NO_CONTENT)
@@ -610,6 +656,17 @@ async def visualization_results(analysis_id):
     
     file_result['description'] = find_component["description"]
     file_result['analysis_name'] = find_analysis["analysis_name"]
+    file_result['analysis_status'] = find_analysis["analysis_status"]
+    file_result['analysis_id'] = find_analysis["analysis_id"]
+    file_result['run_type'] = find_analysis["run_type"]
+
+    file_result['component_name'] = find_component["component_name"]
+    file_result['component_id'] = find_component["component_id"]
+
+    file_result['component_type'] = find_component["component_type"]
+    file_result['command_log_path'] = find_analysis["command_log_path"]
+
+
     return file_result
 
 @analysis_api.get("/analysis/analysis-progress/{analysis_id}")
@@ -635,3 +692,12 @@ async def convert_ipynb(analysis_id):
     raise HTTPException(status_code=404, detail=f"{script_path}或{ipynb_path}不存在!")
 
 
+@analysis_api.post("/analysis/update-report/{analysis_id}")
+async def update_report(analysis_id):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        if find_analysis['is_report']:
+            analysis_service.update_report(conn,analysis_id,False)
+        else:
+            analysis_service.update_report(conn,analysis_id,True)
+    return "success"

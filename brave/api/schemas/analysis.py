@@ -16,7 +16,7 @@ class QueryAnalysis(BaseModel):
     analysis_method: Optional[str]=None
     component_id: Optional[str]=None
     component_ids: Optional[list[str]] =None
-
+    is_report: Optional[bool] =None
     project: Optional[str]=None
 
 class Analysis(BaseModel):

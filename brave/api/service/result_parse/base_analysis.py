@@ -75,6 +75,7 @@ class BaseAnalysis(ABC):
             "request_param":json.dumps(request_param),
             # "analysis_method":component_script,
             "component_id":component['component_id'],
+            "is_report":request_param['is_report'],
             "data_component_ids":request_param['data_component_ids'],
             # "analysis_status": "running" if is_submit else "created"
             # "parse_analysis_module":parse_analysis_module
