@@ -659,6 +659,7 @@ async def visualization_results(analysis_id):
     file_result['description'] = find_component["description"]
     file_result['analysis_name'] = find_analysis["analysis_name"]
     file_result['analysis_status'] = find_analysis["analysis_status"]
+    file_result['is_report'] = find_analysis["is_report"]
     file_result['analysis_id'] = find_analysis["analysis_id"]
     file_result['run_type'] = find_analysis["run_type"]
 
@@ -708,6 +709,7 @@ async def update_report(analysis_id):
 @analysis_api.get("/analysis/edit-params/{analysis_id}")
 async def edit_params(analysis_id):
     analysis_result={}
+    inputFormJson ={}
     with get_engine().begin() as conn:
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
         find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
@@ -716,15 +718,29 @@ async def edit_params(analysis_id):
             data_component_ids = request_param["data_component_ids"]
             data_component_ids = json.loads(data_component_ids)
             analysis_result = analysis_result_service.find_analyais_result_groupd_by_component_ids(conn,data_component_ids)
+        
+        component_type = find_component["component_type"]
+        
+        if component_type == "software" or component_type=="pipeline":
+            software_input_file = pipeline_service.find_component_by_parent_id(conn,find_component['component_id'],"software_input_file")
+            inputFormJson = [
+                {
+                    # **{k:v for k,v in item.items() if k!="content"},
+                    "component_id":item["component_id"],
+                    **json.loads(item["content"])
+                } for item in software_input_file
+            ]
 
     result = {
         "analysis_name":find_analysis["analysis_name"],
+        "is_report":find_analysis["is_report"],
         "analysis_id":find_analysis["analysis_id"],
         "component_name":find_component["component_name"],
         "component_id":find_component["component_id"],
         "request_param":json.loads(find_analysis["request_param"]),
         "content":json.loads(find_component["content"]),
-        "analysis_result":analysis_result
+        "analysis_result":analysis_result,
+        "inputFormJson":inputFormJson
 
     }
 
