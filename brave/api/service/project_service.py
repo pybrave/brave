@@ -24,6 +24,11 @@ async def find_by_project_id(conn,project_id:str):
     result = conn.execute(stmt).mappings().first()
     return result
 
+def find_by_project_ids(conn,project_ids:list[str]):
+    stmt = t_project.select().where(t_project.c.project_id.in_(project_ids))
+    result = conn.execute(stmt).mappings().all()
+    return result
+
 async def delete_project(conn,project_id:str):
     stmt = t_samples.select().where(t_samples.c.project==project_id)
     result = conn.execute(stmt).fetchone()

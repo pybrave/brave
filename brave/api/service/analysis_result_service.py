@@ -14,8 +14,8 @@ def get_analysis_result_metadata(item):
         del item["metadata"]
     return item
 
-def find_analyais_result_groupd_by_component_ids(conn,component_ids):
-    result_dict =  find_analyais_result(conn,AnalysisResultQuery(component_ids=component_ids))
+def find_analyais_result_groupd_by_component_ids(conn,component_ids,project):
+    result_dict =  find_analyais_result(conn,AnalysisResultQuery(component_ids=component_ids,project=project))
     result_dict = [get_analysis_result_metadata(item) for item in result_dict]
             
         # if item["metadata_form"]:
@@ -40,7 +40,8 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             t_pipeline_components.c.component_name.label("component_name"),
             # t_pipeline_components.c.label.label("component_label"),
             # t_pipeline_components.c.name.label("analysis_method"),
-            t_project.c.project_name.label("project_name"),
+            t_project.c.project_name.label("project_name")
+            # t_project.c.project_id.label("project_id")
             # t_project.c.metadata_form.label("metadata_form")
 
             ) 

@@ -224,7 +224,8 @@ def build_tree(data):
     for comp_id, items in grouped.items():
         parent = {
             "title": items[0]["component_name"],  # 每组的名字
-            "key": comp_id,                       # 用 component_id 当 key
+            "key": comp_id,   
+            "type":"components",                    # 用 component_id 当 key
             "children": []
         }
         for i, it in enumerate(items):
@@ -655,7 +656,7 @@ async def visualization_results(analysis_id):
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
         find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
     file_result = await file_operation_service.visualization_results(find_analysis["output_dir"])
-    
+    # file_result = {}
     file_result['description'] = find_component["description"]
     file_result['analysis_name'] = find_analysis["analysis_name"]
     file_result['analysis_status'] = find_analysis["analysis_status"]
@@ -709,7 +710,7 @@ async def update_report(analysis_id):
 @analysis_api.get("/analysis/edit-params/{analysis_id}")
 async def edit_params(analysis_id):
     analysis_result={}
-    inputFormJson ={}
+    inputFormJson =[]
     with get_engine().begin() as conn:
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
         find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
@@ -717,7 +718,7 @@ async def edit_params(analysis_id):
         if "data_component_ids" in request_param:
             data_component_ids = request_param["data_component_ids"]
             data_component_ids = json.loads(data_component_ids)
-            analysis_result = analysis_result_service.find_analyais_result_groupd_by_component_ids(conn,data_component_ids)
+            analysis_result = analysis_result_service.find_analyais_result_groupd_by_component_ids(conn,data_component_ids,find_analysis["project"])
         
         component_type = find_component["component_type"]
         

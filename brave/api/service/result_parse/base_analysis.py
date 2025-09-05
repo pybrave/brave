@@ -21,6 +21,7 @@ import importlib
 from brave.api.utils.get_db_utils import get_ids,get_group
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
+from brave.api.service import project_service
 
 
 class BaseAnalysis(ABC):
@@ -75,7 +76,7 @@ class BaseAnalysis(ABC):
             "request_param":json.dumps(request_param),
             # "analysis_method":component_script,
             "component_id":component['component_id'],
-            "is_report":request_param['is_report'] if "is_report" in request_param else False,
+            # "is_report":request_param['is_report'] if "is_report" in request_param else False,
             "data_component_ids":request_param['data_component_ids'],
             # "analysis_status": "running" if is_submit else "created"
             # "parse_analysis_module":parse_analysis_module
@@ -105,7 +106,7 @@ class BaseAnalysis(ABC):
                 json.dump(parse_analysis_result,f)
 
             # new_analysis['container_id'] = component["container_id"]
-            if result.run_type =="job":
+            if result.run_type =="job" and result.analysis_status != "running":
                 new_analysis["analysis_status"] = "updated"
             # new_analysis['output_format'] = parse_analysis_result_module
             stmt = t_analysis.update().values(new_analysis).where(t_analysis.c.analysis_id==request_param['analysis_id'])
@@ -273,7 +274,14 @@ class BaseAnalysis(ABC):
         #     db_field = get_db_field()
         db_ids_dict = {key: get_ids(request_param[key]) for key in query_name_list if key in request_param}
         db_dict = { key:analysis_result_service.find_analyais_result_by_ids(conn,value) for key,value in  db_ids_dict.items()}
-        
+        project_list = [item["project"] for item_list in db_dict.values() for item in item_list]
+        project_list = list(set(project_list))
+        metadata_form =[]
+        if len(project_list)>0:
+            project_list =  project_service.find_by_project_ids(conn,project_list)
+            metadata_form = [json.loads(item["metadata_form"]) for item in project_list if item["metadata_form"]]
+            metadata_form = [item for item_list in metadata_form for item in item_list if item is not None]
+
         groups_name = {key:get_group(request_param[key]) for key in query_name_list if key in request_param }
         
         extra_dict={}
@@ -304,7 +312,8 @@ class BaseAnalysis(ABC):
             "analysis_dict":db_dict,
             "groups_name":groups_name,
             "groups":query_name_list,
-            "settings":settings
+            "settings":settings,
+            "metadata_form":metadata_form
         }
 
         parse_data = getattr(module, "parse_data")
