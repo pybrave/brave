@@ -72,7 +72,8 @@ analysis = Table(
 
     # Column("container_id", String(255)),
     # Column("sub_container_id", String(255)),
-    Column("data_component_ids",Text)
+    Column("data_component_ids",Text),
+    Column("extra_project_ids",Text().with_variant(LONGTEXT(), "mysql"))
 )
 
 analysis_result = Table(

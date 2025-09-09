@@ -214,3 +214,12 @@ def list_analysis(conn,query:QueryAnalysis):
     if conditions:
         stmt = stmt.where(and_(*conditions) if len(conditions) > 1 else conditions[0])
     return conn.execute(stmt).mappings().all()
+
+
+def update_extra_project(conn,analysis_id,project):
+    stmt = (
+        update(t_analysis)
+        .where(t_analysis.c.analysis_id == analysis_id)
+        .values(extra_project_ids = json.dumps(project))
+    )
+    conn.execute(stmt)

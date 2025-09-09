@@ -20,7 +20,7 @@ from sqlalchemy import and_,or_
 import pandas as pd
 from brave.api.models.core import samples
 from brave.api.config.db import get_engine
-from brave.api.schemas.analysis import AnalysisInput,Analysis,QueryAnalysis,AnalysisExecuterModal
+from brave.api.schemas.analysis import AnalysisInput,Analysis, UpdateProject,QueryAnalysis,AnalysisExecuterModal
 from typing import Dict, Any
 from brave.api.models.core import analysis,t_container
 import json
@@ -707,18 +707,24 @@ async def update_report(analysis_id):
     return "success"
 
 
-@analysis_api.get("/analysis/edit-params/{analysis_id}")
+@analysis_api.post("/analysis/edit-params/{analysis_id}")
 async def edit_params(analysis_id):
-    analysis_result={}
-    inputFormJson =[]
+    analysis_result = {}
+    inputFormJson = []
+    # project = editParams.project if editParams.project else []
     with get_engine().begin() as conn:
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
         find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
+        project = json.loads(find_analysis["extra_project_ids"]) if "extra_project_ids" in  find_analysis else []
+
         request_param = json.loads(find_analysis["request_param"])
         if "data_component_ids" in request_param:
             data_component_ids = request_param["data_component_ids"]
             data_component_ids = json.loads(data_component_ids)
-            analysis_result = analysis_result_service.find_analyais_result_groupd_by_component_ids(conn,data_component_ids,find_analysis["project"])
+            # find_analysis["project"]
+           
+            project.append(find_analysis["project"])
+            analysis_result = analysis_result_service.find_analyais_result_groupd_by_component_ids(conn,data_component_ids,project)
         
         component_type = find_component["component_type"]
         
@@ -746,3 +752,11 @@ async def edit_params(analysis_id):
     }
 
     return result
+
+
+@analysis_api.post("/analysis/update-extra-project/{analysis_id}")
+async def edit_params(project:UpdateProject,analysis_id):
+    with get_engine().begin() as conn:
+        # find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        analysis_service.update_extra_project(conn,analysis_id,project.project)
+    return "success"

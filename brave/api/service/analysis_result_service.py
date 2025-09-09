@@ -14,8 +14,8 @@ def get_analysis_result_metadata(item):
         del item["metadata"]
     return item
 
-def find_analyais_result_groupd_by_component_ids(conn,component_ids,project):
-    result_dict =  find_analyais_result(conn,AnalysisResultQuery(component_ids=component_ids,project=project))
+def find_analyais_result_groupd_by_component_ids(conn,component_ids,projectList):
+    result_dict =  find_analyais_result(conn,AnalysisResultQuery(component_ids=component_ids,projectList=projectList))
     result_dict = [get_analysis_result_metadata(item) for item in result_dict]
             
         # if item["metadata_form"]:
@@ -73,6 +73,10 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         conditions.append(analysis_result.c.component_id.in_(analysisResultQuery.component_ids))
     if analysisResultQuery.component_id is not None:
         conditions.append(analysis_result.c.component_id == analysisResultQuery.component_id)
+    if analysisResultQuery.projectList is not None:
+        conditions.append(analysis_result.c.project.in_(analysisResultQuery.projectList))
+
+
     stmt= stmt.where(and_( *conditions))
     
     result  = conn.execute(stmt)
