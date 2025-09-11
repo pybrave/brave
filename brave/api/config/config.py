@@ -85,3 +85,12 @@ class Settings:
 def get_settings() -> Settings:
     """全局共享 Settings 实例"""
     return Settings()
+
+
+# crud.py
+def init(app):
+    global _app
+    _app = app
+
+def get_graph():
+    return _app.state.manager.graph

@@ -18,7 +18,8 @@ setup(
         "psutil",
         "httpx",
         "nbformat",
-        "PyMuPDF"
+        "PyMuPDF",
+        "py2neo"
         ],
     entry_points={
         "console_scripts": [

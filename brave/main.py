@@ -19,7 +19,7 @@ from brave.api.routes.bio_database import bio_database
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
-from brave.api.config.config import get_settings
+from brave.api.config.config import get_settings,init as init_config
 from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
 from brave.api.routes.namespace import namespace
 from brave.api.routes.file_operation import file_operation  
@@ -30,6 +30,7 @@ from brave.api.routes.setting import setting_controller
 from brave.app_manager import AppManager
 from brave.app_container import AppContainer
 from brave.setup_routes import setup_routes
+
 container = AppContainer()
 # container.config.executer_type.from_env("EXECUTER_TYPE","local")    
 
@@ -44,7 +45,7 @@ async def lifespan(app: FastAPI):
     # container.app_manager.override(providers.Object(manager))
     await manager.start()
     setup_routes(app,manager)
-    
+    init_config(app)
     app.state.manager = manager 
     yield 
     await manager.stop()

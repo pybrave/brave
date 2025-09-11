@@ -107,7 +107,8 @@ docker run  \
   --providers.docker=true \
   --log.level=DEBUG \
   --entrypoints.web.address=:80 
-  
+
+autossh -v  -N -R 5003:localhost:8089 master 
 ```
 ```
 docker run --rm   \
@@ -137,6 +138,14 @@ docker run --rm   \
   --label "traefik.http.middlewares.rstudio-server-root-path-header.headers.customrequestheaders.X-RStudio-Root-Path=/rstudio" \
   --label "traefik.http.routers.rstudio.middlewares=rstudio-strip,rstudio-server-root-path-header" \
   registry.cn-hangzhou.aliyuncs.com/wybioinfo/maaslin2:1.22 /init 
+```
+
+```
+docker run --rm -d \
+    --publish=7474:7474 --publish=7687:7687 \
+    --env=NEO4J_AUTH=none \
+    --volume=$HOME/neo4j/data:/data \
+    neo4j
 ```
 
 

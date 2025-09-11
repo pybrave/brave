@@ -27,6 +27,8 @@ from brave.api.core.event import WorkflowEvent
 import  brave.api.service.analysis_service as analysis_service
 from brave.api.executor.base import JobExecutor
 from brave.api.executor.local_executor import LocalExecutor
+from py2neo import Graph
+
 class AppManager:
     @inject
     def __init__(
@@ -41,9 +43,10 @@ class AppManager:
         watchfile_event_router:WatchFileEvenetRouter=Provide[AppContainer.watchfile_event_router],
         job_executor:JobExecutor=Provide[AppContainer.job_executor_selector],
         config = Provide[AppContainer.config]   
+        
         ):
         self.config = config
-
+        self.graph: Graph | None = None
         self.workflow_queue_manager = workflow_queue_manager
         self.ingress_event_router = ingress_event_router
         self.ingress_manager = ingress_manager
@@ -68,7 +71,12 @@ class AppManager:
         if not os.path.exists(watch_path):
             os.makedirs(watch_path)
 
-   
+        # self.graph = Graph(
+        #     self.settings.bolt_url,
+        #     auth=(self.settings.user, self.settings.password)
+        # )
+
+        self.graph  = Graph("bolt://localhost:7687", auth=("neo4j", "password"))
 
         self.file_watcher_service = FileWatcherService(
             watch_path=watch_path,
@@ -156,4 +164,5 @@ class AppManager:
         for task in self.tasks:
             task.cancel()
         await asyncio.gather(*self.tasks, return_exceptions=True)
+        self.graph = None
         print("[AppManager] All background tasks stopped")

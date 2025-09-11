@@ -715,7 +715,7 @@ async def edit_params(analysis_id):
     with get_engine().begin() as conn:
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
         find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
-        project = json.loads(find_analysis["extra_project_ids"]) if "extra_project_ids" in  find_analysis else []
+        project = json.loads(find_analysis["extra_project_ids"]) if "extra_project_ids" in  find_analysis and find_analysis["extra_project_ids"] else []
 
         request_param = json.loads(find_analysis["request_param"])
         if "data_component_ids" in request_param:

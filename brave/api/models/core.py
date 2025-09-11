@@ -3,7 +3,7 @@ from sqlalchemy import Column, DateTime, Table
 from sqlalchemy.sql.sqltypes import Integer, String,Boolean
 from brave.api.config.db import meta
 # from sqlalchemy.dialects.mysql import LONGTEXT
-from sqlalchemy import Text
+from sqlalchemy import Text,Index
 from sqlalchemy.dialects.mysql import LONGTEXT
 
 
