@@ -84,6 +84,8 @@ t_study = Table(
     # 主键：每个研究唯一
 
     Column("entity_id", String(50), primary_key=True, index=True),
+    Column("parent_entity_id", String(50),  index=True),       
+
     Column("entity_name", String(200) , nullable=False, index=True),
     Column("title", Text, comment="研究标题"),
     Column("overall_design", Text, comment="研究总体设计"),
@@ -96,22 +98,24 @@ t_study = Table(
     Column("bmi", String(50), comment="BMI，若有"),
     Column("amplicon_region", String(50), comment="16S rRNA测序区域"),
     
-    Column("processing_software", String(100), comment="数据处理软件"),
-    Column("reference_database", String(100), comment="参考数据库"),
-    Column("original_data_available", String(50), comment="原始数据是否可用"),
+    Column("processing_software", String(255), comment="数据处理软件"),
+    Column("reference_database", String(255), comment="参考数据库"),
+    Column("original_data_available", String(255), comment="原始数据是否可用"),
     
-    Column("pmid", String(50), comment="PubMed ID"),
-    Column("doi", String(100), comment="DOI"),
-    Column("country", String(50), comment="研究国家/地区"),
+    Column("pmid", String(255), comment="PubMed ID"),
+    Column("doi", String(255), comment="DOI"),
+    Column("country", String(255), comment="研究国家/地区"),
     
     Column("citation", Text, comment="完整引用信息"),
-    Column("pubmed_link", String(200), comment="PubMed链接"),
-    Column("doi_link", String(200), comment="DOI链接"),
+    Column("pubmed_link", String(255), comment="PubMed链接"),
+    Column("doi_link", String(255), comment="DOI链接"),
 )
 
 t_disease = Table(
     "disease",
     meta,
     Column("entity_id", String(50), primary_key=True, index=True),
-    Column("entity_name", String(200) , nullable=False, index=True)
+    Column("entity_name", String(255) , nullable=False, index=True),
+    Column("parent_entity_id", String(255),  index=True)
+
 )    

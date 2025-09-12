@@ -4,6 +4,7 @@ from typing import Dict
 class PageEntity(BaseModel):
     page_number: Optional[int]=1
     page_size: Optional[int]=10
+    parent_id: Optional[int]=None
     keywords: Optional[str]=None
 
 
@@ -18,3 +19,8 @@ class RelationshipRequest(BaseModel):
     from_entity: Entity
     to_entity: Entity
     relation_type: str         # 关系类型，比如 "ASSOCIATED_WITH"
+
+class GraphQuery(BaseModel):
+    label: Optional[str] = None
+    keyword: Optional[str] = None
+    entity_id: Optional[str] = None

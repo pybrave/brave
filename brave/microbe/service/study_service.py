@@ -7,6 +7,7 @@ from brave.microbe.schemas.entity import PageEntity
 from brave.microbe.models.core import t_study
 from sqlalchemy import select,func
 from sqlalchemy.engine import Connection
+from brave.microbe.service import graph_service
 
 def page_study(conn: Connection, query: PageEntity):
     stmt =select(
@@ -39,8 +40,8 @@ def page_study(conn: Connection, query: PageEntity):
         count_stmt = select(func.count()).select_from(t_study).where(conditions)
     else:
         count_stmt = select(func.count()).select_from(t_study)
-
-    stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
+    if query.page_size != -1:
+        stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
     find_study = conn.execute(stmt).mappings().all()
     total = conn.execute(count_stmt).scalar()
 
@@ -59,6 +60,7 @@ def find_study_by_id(conn: Connection, entity_id: str):
 def update_study(conn: Connection, entity_id: str, updateData: dict):
     stmt = t_study.update().where(t_study.c.entity_id == entity_id).values(updateData)
     conn.execute(stmt)  
+
 
 def add_study(conn: Connection, data: dict):
     data['entity_id'] =uuid()
@@ -91,12 +93,18 @@ def details_study_by_id(conn: Connection, entity_id: str):
 
 def import_studies(conn: Connection, records: list, batch_size: int = 1000):
     inserted = 0
-    with conn.begin():  # type: Connection
-        for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
-            stmt = t_study.insert()
-            conn.execute(stmt, batch)
-            inserted += len(batch)
-            print(f"Inserted {inserted} records...")
+    # with conn.begin():  # type: Connection
+    for i in range(0, len(records), batch_size):
+        batch = records[i:i + batch_size]
+        for item in batch:
+            item['entity_id'] = uuid()
+        stmt = t_study.insert()
+        conn.execute(stmt, batch)
+        inserted += len(batch)
+        print(f"Inserted {inserted} records...")
 
     return {"message": f"导入完成，共导入 {inserted} 行"}
+
+def delete_study_by_id(conn: Connection, entity_id: str):
+    stmt = t_study.delete().where(t_study.c.entity_id == entity_id)
+    conn.execute(stmt)

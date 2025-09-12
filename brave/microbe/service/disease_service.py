@@ -26,8 +26,8 @@ def page_disease(conn: Connection, query: PageEntity):
         count_stmt = select(func.count()).select_from(t_disease).where(conditions)
     else:
         count_stmt = select(func.count()).select_from(t_disease)
-
-    stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
+    if query.page_size != -1:
+        stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
     find_disease = conn.execute(stmt).mappings().all()
     total = conn.execute(count_stmt).scalar()
 
@@ -74,3 +74,7 @@ def import_diseases(conn: Connection, records: list, batch_size: int = 1000):
             print(f"Inserted {inserted} records...")
 
     return {"message": f"导入完成，共导入 {inserted} 行"}
+
+def delete_disease_by_id(conn: Connection, entity_id: str):
+    stmt = t_disease.delete().where(t_disease.c.entity_id == entity_id)
+    conn.execute(stmt)
