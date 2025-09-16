@@ -3,6 +3,10 @@ from brave.api.config.db import get_engine
 from brave.microbe.models.core import t_taxonomy
 from brave.microbe.service import study_service
 from brave.microbe.service import  disease_service
+from brave.microbe.service import  chemicals_and_drugs_service
+from brave.microbe.service import  diet_and_food_service
+
+
 from brave.microbe.utils.import_ncbi_taxonomy import merge_all
 from sqlalchemy import insert
 import brave.microbe.service.taxonomy_service as taxonomy_service
@@ -48,6 +52,10 @@ async def page_entity(entity: str, query: PageEntity):
             result = study_service.page_study(conn, query)  
         elif entity == "disease":
             result = disease_service.page_disease(conn, query)
+        elif entity == "chemicals_and_drugs":
+            result = chemicals_and_drugs_service.page(conn, query)
+        elif entity == "diet_and_food":
+            result = diet_and_food_service.page(conn, query)
         else:
             raise ValueError("Unsupported entity type")
     
@@ -65,6 +73,10 @@ async def get_entity(entity: str, entity_id: str):
             result = study_service.find_study_by_id(conn, entity_id)
         elif entity == "disease":
             result = disease_service.find_disease_by_id(conn, entity_id)
+        elif entity == "chemicals_and_drugs":
+            result = chemicals_and_drugs_service.find_by_id(conn, entity_id)
+        elif entity == "diet_and_food":
+            result = diet_and_food_service.find_by_id(conn, entity_id)
         else:
             raise ValueError("Unsupported entity type")
     result = dict(result)
@@ -80,6 +92,10 @@ async def update_entity(entity: str, entity_id: str, updateData: dict):
             study_service.update_study(conn, entity_id, updateData) 
         elif entity == "disease":
             disease_service.update_disease(conn, entity_id, updateData)  
+        elif entity == "chemicals_and_drugs":
+            chemicals_and_drugs_service.update(conn, entity_id, updateData)
+        elif entity == "diet_and_food":
+            diet_and_food_service.update(conn, entity_id, updateData)
         else:
             raise ValueError("Unsupported entity type")
     find_node = graph_service.find_entity( entity, entity_id=entity_id)  # 同步更新图数据库中的节点信息
@@ -96,6 +112,10 @@ async def add_entity(entity: str, data: dict):
             study_service.add_study(conn, data)     
         elif entity == "disease":   
             disease_service.add_disease(conn, data)
+        elif entity == "chemicals_and_drugs":
+            chemicals_and_drugs_service.add(conn, data)
+        elif entity == "diet_and_food":
+            diet_and_food_service.add(conn, data)
         else:
             raise ValueError("Unsupported entity type")
     return {"message": "Entity added successfully"}
@@ -111,6 +131,10 @@ async def get_entity(entity: str, keywords: str):
             result = study_service.find_study_by_keywords(conn, keywords)
         elif entity == "disease":
             result = disease_service.find_disease_by_keywords(conn, keywords)
+        elif entity == "chemicals_and_drugs":
+            result = chemicals_and_drugs_service.find_by_keywords(conn, keywords)
+        elif entity == "diet_and_food":
+            result = diet_and_food_service.find_by_keywords(conn, keywords)
         else:
             raise ValueError("Unsupported entity type")
     return result
@@ -126,6 +150,12 @@ async def get_entity(entity: str, entity_id: str):
             result = study_service.details_study_by_id(conn, entity_id)
         elif entity == "disease":
             result = disease_service.details_disease_by_id(conn, entity_id)
+        elif entity == "chemicals_and_drugs":
+            result = chemicals_and_drugs_service.details_by_id(conn, entity_id)
+        elif entity == "diet_and_food": 
+            result = diet_and_food_service.details_by_id(conn, entity_id)
+        elif entity =="association":
+            result = graph_service.get_association_details(entity_id)
         else:
             raise ValueError("Unsupported entity type")
     if type(result) != dict:
@@ -143,6 +173,10 @@ async def import_entitys(entity: str, entity_list: list[dict]):
             result = study_service.import_studies(conn, entity_list)
         elif entity == "disease":
             result = disease_service.import_diseases(conn, entity_list)
+        elif entity == "chemicals_and_drugs":
+            result = chemicals_and_drugs_service.imports(conn, entity_list)
+        elif entity == "diet_and_food":
+            result = diet_and_food_service.imports(conn, entity_list)
         else:
             raise ValueError("Unsupported entity type")
     return result
@@ -163,6 +197,10 @@ async def delete_entity(entity: str, entity_id: str,force: bool=False):
                 study_service.delete_study_by_id(conn, entity_id)
             elif entity == "disease":
                 disease_service.delete_disease_by_id(conn, entity_id)
+            elif entity == "chemicals_and_drugs":
+                chemicals_and_drugs_service.delete_by_id(conn, entity_id)
+            elif entity == "diet_and_food":
+                diet_and_food_service.delete_by_id(conn, entity_id)
             else:
                 raise ValueError("Unsupported entity type")
         return {"message": "Entity deleted successfully"}

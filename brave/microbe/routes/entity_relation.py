@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException,Query
 from brave.api.config.config import  get_graph
 from py2neo import Graph, Node, Relationship
 
-from brave.microbe.schemas.entity import GraphQuery, RelationshipRequest
+from brave.microbe.schemas.entity import GraphQuery, RelationshipRequest,GraphQueryV2
 
 entity_relation_api = APIRouter(prefix="/entity-relation")
 
@@ -40,6 +40,140 @@ def create_relationship(req: RelationshipRequest):
     return {"result": result}
 
 
+
+@entity_relation_api.post("/graph")
+def get_graph_relations(graphQuery: GraphQuery):
+    """
+    获取图数据，包括 Taxonomy、干预、文献和疾病关系
+    - label: 过滤节点类型，如 Taxonomy
+    - keyword: 过滤节点名称包含关键词
+    - entity_id: 指定节点
+    """
+    graph = get_graph()
+    label = graphQuery.label
+    keyword = graphQuery.keyword
+    entity_id = graphQuery.entity_id
+
+    nodes_dict = {}
+    links = {}
+
+    query = """
+    MATCH (s:study)<-[:EVIDENCED_BY]-(a:association)
+    """
+    if "disease" in graphQuery.nodes:
+        query += " MATCH (a)-[:OBSERVED_IN]->(d:disease)"
+    
+    if "diet_and_food" in graphQuery.nodes:
+        query += " MATCH (a)-[:SUBJECT]->(i:diet_and_food)"
+    if "taxonomy" in graphQuery.nodes:
+        query += " MATCH (a)-[:OBJECT]->(t:taxonomy)"
+
+    params = {}
+    query +=" WHERE 1=1"
+    if keyword:
+        query += " AND t.entity_name CONTAINS $keyword "
+        params["keyword"] = keyword
+    if entity_id:
+        query += " AND t.entity_id = $entity_id"
+        params["entity_id"] = entity_id
+
+
+
+    query += """
+    RETURN a.entity_id AS association_id, a.effect AS effect,
+           collect(DISTINCT {id: s.entity_id, name: s.entity_name}) AS studies 
+
+    """   
+#   t.entity_id AS taxonomy_id, t.entity_name AS taxonomy_name,
+#             d.entity_id AS disease_id, d.entity_name AS disease_name,
+#            i.entity_id AS intervention_id, i.entity_name AS intervention_name,
+  
+    if "disease" in graphQuery.nodes:
+        query += ", d.entity_id AS disease_id, d.entity_name AS disease_name"
+    if "diet_and_food" in graphQuery.nodes:
+        query += ", i.entity_id AS diet_and_food_id, i.entity_name AS diet_and_food_name"
+    if "taxonomy" in graphQuery.nodes:
+        query += ", t.entity_id AS taxonomy_id, t.entity_name AS taxonomy_name"
+    if "study" in graphQuery.nodes:
+        query += ", s.entity_id AS study_id, s.entity_name AS study_name"
+
+    query += " LIMIT 100"
+    #     WITH a,t,d,i, collect(DISTINCT s.entity_id) AS study_ids,
+    #     collect(DISTINCT s.entity_name) AS study_names
+    # SET a.study_ids = study_ids,
+    #     a.study_names = study_names
+            #  collect(DISTINCT {id: s.entity_id, name: s.entity_name}) AS studies 
+    # WITH a,t,d,i, collect(DISTINCT {id: s.entity_id, name: s.entity_name}) AS study_list
+    # SET a.studies = study_list
+            #    s.entity_id AS study_id, s.entity_name AS study_name,
+
+
+    result = graph.run(query, **params).data()
+
+    for record in result:
+        if  record["association_id"] not in nodes_dict:
+            entity_name = record["effect"]
+            if len(record["studies"]) > 0:
+                entity_name += " (" + ", ".join([s["name"] for s in record["studies"]]) + ")"
+            nodes_dict[record["association_id"]] = {
+                "id": record["association_id"],
+                "label": "association",
+                "entity_name": entity_name,
+                "effect": record["effect"],
+                "studies": record["studies"]
+            }
+        # Taxonomy 节点
+        if "taxonomy" in graphQuery.nodes and  record["taxonomy_id"] not in nodes_dict:
+            nodes_dict[record["taxonomy_id"]] = {
+                "id": record["taxonomy_id"],
+                "label": "taxonomy",
+                "entity_name": record["taxonomy_name"]
+            }
+        # Association 节点
+       
+        # Disease 节点
+        if "disease" in graphQuery.nodes and record["disease_id"] and record["disease_id"] not in nodes_dict:
+            nodes_dict[record["disease_id"]] = {
+                "id": record["disease_id"],
+                "label": "disease",
+                "entity_name": record["disease_name"]
+            }
+        # Study 节点
+        if "study" in graphQuery.nodes and  record["study_id"] and record["study_id"] not in nodes_dict:
+            nodes_dict[record["study_id"]] = {
+                "id": record["study_id"],
+                "label": "study",
+                "entity_name": record["study_name"]
+            }
+        # Intervention 节点
+        if "diet_and_food" in graphQuery.nodes and record["diet_and_food_id"] and record["diet_and_food_id"] not in nodes_dict:
+            nodes_dict[record["diet_and_food_id"]] = {
+                "id": record["diet_and_food_id"],
+                "label": "diet_and_food",
+                "entity_name": record["diet_and_food_name"]
+            }
+
+        # 添加关系
+        links.setdefault(record["association_id"], set())
+        if "diet_and_food" in graphQuery.nodes and  record["diet_and_food_id"]:
+            links[record["association_id"]].add(("SUBJECT", record["diet_and_food_id"]))
+        if "disease" in graphQuery.nodes and  record["disease_id"]:
+            links[record["association_id"]].add(("OBJECT", record["disease_id"]))
+        if "study" in graphQuery.nodes and  record["study_id"]:
+            links[record["association_id"]].add(("EVIDENCED_BY", record["study_id"]))
+        # Taxonomy 节点可以保留原来的 SUBJECT 关系，也可以改成 OBJECT，看业务需求
+        if  "taxonomy" in graphQuery.nodes and record["taxonomy_id"]:
+            links[record["association_id"]].add(("TAXONOMY", record["taxonomy_id"]))
+
+    # 转换 links 为前端可用列表
+    links_list = [{"source": source, "target": target, "type": rel_type}
+                  for source, targets in links.items() for rel_type, target in targets]
+
+    return {
+        "nodes": list(nodes_dict.values()),
+        "links": links_list
+    }
+
 @entity_relation_api.post("/graph-v2")
 def get_graph_relations(graphQuery: GraphQuery):
     """
@@ -53,7 +187,11 @@ def get_graph_relations(graphQuery: GraphQuery):
     entity_id = graphQuery.entity_id
 
     # 基础查询
-    query = "MATCH (a)-[r]->(b) WHERE 1=1 "
+    # query = "MATCH (a)-[r*1..3]->(b) WHERE 1=1 "
+    query ="""
+    MATCH (a)-[r*1..3]->(b)
+    WHERE 1=1
+    """
     params = {}
 
     # 按标签过滤
@@ -71,9 +209,11 @@ def get_graph_relations(graphQuery: GraphQuery):
         params["entity_id"] = entity_id
 
     query += """
+    WITH a, b, r
+    UNWIND r AS rel
     RETURN a.entity_id AS from_id, labels(a) AS from_label, a.entity_name AS from_name,
            b.entity_id AS to_id, labels(b) AS to_label, b.entity_name AS to_name,
-           type(r) AS relation_type
+           type(rel) AS relation_type  LIMIT 100
     """
 
     result = graph.run(query, **params).data()
@@ -108,7 +248,7 @@ def get_graph_relations(graphQuery: GraphQuery):
         "links": links
     }
 
-@entity_relation_api.post("/graph")
+@entity_relation_api.post("/graph-v2")
 def get_graph_relations(graphQuery: GraphQuery):
     """
     获取图数据，包括游离节点
@@ -161,6 +301,7 @@ def get_graph_relations(graphQuery: GraphQuery):
     RETURN a.entity_id AS from_id, a.labels AS from_labels, a.entity_name AS from_name, id(a) AS from_node_id,
            b.entity_id AS to_id, b.labels AS to_labels, b.entity_name AS to_name, id(b) AS to_node_id,
            type(r) AS relation_type, id(r) AS relation_id
+    LIMIT 100
     """
 
     rel_results = graph.run(rel_query, **params).data()

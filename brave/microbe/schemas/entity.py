@@ -24,3 +24,11 @@ class GraphQuery(BaseModel):
     label: Optional[str] = None
     keyword: Optional[str] = None
     entity_id: Optional[str] = None
+    nodes:Optional[list[str]] = None
+
+class GraphQueryV2(BaseModel):
+    entity_id: Optional[str]=None
+    entity_type: Optional[str]=None  # taxonomy / disease / intervention / microbe / study
+    keyword: Optional[str]=None
+    depth: int = 1  # 关系深度，可控制查询范围
+    relation_types: Optional[list[str]]=None  # 指定需要的关系类型

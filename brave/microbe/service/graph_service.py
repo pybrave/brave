@@ -61,3 +61,24 @@ def delete_by_node_id(node_id: int):
     """
     graph.run(query, node_id=node_id)
     print(f"Node with ID {node_id} and its relationships deleted successfully")
+
+
+def  get_association_details(association_id: str):
+    graph = get_graph()
+    query = """
+    MATCH (s:study)<-[:EVIDENCED_BY]-(a:association)
+    MATCH (a)-[:OBSERVED_IN]->(d:disease)
+    MATCH (a)-[:SUBJECT]->(i:diet_and_food)
+    MATCH (a)-[:OBJECT]->(t:taxonomy)
+    WHERE a.entity_id = $association_id
+    RETURN a.entity_id AS association_id, a.effect AS effect,
+            collect(DISTINCT {id: s.entity_id, name: s.entity_name}) AS studies,
+            collect(DISTINCT  {id: d.entity_id, name: d.entity_name})  as  diseases,
+            collect(DISTINCT  {id: i.entity_id, name: i.entity_name}) as  diet_and_foods,
+            collect(DISTINCT  {id: t.entity_id, name: t.entity_name}) as taxonomies
+
+    """
+    result = graph.run(query, association_id=association_id).data()
+    if result:
+        return result[0]
+    raise ValueError(f"Association {association_id} not found")

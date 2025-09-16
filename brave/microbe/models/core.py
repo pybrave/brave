@@ -119,3 +119,27 @@ t_disease = Table(
     Column("parent_entity_id", String(255),  index=True)
 
 )    
+
+# t_intevention = Table(
+#     "intevention",
+#     meta,
+#     Column("entity_id", String(50), primary_key=True, index=True),
+#     Column("entity_name", String(255) , nullable=False, index=True),
+#     Column("parent_entity_id", String(255),  index=True)
+# )    
+
+t_chemicals_and_drugs  = Table(
+    "chemicals_and_drugs",
+    meta,
+    Column("entity_id", String(50), primary_key=True, index=True),
+    Column("entity_name", String(255) , nullable=False, index=True),
+    Column("parent_entity_id", String(255),  index=True)
+)   
+
+t_diet_and_food  = Table(
+    "diet_and_food",
+    meta,
+    Column("entity_id", String(50), primary_key=True, index=True),
+    Column("entity_name", String(255) , nullable=False, index=True),
+    Column("parent_entity_id", String(255),  index=True)
+)  
