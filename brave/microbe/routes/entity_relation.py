@@ -4,7 +4,7 @@ from brave.api.config.config import  get_graph
 from py2neo import Graph, Node, Relationship
 
 from brave.microbe.schemas.entity import GraphQuery, RelationshipRequest,GraphQueryV2
-
+from brave.microbe.service import graph_service
 entity_relation_api = APIRouter(prefix="/entity-relation")
 
 @entity_relation_api.get("/test")
@@ -40,7 +40,6 @@ def create_relationship(req: RelationshipRequest):
     return {"result": result}
 
 
-
 @entity_relation_api.post("/graph")
 def get_graph_relations(graphQuery: GraphQuery):
     """
@@ -50,54 +49,16 @@ def get_graph_relations(graphQuery: GraphQuery):
     - entity_id: 指定节点
     """
     graph = get_graph()
-    label = graphQuery.label
-    keyword = graphQuery.keyword
-    entity_id = graphQuery.entity_id
-
     nodes_dict = {}
     links = {}
-
-    query = """
-    MATCH (s:study)<-[:EVIDENCED_BY]-(a:association)
-    """
-    if "disease" in graphQuery.nodes:
-        query += " MATCH (a)-[:OBSERVED_IN]->(d:disease)"
+    graphQuery.collect_association_study = True
+    query, params,node_var_map = graph_service.build_cypher(graphQuery)
+    query = graph_service.build_return_cypher(query,graphQuery)
+    query = graph_service.build_order_cypher(query,graphQuery)
     
-    if "diet_and_food" in graphQuery.nodes:
-        query += " MATCH (a)-[:SUBJECT]->(i:diet_and_food)"
-    if "taxonomy" in graphQuery.nodes:
-        query += " MATCH (a)-[:OBJECT]->(t:taxonomy)"
-
-    params = {}
-    query +=" WHERE 1=1"
-    if keyword:
-        query += " AND t.entity_name CONTAINS $keyword "
-        params["keyword"] = keyword
-    if entity_id:
-        query += " AND t.entity_id = $entity_id"
-        params["entity_id"] = entity_id
-
-
-
-    query += """
-    RETURN a.entity_id AS association_id, a.effect AS effect,
-           collect(DISTINCT {id: s.entity_id, name: s.entity_name}) AS studies 
-
-    """   
-#   t.entity_id AS taxonomy_id, t.entity_name AS taxonomy_name,
-#             d.entity_id AS disease_id, d.entity_name AS disease_name,
-#            i.entity_id AS intervention_id, i.entity_name AS intervention_name,
-  
-    if "disease" in graphQuery.nodes:
-        query += ", d.entity_id AS disease_id, d.entity_name AS disease_name"
-    if "diet_and_food" in graphQuery.nodes:
-        query += ", i.entity_id AS diet_and_food_id, i.entity_name AS diet_and_food_name"
-    if "taxonomy" in graphQuery.nodes:
-        query += ", t.entity_id AS taxonomy_id, t.entity_name AS taxonomy_name"
-    if "study" in graphQuery.nodes:
-        query += ", s.entity_id AS study_id, s.entity_name AS study_name"
-
     query += " LIMIT 100"
+    print(query)
+    
     #     WITH a,t,d,i, collect(DISTINCT s.entity_id) AS study_ids,
     #     collect(DISTINCT s.entity_name) AS study_names
     # SET a.study_ids = study_ids,
@@ -127,7 +88,8 @@ def get_graph_relations(graphQuery: GraphQuery):
             nodes_dict[record["taxonomy_id"]] = {
                 "id": record["taxonomy_id"],
                 "label": "taxonomy",
-                "entity_name": record["taxonomy_name"]
+                "entity_name": record["taxonomy_name"],
+                "taxonomy_links": record["taxonomy_links"]
             }
         # Association 节点
        
@@ -173,6 +135,8 @@ def get_graph_relations(graphQuery: GraphQuery):
         "nodes": list(nodes_dict.values()),
         "links": links_list
     }
+
+
 
 @entity_relation_api.post("/graph-v2")
 def get_graph_relations(graphQuery: GraphQuery):
@@ -394,5 +358,6 @@ def delete_relation_by_id(relation_id: int):
 
     # return {"message": f"Relation {relation_id} deleted successfully, isolated nodes removed if any."}
     return {"message": f"Relation {relation_id} deleted successfully."}
+
 
 

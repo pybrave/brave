@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from brave.api.config.db import get_engine
 from brave.microbe.models.core import t_taxonomy
 from brave.microbe.service import study_service
@@ -10,7 +10,7 @@ from brave.microbe.service import  diet_and_food_service
 from brave.microbe.utils.import_ncbi_taxonomy import merge_all
 from sqlalchemy import insert
 import brave.microbe.service.taxonomy_service as taxonomy_service
-from brave.microbe.schemas.entity import PageEntity
+from brave.microbe.schemas.entity import DetailsNodeQuery, NodeQuery, PageEntity
 from brave.microbe.service import graph_service
 from brave.api.config.config import  get_graph
 
@@ -141,8 +141,9 @@ async def get_entity(entity: str, keywords: str):
 
 
 
-@entity_api.get("/details/{entity}/{entity_id}")
-async def get_entity(entity: str, entity_id: str):
+@entity_api.post("/details/{entity}/{entity_id}")
+async def get_entity(entity: str, entity_id: str,
+                     detailsNodeQuery: DetailsNodeQuery):
     with get_engine().begin() as conn:
         if entity=="taxonomy":  
             result = taxonomy_service.details_taxonomy_by_id(conn, entity_id)
@@ -162,6 +163,17 @@ async def get_entity(entity: str, entity_id: str):
         # raise HTTPException(status_code=404, detail=f"{entity} with id {entity_id} not found")
         result = dict(result)
     result["entity_type"] = entity
+    nodes = detailsNodeQuery.nodes
+    if entity not in nodes:
+        nodes.append(entity)
+    if "study" not in nodes:
+        nodes.append("study")
+    graph_table = graph_service.find_associations_by_entity_id(entity_type=entity,entity_id=entity_id,nodes=detailsNodeQuery.nodes)
+    if len(graph_table)==1:
+        result["graph_table"] = graph_table[0]
+    else:
+        raise HTTPException(status_code=404, detail=f"Graph data for {entity} with id {entity_id} not found or many records found") 
+
     return result
 
 @entity_api.post("/import/{entity}")
@@ -231,3 +243,8 @@ async def get_all_nodes():
 def delete_node_by_id(node_id: int):
     graph_service.delete_by_node_id(node_id)
     return {"message": f"Node {node_id} and its relationships deleted successfully"}
+
+
+@entity_api.post("/query-nodes")
+def query_nodes(query: NodeQuery):
+    return graph_service.query_nodes(query)

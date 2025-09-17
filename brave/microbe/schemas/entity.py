@@ -25,6 +25,12 @@ class GraphQuery(BaseModel):
     keyword: Optional[str] = None
     entity_id: Optional[str] = None
     nodes:Optional[list[str]] = None
+    nodes_dict: Optional[Dict[str, list[str]]] = None
+    nodes_dict_condition: Optional[str] = "OR"  # "AND" 或 "OR"
+    order_by: Optional[str] = "taxonomy"  # 排序字段
+    order_metric: Optional[str] = "study" 
+    collect_association_study: Optional[bool]= False
+
 
 class GraphQueryV2(BaseModel):
     entity_id: Optional[str]=None
@@ -32,3 +38,14 @@ class GraphQueryV2(BaseModel):
     keyword: Optional[str]=None
     depth: int = 1  # 关系深度，可控制查询范围
     relation_types: Optional[list[str]]=None  # 指定需要的关系类型
+
+
+class NodeQuery(BaseModel):
+    label: str                       # 节点 label
+    keyword: Optional[str] = None    # 可选关键字
+    page: int = 1                    # 页码，从 1 开始
+    page_size: int = 20              # 每页数量
+
+
+class DetailsNodeQuery(BaseModel):
+    nodes: Optional[list[str]] = []  # 需要查询的关联节点类型，如 taxonomy, disease, diet_and_food, study
