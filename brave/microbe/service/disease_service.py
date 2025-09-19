@@ -6,11 +6,27 @@ from brave.microbe.schemas.entity import PageEntity
 from brave.microbe.models.core import t_disease
 from sqlalchemy import select,func
 from sqlalchemy.engine import Connection
+import pandas as pd
+from sqlalchemy import select,func,insert,case,exists
 
+from brave.microbe.utils import import_ncbi_mesh
+import json
 def page_disease(conn: Connection, query: PageEntity):
-    stmt =select(
-        t_disease,
-    ) 
+    if query.parent_id and query.parent_id=="default":
+        query.parent_id = "F03"
+    # stmt =select(
+    #     t_disease,
+    # ) 
+    child = t_disease.alias("child")
+    stmt = (
+        select(
+            t_disease,
+            case(
+                (exists().where(child.c.parent_entity_id == t_disease.c.entity_id), True),
+                else_=False
+            ).label("has_children")
+        )
+    )
     
     conditions = []
   
@@ -19,6 +35,12 @@ def page_disease(conn: Connection, query: PageEntity):
         conditions.append(
              t_disease.c.entity_name.ilike(keyword_pattern)
         )
+        
+    if query.parent_id:
+        conditions.append(
+            t_disease.c.parent_entity_id == query.parent_id
+        )
+    
     
     if conditions:  # 只有有条件时才加 where
         conditions = and_(*conditions) if len(conditions) > 1 else conditions[0]
@@ -65,16 +87,42 @@ def details_disease_by_id(conn: Connection, entity_id: str):
 
 def import_diseases(conn: Connection, records: list, batch_size: int = 1000):
     inserted = 0
-    with conn.begin():  # type: Connection
-        for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
-            stmt = t_disease.insert()
-            conn.execute(stmt, batch)
-            inserted += len(batch)
-            print(f"Inserted {inserted} records...")
+   
+    for i in range(0, len(records), batch_size):
+        batch = records[i:i + batch_size]
+        stmt = t_disease.insert()
+        conn.execute(stmt, batch)
+        inserted += len(batch)
+        print(f"Inserted {inserted} records...")
 
     return {"message": f"导入完成，共导入 {inserted} 行"}
 
 def delete_disease_by_id(conn: Connection, entity_id: str):
     stmt = t_disease.delete().where(t_disease.c.entity_id == entity_id)
     conn.execute(stmt)
+
+
+def get_parent(tree_number):
+    if pd.isna(tree_number):
+        return None
+    parts = tree_number.split(".")
+    return ".".join(parts[:-1]) if len(parts) > 1 else None
+
+def init(conn: Connection):
+    json_data = import_ncbi_mesh.get_json("/ssd1/wy/workspace2/nextflow-fastapi/desc2025.xml")
+    df = pd.DataFrame(json_data)
+    df_exploded = df.explode(["TreeNumberList"], ignore_index=True)
+
+    df_exploded["ParentTree"] = df_exploded["TreeNumberList"].apply(get_parent)
+    df_exploded = df_exploded[pd.notna(df_exploded["TreeNumberList"])]
+
+    df_f03 = df_exploded[df_exploded["TreeNumberList"].str.startswith("F03")]
+    df_f03 = df_f03.drop_duplicates(subset=["DescriptorUI"], keep="first")
+    df_f03_rename = df_f03[["DescriptorUI","DescriptorName","TreeNumberList","ParentTree"]].rename({
+        "DescriptorUI":"mesh_id",
+        "DescriptorName":"entity_name",
+        "TreeNumberList":"entity_id",
+        "ParentTree":"parent_entity_id",
+    },axis=1)
+    data = json.loads(df_f03_rename.to_json(orient="records"))
+    return import_diseases(conn, data)

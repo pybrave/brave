@@ -116,9 +116,28 @@ t_disease = Table(
     meta,
     Column("entity_id", String(50), primary_key=True, index=True),
     Column("entity_name", String(255) , nullable=False, index=True),
+    Column("mesh_id", String(255) , nullable=False, index=True),
     Column("parent_entity_id", String(255),  index=True)
 
 )    
+
+
+t_mesh = Table(
+    "mesh",
+    meta,
+    Column("entity_id", String(50), primary_key=True, index=True),
+    Column("entity_name", String(255) , nullable=False, index=True)
+) 
+t_mesh_tree  = Table(
+    "mesh_tree",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True), 
+    Column("entity_id", String(50) , nullable=False, index=True),
+    Column("tree_number", String(255),  index=True),
+    Column("category", String(50),  index=True),
+    Column("major_category", String(50),  index=True),
+    Column("parent_tree", String(255),  index=True)
+) 
 
 # t_intevention = Table(
 #     "intevention",
@@ -143,3 +162,13 @@ t_diet_and_food  = Table(
     Column("entity_name", String(255) , nullable=False, index=True),
     Column("parent_entity_id", String(255),  index=True)
 )  
+
+t_association  = Table(
+    "association",
+    meta,
+    Column("entity_id", String(255), primary_key=True, index=True),
+    Column("subject_id", String(255)), # Subject = 作用者（who does something）
+    Column("object_id", String(255)), # Object = 被作用者（who receives the effect）
+    Column("observed_id", String(255)), 
+    Column("evidenced_id", String(255))
+)

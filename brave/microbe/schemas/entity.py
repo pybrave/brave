@@ -4,7 +4,9 @@ from typing import Dict
 class PageEntity(BaseModel):
     page_number: Optional[int]=1
     page_size: Optional[int]=10
-    parent_id: Optional[int]=None
+    parent_id: Optional[str]=None
+    category: Optional[str]=None
+    major_category: Optional[str]=None
     keywords: Optional[str]=None
 
 
@@ -28,7 +30,7 @@ class GraphQuery(BaseModel):
     nodes_dict: Optional[Dict[str, list[str]]] = None
     nodes_dict_condition: Optional[str] = "OR"  # "AND" 或 "OR"
     order_by: Optional[str] = "taxonomy"  # 排序字段
-    order_metric: Optional[str] = "study" 
+    order_metric: Optional[str] = "study"  # study
     collect_association_study: Optional[bool]= False
 
 

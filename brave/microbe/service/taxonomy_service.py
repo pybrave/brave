@@ -5,6 +5,7 @@ from shortuuid import uuid
 from brave.microbe.schemas.entity import PageEntity
 from brave.microbe.models.core import t_taxonomy
 from sqlalchemy import select,func,insert,case,exists
+from brave.microbe.utils.import_ncbi_taxonomy import merge_all
 
 from sqlalchemy.engine import Connection
 
@@ -112,7 +113,8 @@ def page_taxonomy_v2(conn: Connection, query: PageEntity):
 
 def page_taxonomy_v3(conn: Connection, query: PageEntity):
     child = t_taxonomy.alias("child")
-
+    if query.parent_id and query.parent_id=="default":
+        query.parent_id = 1
     stmt = (
         select(
             t_taxonomy,
@@ -268,3 +270,26 @@ def import_taxonomy(conn: Connection, records: list, batch_size: int = 1000):
 def delete_taxonomy_by_id(conn: Connection, entity_id: str):
     stmt = t_taxonomy.delete().where(t_taxonomy.c.entity_id == entity_id)
     conn.execute(stmt)
+
+
+def  init(conn: Connection):
+    with open("brave/microbe/data/taxonomy.sql", "r") as f:
+        taxonomy = merge_all(
+            "/ssd1/wy/workspace2/nextflow-fastapi/taxonomy/nodes.dmp",
+            "/ssd1/wy/workspace2/nextflow-fastapi/taxonomy/names.dmp",
+            "/ssd1/wy/workspace2/nextflow-fastapi/taxonomy/division.dmp"
+        )
+        # taxonomy["taxonomy_id"] = f"TAX{taxonomy['tax_id']}"
+        taxonomy["taxonomy_id"] = "TAX" + taxonomy["tax_id"].astype(str)
+        records = taxonomy.to_dict(orient="records")
+        batch_size = 20000  # 每次 1w 行，自己调节
+
+        inserted = 0
+        for i in range(0, len(records), batch_size):
+            batch = records[i:i + batch_size]
+            stmt = insert(t_taxonomy)
+            conn.execute(stmt, batch)
+            inserted += len(batch)
+            print(f"Inserted {inserted} records...")
+
+    return {"message": f"导入完成，共导入 {inserted} 行"}

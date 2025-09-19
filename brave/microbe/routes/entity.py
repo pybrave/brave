@@ -5,9 +5,9 @@ from brave.microbe.service import study_service
 from brave.microbe.service import  disease_service
 from brave.microbe.service import  chemicals_and_drugs_service
 from brave.microbe.service import  diet_and_food_service
+from brave.microbe.service import  association_service
+from brave.microbe.service import  mesh_service
 
-
-from brave.microbe.utils.import_ncbi_taxonomy import merge_all
 from sqlalchemy import insert
 import brave.microbe.service.taxonomy_service as taxonomy_service
 from brave.microbe.schemas.entity import DetailsNodeQuery, NodeQuery, PageEntity
@@ -17,31 +17,19 @@ from brave.api.config.config import  get_graph
 entity_api = APIRouter(prefix="/entity")
 
 
-@entity_api.get("/import")
-def import_taxonomy():
+@entity_api.get("/init/{entity}")
+def import_taxonomy(entity):
     with get_engine().begin() as conn:
+        if entity == "taxonomy":
+            return  taxonomy_service.init(conn)
+        elif entity == "disease":
+            return disease_service.init(conn)
+        elif entity == "mesh":
+            return mesh_service.init(conn)
+        else:
+            raise ValueError("Unsupported entity type")
         # 读取三张表并合并
-        taxonomy = merge_all(
-            "/ssd1/wy/workspace2/nextflow-fastapi/taxonomy/nodes.dmp",
-            "/ssd1/wy/workspace2/nextflow-fastapi/taxonomy/names.dmp",
-            "/ssd1/wy/workspace2/nextflow-fastapi/taxonomy/division.dmp"
-        )
-        # taxonomy["taxonomy_id"] = f"TAX{taxonomy['tax_id']}"
-        taxonomy["taxonomy_id"] = "TAX" + taxonomy["tax_id"].astype(str)
-        records = taxonomy.to_dict(orient="records")
-        batch_size = 20000  # 每次 1w 行，自己调节
-
-        inserted = 0
-        with get_engine().begin() as conn:  # type: Connection
-            for i in range(0, len(records), batch_size):
-                batch = records[i:i + batch_size]
-                stmt = insert(t_taxonomy)
-                conn.execute(stmt, batch)
-                inserted += len(batch)
-                print(f"Inserted {inserted} records...")
-
-    return {"message": f"导入完成，共导入 {inserted} 行"}
-
+       
 
 @entity_api.post("/page/{entity}")
 async def page_entity(entity: str, query: PageEntity):
@@ -56,6 +44,10 @@ async def page_entity(entity: str, query: PageEntity):
             result = chemicals_and_drugs_service.page(conn, query)
         elif entity == "diet_and_food":
             result = diet_and_food_service.page(conn, query)
+        elif entity == "association":
+            result = association_service.page(conn, query)
+        elif entity =="mesh":
+            result = mesh_service.page(conn,query)
         else:
             raise ValueError("Unsupported entity type")
     
@@ -77,6 +69,10 @@ async def get_entity(entity: str, entity_id: str):
             result = chemicals_and_drugs_service.find_by_id(conn, entity_id)
         elif entity == "diet_and_food":
             result = diet_and_food_service.find_by_id(conn, entity_id)
+        elif entity =="association":
+            result = association_service.find_by_id(conn, entity_id)
+        elif entity =="mesh":
+            result = mesh_service.find_by_id(conn,entity_id)
         else:
             raise ValueError("Unsupported entity type")
     result = dict(result)
@@ -96,6 +92,10 @@ async def update_entity(entity: str, entity_id: str, updateData: dict):
             chemicals_and_drugs_service.update(conn, entity_id, updateData)
         elif entity == "diet_and_food":
             diet_and_food_service.update(conn, entity_id, updateData)
+        elif entity == "association":
+            association_service.update(conn, entity_id, updateData)
+        elif entity =="mesh":
+            mesh_service.update(conn, entity_id, updateData)
         else:
             raise ValueError("Unsupported entity type")
     find_node = graph_service.find_entity( entity, entity_id=entity_id)  # 同步更新图数据库中的节点信息
@@ -116,6 +116,10 @@ async def add_entity(entity: str, data: dict):
             chemicals_and_drugs_service.add(conn, data)
         elif entity == "diet_and_food":
             diet_and_food_service.add(conn, data)
+        elif entity == "association":
+            association_service.add(conn, data)
+        elif entity =="mesh":
+            mesh_service.add(conn, data)
         else:
             raise ValueError("Unsupported entity type")
     return {"message": "Entity added successfully"}
@@ -135,6 +139,10 @@ async def get_entity(entity: str, keywords: str):
             result = chemicals_and_drugs_service.find_by_keywords(conn, keywords)
         elif entity == "diet_and_food":
             result = diet_and_food_service.find_by_keywords(conn, keywords)
+        elif entity =="association":
+            result = association_service.find_by_keywords(conn, keywords)
+        elif entity =="mesh":
+            result = mesh_service.find_by_keywords(conn,keywords)
         else:
             raise ValueError("Unsupported entity type")
     return result
@@ -157,6 +165,8 @@ async def get_entity(entity: str, entity_id: str,
             result = diet_and_food_service.details_by_id(conn, entity_id)
         elif entity =="association":
             result = graph_service.get_association_details(entity_id)
+        elif entity =="mesh":
+            result = mesh_service.details_by_id(conn,entity_id)
         else:
             raise ValueError("Unsupported entity type")
     if type(result) != dict:
@@ -189,6 +199,10 @@ async def import_entitys(entity: str, entity_list: list[dict]):
             result = chemicals_and_drugs_service.imports(conn, entity_list)
         elif entity == "diet_and_food":
             result = diet_and_food_service.imports(conn, entity_list)
+        elif entity == "association":
+            result = association_service.imports(conn, entity_list)
+        elif entity =="mesh":
+            result = mesh_service.imports(conn,entity_list)
         else:
             raise ValueError("Unsupported entity type")
     return result
@@ -213,6 +227,10 @@ async def delete_entity(entity: str, entity_id: str,force: bool=False):
                 chemicals_and_drugs_service.delete_by_id(conn, entity_id)
             elif entity == "diet_and_food":
                 diet_and_food_service.delete_by_id(conn, entity_id)
+            elif entity == "association":
+                association_service.delete_by_id(conn, entity_id)
+            elif entity =="mesh":
+                mesh_service.delete_by_id(conn,entity_id)
             else:
                 raise ValueError("Unsupported entity type")
         return {"message": "Entity deleted successfully"}

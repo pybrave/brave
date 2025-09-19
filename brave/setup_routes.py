@@ -175,7 +175,10 @@ def setup_routes(app: FastAPI,manager:AppManager):
     async def html():
         index_path = os.path.join(frontend_path, "html/index.html")
         return FileResponse(index_path)
-
+    @app.get("/psycmicrograph.html")
+    async def html():
+        index_path = os.path.join(frontend_path, "build/psycmicrograph.html")
+        return FileResponse(index_path)
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
