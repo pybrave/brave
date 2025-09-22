@@ -10,7 +10,7 @@ from brave.microbe.service import  mesh_service
 
 from sqlalchemy import insert
 import brave.microbe.service.taxonomy_service as taxonomy_service
-from brave.microbe.schemas.entity import DetailsNodeQuery, NodeQuery, PageEntity
+from brave.microbe.schemas.entity import AddMeshNode, DetailsNodeQuery, NodeQuery, PageEntity
 from brave.microbe.service import graph_service
 from brave.api.config.config import  get_graph
 
@@ -18,14 +18,14 @@ entity_api = APIRouter(prefix="/entity")
 
 
 @entity_api.get("/init/{entity}")
-def import_taxonomy(entity):
+def import_taxonomy(entity,category=None):
     with get_engine().begin() as conn:
         if entity == "taxonomy":
             return  taxonomy_service.init(conn)
         elif entity == "disease":
             return disease_service.init(conn)
         elif entity == "mesh":
-            return mesh_service.init(conn)
+            return mesh_service.init(conn,category)
         else:
             raise ValueError("Unsupported entity type")
         # 读取三张表并合并
@@ -119,7 +119,7 @@ async def add_entity(entity: str, data: dict):
         elif entity == "association":
             association_service.add(conn, data)
         elif entity =="mesh":
-            mesh_service.add(conn, data)
+            mesh_service.add_mesh_node(conn, AddMeshNode(**data))
         else:
             raise ValueError("Unsupported entity type")
     return {"message": "Entity added successfully"}

@@ -111,6 +111,7 @@ t_study = Table(
     Column("doi_link", String(255), comment="DOI链接"),
 )
 
+
 t_disease = Table(
     "disease",
     meta,
@@ -125,6 +126,7 @@ t_disease = Table(
 t_mesh = Table(
     "mesh",
     meta,
+    Column("id", Integer, primary_key=True, autoincrement=True), 
     Column("entity_id", String(50), primary_key=True, index=True),
     Column("entity_name", String(255) , nullable=False, index=True)
 ) 
@@ -135,7 +137,7 @@ t_mesh_tree  = Table(
     Column("entity_id", String(50) , nullable=False, index=True),
     Column("tree_number", String(255),  index=True),
     Column("category", String(50),  index=True),
-    Column("major_category", String(50),  index=True),
+    # Column("major_category", String(50),  index=True),
     Column("parent_tree", String(255),  index=True)
 ) 
 

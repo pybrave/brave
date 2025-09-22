@@ -4,20 +4,22 @@ from operator import and_, or_
 
 import pandas as pd
 from shortuuid import uuid
-from brave.microbe.schemas.entity import PageEntity
+from brave.microbe.schemas.entity import AddMeshNode, PageEntity
 from brave.microbe.models.core import t_mesh,t_mesh_tree    
 from sqlalchemy import select,func
 from sqlalchemy.engine import Connection
 from sqlalchemy import select,func,insert,case,exists
 
 from brave.microbe.utils import import_ncbi_mesh
+from brave.microbe.utils import import_kegg
 
 
 
 def page(conn: Connection, query: PageEntity):
     child = t_mesh_tree.alias("child")
     stmt =select(
-        t_mesh,
+        t_mesh.c.entity_id,
+        func.any_value(t_mesh.c.entity_name).label("entity_name"),
         func.any_value(t_mesh_tree.c.parent_tree).label("parent_tree"),
         func.any_value(t_mesh_tree.c.tree_number).label("tree_number"),
         func.any_value(case(
@@ -43,17 +45,27 @@ def page(conn: Connection, query: PageEntity):
              t_mesh.c.entity_name.ilike(keyword_pattern)
         )
     if query.category:
-        conditions.append(
-             t_mesh_tree.c.category == query.category
-        )
-    if query.major_category:
-        conditions.append(
-             t_mesh_tree.c.major_category == query.major_category
-        )
+        if type (query.category) is str:
+            conditions.append(
+                t_mesh_tree.c.category == query.category
+            )
+        elif type (query.category) is list:
+            conditions.append(
+                t_mesh_tree.c.category.in_(query.category)
+            )
+    # if query.major_category:
+    #     conditions.append(
+    #          t_mesh_tree.c.major_category == query.major_category
+    #     )
     if query.parent_id:
-        conditions.append(
-             t_mesh_tree.c.parent_tree == query.parent_id
-        )
+        if type (query.parent_id) is str:
+            conditions.append(
+                t_mesh_tree.c.parent_tree == query.parent_id
+            )
+        elif type (query.parent_id) is list:
+            conditions.append(
+                t_mesh_tree.c.tree_number.in_(query.parent_id)
+            )
     
     if conditions:  # 只有有条件时才加 where
         conditions = and_(*conditions) if len(conditions) > 1 else conditions[0]
@@ -136,25 +148,122 @@ def imports_tree(conn: Connection, records: list, batch_size: int = 1000):
     return {"message imports_tree": f"导入完成，共导入 {inserted} 行"}
 
 
-def init(conn: Connection):
-    json_data = import_ncbi_mesh.get_json("/ssd1/wy/workspace2/nextflow-fastapi/desc2025.xml")
-    df = pd.DataFrame(json_data)
-    df_exploded = df.explode(["TreeNumberList"], ignore_index=True)
+def init(conn: Connection,category):
+    if category == "mesh":
+        json_data = import_ncbi_mesh.get_json("/ssd1/wy/workspace2/nextflow-fastapi/desc2025.xml")
+        df = pd.DataFrame(json_data)
+        df_exploded = df.explode(["TreeNumberList"], ignore_index=True)
 
-    df_exploded["ParentTree"] = df_exploded["TreeNumberList"].apply(get_parent)
-    df_exploded_rename = df_exploded[["DescriptorUI","DescriptorName","TreeNumberList","ParentTree"]].rename({
-            "DescriptorUI":"entity_id",
-            "DescriptorName":"entity_name",
-            "TreeNumberList":"tree_number",
-            "ParentTree":"parent_tree",
-        },axis=1)
-    df_exploded_rename["category"]  = df_exploded_rename["tree_number"].apply(lambda x: str(x).split(".")[0])
-    df_exploded_rename["major_category"]  = df_exploded_rename["tree_number"].apply(lambda x: str(x).split(".")[0][0])
-    df_exploded_rename_node = df_exploded_rename[["entity_id","entity_name"]].drop_duplicates( keep="first")
-    # df_exploded_rename_node["entity_id"] = df_exploded_rename_node.apply(lambda x: uuid(),axis=1)
-    data = json.loads(df_exploded_rename_node.to_json(orient="records"))
-    imports(conn, data)
-    df_exploded_rename_tree = df_exploded_rename[["entity_id","tree_number","parent_tree","category","major_category"]].drop_duplicates( keep="first")
-    data_tree = json.loads(df_exploded_rename_tree.to_json(orient="records"))
-    imports_tree(conn, data_tree)
+        df_exploded["ParentTree"] = df_exploded["TreeNumberList"].apply(get_parent)
+        df_exploded_rename = df_exploded[["DescriptorUI","DescriptorName","TreeNumberList","ParentTree"]].rename({
+                "DescriptorUI":"entity_id",
+                "DescriptorName":"entity_name",
+                "TreeNumberList":"tree_number",
+                "ParentTree":"parent_tree",
+            },axis=1)
+        df_exploded_rename["category"]  = df_exploded_rename["tree_number"].apply(lambda x: str(x).split(".")[0])
+        # df_exploded_rename["major_category"]  = df_exploded_rename["tree_number"].apply(lambda x: str(x).split(".")[0][0])
+        df_exploded_rename_node = df_exploded_rename[["entity_id","entity_name"]].drop_duplicates( keep="first")
+        # df_exploded_rename_node["entity_id"] = df_exploded_rename_node.apply(lambda x: uuid(),axis=1)
+        data = json.loads(df_exploded_rename_node.to_json(orient="records"))
+        imports(conn, data)
+        df_exploded_rename_tree = df_exploded_rename[["entity_id","tree_number","parent_tree","category"]].drop_duplicates( keep="first")
+        data_tree = json.loads(df_exploded_rename_tree.to_json(orient="records"))
+        imports_tree(conn, data_tree)
+    elif category == "kegg":
+        with open("/data/DATABASES/br_br08901.txt", "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        
+        data_tree = import_kegg.parse_kegg_hierarchy(lines)
+        
+        # df_exploded_tree = pd.DataFrame(data_tree)
+        # df_exploded_tree = df_exploded_tree[["entity_id","entity_name"]]
+        # data = json.loads(df_exploded_rename_node.to_json(orient="records"))
+        node = [ 
+                { k:v for k,v in item.items() if k  in ["entity_id","entity_name"] }
+                for item in data_tree  
+            ]
+        tree = [ 
+                { k:v for k,v in item.items() if k  in ["entity_id","tree_number","parent_tree","category"] }
+                for item in data_tree  
+            ]
+        
+        # { k:v for k,v in data_tree if k  in ["entity_id","tree_number","parent_tree","category"] }
+        pass
+        imports(conn, node)
+        imports_tree(conn, tree)
+
+        # # df_exploded_rename_tree = df_exploded_rename_tree.merge(df_exploded_rename_node,on="entity_name",how="left")
+        # df_exploded_rename_tree = df_exploded_rename_tree.merge(df_exploded_rename_node[["entity_name","entity_id"]],on="entity_name",how="left")
+        # data_tree = json.loads(df_exploded_rename_tree.to_json(orient="records"))
+        # imports_tree(conn, data_tree)
     return "success"
+
+'''
+{
+    "entity_name": "KEGG",
+    "category": "KEGG"
+}
+{
+    "entity_name": "Metabolism",
+    "category": "KEGG",
+    "parent_tree": "KEGG"
+}
+{
+    "entity_name": "Global and overview maps",
+    "category": "KEGG",
+    "parent_tree": "KEGG.001"
+}
+{
+    "entity_name": "Metabolic pathways",
+    "category": "KEGG",
+    "entity_id":"map01100",
+    "parent_tree": "KEGG.001.001"
+}
+
+{
+    "entity_name": "Biosynthesis of secondary metabolites",
+    "category": "KEGG",
+    "entity_id":"map01110",
+    "parent_tree": "KEGG.001.001"
+}
+'''
+
+def add_mesh_node(conn: Connection, data: AddMeshNode):
+    """
+    同时新增 t_test 和 t_test_tree 节点，并自动生成 tree_number 和 parent_tree
+    """
+    # entity_id: str, entity_name: str, parent_tree: str = None
+    entity_id = data.entity_id or str(uuid())
+    entity_name = data.entity_name
+    parent_tree = data.parent_tree
+    category = data.category
+
+
+    # 1️ 插入 t_test 表
+    stmt_test = insert(t_mesh).values(
+        entity_id=entity_id,
+        entity_name=entity_name
+    )
+    conn.execute(stmt_test)
+
+    # 2️ 生成 tree_number
+    if parent_tree is None:
+        # 根节点
+        tree_number = category #entity_id[:1].upper()  # 可自定义规则
+    else:
+        # 查询当前父节点已有多少个子节点
+        stmt = select(t_mesh_tree.c.tree_number).where(t_mesh_tree.c.parent_tree == parent_tree)
+        result = conn.execute(stmt).scalars().all()
+        count = len(result) + 1
+        tree_number = f"{parent_tree}.{count:03d}"  # 格式化为三位，如 001, 002
+
+    # 3️ 插入 t_test_tree 表
+    stmt_tree = insert(t_mesh_tree).values(
+        entity_id=entity_id,
+        tree_number=tree_number,
+        parent_tree=parent_tree,
+        category=category
+    )
+    conn.execute(stmt_tree)
+    return tree_number

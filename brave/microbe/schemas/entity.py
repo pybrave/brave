@@ -5,8 +5,8 @@ class PageEntity(BaseModel):
     page_number: Optional[int]=1
     page_size: Optional[int]=10
     parent_id: Optional[str]=None
-    category: Optional[str]=None
-    major_category: Optional[str]=None
+    category: Optional[Any]=None
+    # major_category: Optional[str]=None
     keywords: Optional[str]=None
 
 
@@ -51,3 +51,10 @@ class NodeQuery(BaseModel):
 
 class DetailsNodeQuery(BaseModel):
     nodes: Optional[list[str]] = []  # 需要查询的关联节点类型，如 taxonomy, disease, diet_and_food, study
+
+
+class AddMeshNode(BaseModel):
+    entity_name: str
+    entity_id: Optional[str] = None  # 如果不提供，则自动生成
+    parent_tree: Optional[str] = None  # 可以为 None
+    category: Optional[str] ="default"  # 可以为 None
