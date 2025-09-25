@@ -2,7 +2,7 @@ from brave.api.config.db import get_engine
 from fastapi import HTTPException
 from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components,t_project
 from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
-from sqlalchemy import and_, desc, select
+from sqlalchemy import and_, desc, select,case
 import json
 import uuid
 from collections import defaultdict
@@ -79,6 +79,15 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
 
     stmt= stmt.where(and_( *conditions))
     
+    if analysisResultQuery.ids:
+        case_order = case(
+            {id_: index for index, id_ in enumerate(analysisResultQuery.ids)},
+            value=analysis_result.c.id,
+            else_=len(analysisResultQuery.ids)
+        )
+        stmt = stmt.order_by(case_order)
+    
+
     result  = conn.execute(stmt)
     # result = result.fetchall()
     rows = result.mappings().all()

@@ -40,7 +40,7 @@ def create_relationship(req: RelationshipRequest):
     return {"result": result}
 
 
-@entity_relation_api.post("/graph")
+@entity_relation_api.post("/graph-v2")
 def get_graph_relations(graphQuery: GraphQuery):
     """
     获取图数据，包括 Taxonomy、干预、文献和疾病关系
@@ -138,7 +138,7 @@ def get_graph_relations(graphQuery: GraphQuery):
 
 
 
-@entity_relation_api.post("/graph-v2")
+@entity_relation_api.post("/graph")
 def get_graph_relations(graphQuery: GraphQuery):
     """
     获取图数据
@@ -153,7 +153,7 @@ def get_graph_relations(graphQuery: GraphQuery):
     # 基础查询
     # query = "MATCH (a)-[r*1..3]->(b) WHERE 1=1 "
     query ="""
-    MATCH (a)-[r*1..3]->(b)
+    MATCH (a)-[r]->(b)
     WHERE 1=1
     """
     params = {}
@@ -172,13 +172,24 @@ def get_graph_relations(graphQuery: GraphQuery):
         query += "AND (a.entity_id = $entity_id OR b.entity_id = $entity_id) "
         params["entity_id"] = entity_id
 
-    query += """
-    WITH a, b, r
-    UNWIND r AS rel
-    RETURN a.entity_id AS from_id, labels(a) AS from_label, a.entity_name AS from_name,
-           b.entity_id AS to_id, labels(b) AS to_label, b.entity_name AS to_name,
-           type(rel) AS relation_type  LIMIT 100
-    """
+    if graphQuery.locale and graphQuery.locale=="zh_CN":
+        query += """
+        WITH a, b, collect({type: type(r), effect: r.effect,study_name:r.study_name,predicate:r.predicate}) AS relations
+        RETURN a.entity_id AS from_id, labels(a) AS from_label, 
+            coalesce(a.entity_name_zh, a.entity_name) AS from_name,
+            a.entity_name AS from_name_en,
+            b.entity_id AS to_id, labels(b) AS to_label, 
+            coalesce(b.entity_name_zh, b.entity_name) AS to_name,
+            b.entity_name AS to_name_en,
+            relations
+        """
+    else:
+        query += """
+        WITH a, b, collect({type: type(r), effect: r.effect,study_name:r.study_name,predicate:r.predicate}) AS relations
+        RETURN a.entity_id AS from_id, labels(a) AS from_label, a.entity_name AS from_name,
+            b.entity_id AS to_id, labels(b) AS to_label, b.entity_name AS to_name,
+            relations
+        """
 
     result = graph.run(query, **params).data()
 
@@ -204,7 +215,7 @@ def get_graph_relations(graphQuery: GraphQuery):
         links.append({
             "source": record["from_id"],
             "target": record["to_id"],
-            "type": record["relation_type"]
+            "relations": record["relations"]
         })
 
     return {

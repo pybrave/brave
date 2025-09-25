@@ -8,6 +8,9 @@ class PageEntity(BaseModel):
     category: Optional[Any]=None
     # major_category: Optional[str]=None
     keywords: Optional[str]=None
+    is_research: Optional[bool]=None
+    locale:Optional[str]="en_US"
+    registry_join: Optional[str]=None
 
 
 
@@ -32,6 +35,7 @@ class GraphQuery(BaseModel):
     order_by: Optional[str] = "taxonomy"  # 排序字段
     order_metric: Optional[str] = "study"  # study
     collect_association_study: Optional[bool]= False
+    locale:Optional[str]="en_US"
 
 
 class GraphQueryV2(BaseModel):
@@ -54,7 +58,14 @@ class DetailsNodeQuery(BaseModel):
 
 
 class AddMeshNode(BaseModel):
+    category: Optional[str]  
     entity_name: str
-    entity_id: Optional[str] = None  # 如果不提供，则自动生成
+    entity_name_zh: Optional[str] = None
+    entity_type: Optional[str] = None
+    tags: Optional[str] = None
+    short_name: Optional[str] = None    
+    describe: Optional[str] = None
+
     parent_tree: Optional[str] = None  # 可以为 None
-    category: Optional[str] ="default"  # 可以为 None
+
+

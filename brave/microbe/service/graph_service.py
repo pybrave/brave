@@ -1,25 +1,14 @@
 
 from brave.api.config.config import  get_graph
 from brave.microbe.schemas.entity import GraphQuery, NodeQuery
+from py2neo import Graph, Node, Relationship
+
 def find_entity( entity_type, entity_id: str):
     graph = get_graph()
     node = graph.nodes.match(entity_type, entity_id=entity_id).first()
     return node 
 
 
-def update_entity(node, update_fields: dict):
-    graph = get_graph()
- 
-    if not node:
-        return False  # 或者 raise Exception("Entity not found")
-    
-    # 更新属性
-    for k, v in update_fields.items():
-        node[k] = v
-    
-    # 保存更新
-    graph.push(node)
-    return True
 
 
 
@@ -333,3 +322,73 @@ def find_associations_by_entity_id(entity_type:str,entity_id: str,nodes :list[st
     
     # print(find_cypher)
     return result.data()
+
+def update_entity(node, entity_dict: dict):
+    graph = get_graph()
+    update_fields = ["entity_name","entity_name_zh"]
+    entity_dict = {k: v for k, v in entity_dict.items() if k in update_fields}
+    if not node:
+        return False  # 或者 raise Exception("Entity not found")
+    
+    # 更新属性
+    for k, v in entity_dict.items():
+        node[k] = v
+    
+    # 保存更新
+    graph.push(node)
+    return True
+
+
+
+def create_node_relation(entity,relationship):
+    entity_dict = {}
+    graph = get_graph()
+    for k, v in entity.items():
+    
+        props = {prop: val for prop, val in {
+            "entity_id": v.get("entity_id"),
+            "entity_name": v.get("entity_name"),
+            "entity_name_zh": v.get("entity_name_zh")
+        }.items() if val not in (None, "")}
+
+        if props.get("entity_id") is None:
+            raise ValueError("entity_id is required")
+        
+        node = Node(v["entity_type"], **props)
+        graph.merge(node, v["entity_type"], "entity_id")
+        entity_dict[k] = node
+
+    # query = """
+    # MATCH (a:Disease {entity_id:$a_id}), (b:Gene {entity_id:$b_id})
+    # MERGE (a)-[r:EVIDENCED_BY {association_id:$assoc_id}]->(b)
+    # ON CREATE SET r += $props
+    # ON MATCH SET  r += $props
+    # """
+    # graph.run(query, a_id="D0001", b_id="G0001", assoc_id="R1", props={"source":"PMID1"})
+    association_id = relationship.get("association_id")
+    predicate = relationship.get("predicate")
+    # rel = Relationship(entity_dict["subject"],predicate, entity_dict["object"],**relationship,identity=association_id)
+
+    # graph.create(rel)
+    query = """
+    MATCH (a {{entity_id:$a_id}}), (b {{entity_id:$b_id}})
+    MERGE (a)-[r:{predicate} {{association_id:$assoc_id}}]->(b)
+    ON CREATE SET r += $props
+    ON MATCH SET r += $props
+    RETURN r
+    """.format(predicate=predicate)
+    props = {k:v for k,v in relationship.items() if k != "association_id" and k != "predicate"}
+
+    graph.run(query, a_id=entity_dict["subject"]["entity_id"],
+                b_id=entity_dict["object"]["entity_id"],
+                assoc_id=association_id,
+                props=props)
+    # relationship = {k: v for k, v in relationship.items() if k not in ["association_id"]}
+
+    # # 赋值给关系对象
+    # for k, v in relationship.items():
+    #     rel[k] = v
+
+    # # 再写入数据库
+    # graph.push(rel)  # push 会更新已存在节点/关系的属性
+    return entity_dict

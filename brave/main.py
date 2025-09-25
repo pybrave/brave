@@ -102,3 +102,15 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan)
     return app
+
+# import logging
+# import sys
+
+# logging.basicConfig(
+#     level=logging.INFO,
+#     handlers=[
+#         logging.StreamHandler(sys.stdout),
+#         logging.StreamHandler(sys.stderr),
+#         logging.FileHandler("brave.log")
+#     ]
+# )

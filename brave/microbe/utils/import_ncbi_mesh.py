@@ -16,7 +16,13 @@ def get_json(file_path):
         # DescriptorName
         name_elem = descriptor.find("DescriptorName/String")
         descriptor_name = name_elem.text if name_elem is not None else None
-
+    # RegistryNumberList（新增）
+        registry_numbers = []
+        concept_elem = descriptor.find("ConceptList/Concept")
+        if concept_elem is not None:
+            reg_list_elem = concept_elem.find("RegistryNumberList")
+            if reg_list_elem is not None:
+                registry_numbers = [rn.text for rn in reg_list_elem.findall("RegistryNumber")]
         # TreeNumberList
         tree_numbers = []
         tree_list_elem = descriptor.find("TreeNumberList")
@@ -39,6 +45,7 @@ def get_json(file_path):
             "DescriptorName": descriptor_name,
             "TreeNumberList": tree_numbers,
             "PublicMeSHNote": public_note,
+            "registry_numbers":registry_numbers,
             "PreviousIndexingList": prev_indexing
         }
 

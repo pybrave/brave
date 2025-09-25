@@ -4,7 +4,7 @@ from sqlalchemy import Column, DateTime, Table
 from sqlalchemy.sql.sqltypes import Integer, String,Boolean
 from brave.api.config.db import meta
 # from sqlalchemy.dialects.mysql import LONGTEXT
-from sqlalchemy import Text,Index
+from sqlalchemy import Text,Index,UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT
 
 
@@ -65,17 +65,17 @@ t_taxonomy = Table(
     # Index("idx_name", "scientific_name"),
 )
 
-t_entity = Table(
-    "entity",
-    meta,
-    Column("id", Integer, primary_key=True),
-    Column("entity_id", String(255)),
-    Column("entity_name", String(255)),
-    Column("reference_id", String(255)),
-    
-    Column("created_at", DateTime, default=datetime.now),
-    Column("updated_at", DateTime, onupdate=datetime.now)
-)
+# t_entity = Table(
+#     "entity",
+#     meta,
+#     Column("id", Integer, primary_key=True),
+#     Column("entity_id", String(255)),
+#     Column("entity_name", String(255)),
+#     Column("reference_id", String(255)),
+#     Column("is_research", Boolean, default=False),
+#     Column("created_at", DateTime, default=datetime.now),
+#     Column("updated_at", DateTime, onupdate=datetime.now)
+# )
 
 
 t_study = Table(
@@ -122,14 +122,44 @@ t_disease = Table(
 
 )    
 
+# CREATE INDEX idx_taxonomy_entity_id ON taxonomy(entity_id);
+# CREATE INDEX idx_mesh_second_entity_id ON mesh(second_entity_id);
+
+# SELECT * from mesh 
+# LEFT JOIN mesh_tree on mesh.entity_id = mesh_tree.entity_id
+# where category='B01'
+
+# SELECT * from mesh 
+# LEFT JOIN mesh_tree on mesh.entity_id = mesh_tree.entity_id
+# LEFT  JOIN taxonomy on mesh.second_entity_id =taxonomy.entity_id 
+# where category='B01'
 
 t_mesh = Table(
     "mesh",
     meta,
     Column("id", Integer, primary_key=True, autoincrement=True), 
-    Column("entity_id", String(50), primary_key=True, index=True),
-    Column("entity_name", String(255) , nullable=False, index=True)
+    Column("entity_id", String(50),nullable=False),
+    Column("entity_name", String(255) , nullable=False, index=True),
+    # Column("second_entity_id", String(50), index=True),
+    Column("is_research", Boolean, default=False),
+    Column("entity_type", String(255)),
+    Column("tags",Text().with_variant(LONGTEXT(), "mysql")),
+    Column("short_name",Text().with_variant(LONGTEXT(), "mysql")),
+    Column("describe",Text().with_variant(LONGTEXT(), "mysql")),
+
+    Column("entity_name_zh", String(255) , index=True),
+    UniqueConstraint("entity_id", name="uniq_entity_id")
+    
 ) 
+t_registry_numbers = Table(
+    "registry_numbers",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("entity_id", String(50), nullable=False, index=True),  # 外键关联到 t_mesh.entity_id
+    Column("registry_number", String(50), nullable=False, index=True),
+    Column("registry_type", String(50), nullable=False, server_default="_NULL_", index=True),  # CAS / EC / TXID / Other
+    UniqueConstraint("entity_id", "registry_number", name="uniq_registry_number")
+)
 t_mesh_tree  = Table(
     "mesh_tree",
     meta,
@@ -137,9 +167,11 @@ t_mesh_tree  = Table(
     Column("entity_id", String(50) , nullable=False, index=True),
     Column("tree_number", String(255),  index=True),
     Column("category", String(50),  index=True),
-    # Column("major_category", String(50),  index=True),
-    Column("parent_tree", String(255),  index=True)
+    Column("parent_tree", String(255), nullable=False, server_default="_NULL_", index=True),
+    UniqueConstraint("entity_id", "tree_number", "parent_tree", name="uniq_mesh_tree")
 ) 
+
+# Column("major_category", String(50),  index=True),
 
 # t_intevention = Table(
 #     "intevention",
@@ -172,5 +204,10 @@ t_association  = Table(
     Column("subject_id", String(255)), # Subject = 作用者（who does something）
     Column("object_id", String(255)), # Object = 被作用者（who receives the effect）
     Column("observed_id", String(255)), 
-    Column("evidenced_id", String(255))
+    Column("study_id", String(255)),
+    Column("predicate", String(255)),
+    Column("effect", String(255)),
+    # Column("participates_in_pathway", String(255)),
+    # Column("produces_metabolite", String(255)),
+    # Column("regulates_gene", String(255)),
 )

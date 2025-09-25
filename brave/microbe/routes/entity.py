@@ -13,7 +13,7 @@ import brave.microbe.service.taxonomy_service as taxonomy_service
 from brave.microbe.schemas.entity import AddMeshNode, DetailsNodeQuery, NodeQuery, PageEntity
 from brave.microbe.service import graph_service
 from brave.api.config.config import  get_graph
-
+import json
 entity_api = APIRouter(prefix="/entity")
 
 
@@ -29,7 +29,23 @@ def import_taxonomy(entity,category=None):
         else:
             raise ValueError("Unsupported entity type")
         # 读取三张表并合并
-       
+
+def formt_items_json(item):
+    if "tags" in item and item["tags"]:
+        try:
+            item["tags"] = json.loads(item["tags"])
+        except:
+            pass
+    if "short_name" in item and item["short_name"]:
+        try:
+            item["short_name"] = json.loads(item["short_name"])
+        except:
+            pass
+    return item
+def formt_items(item):
+    item = dict(item)
+    return formt_items_json(item)
+    
 
 @entity_api.post("/page/{entity}")
 async def page_entity(entity: str, query: PageEntity):
@@ -53,7 +69,7 @@ async def page_entity(entity: str, query: PageEntity):
     
     entity_ids = [item.entity_id for item in result["items"]]
     entity_ids_map = graph_service.check_nodes_exist_batch(entity_ids,entity)
-    result["items"] = [{"is_exist_graph":entity_ids_map[item.entity_id],**item} for item in result["items"]]
+    result["items"] = [{"is_exist_graph":entity_ids_map[item.entity_id],**formt_items(item)} for item in result["items"]]
     return result
 
 @entity_api.get("/get/{entity}/{entity_id}")
@@ -76,11 +92,16 @@ async def get_entity(entity: str, entity_id: str):
         else:
             raise ValueError("Unsupported entity type")
     result = dict(result)
-    result["entity_type"] = entity
+    # result["entity_type"] = entity
+    result = formt_items_json(result)
     return result
 
 @entity_api.put("/update/{entity}/{entity_id}")
 async def update_entity(entity: str, entity_id: str, updateData: dict):
+    if "tags" in updateData and isinstance(updateData["tags"], list):
+        updateData["tags"] = json.dumps(updateData["tags"], ensure_ascii=False)
+    if "short_name" in updateData and isinstance(updateData["short_name"], list):
+        updateData["short_name"] = json.dumps(updateData["short_name"], ensure_ascii=False)
     with get_engine().begin() as conn:
         if entity == "taxonomy":
             taxonomy_service.update_taxonomy(conn, entity_id, updateData)
@@ -94,17 +115,26 @@ async def update_entity(entity: str, entity_id: str, updateData: dict):
             diet_and_food_service.update(conn, entity_id, updateData)
         elif entity == "association":
             association_service.update(conn, entity_id, updateData)
+            find_data = association_service.find_by_id(conn, entity_id)
+            find_association= dict(find_data)
+            entity_,relationship = association_service.get_entity(conn,find_association)
+            graph_service.create_node_relation(entity_,relationship)
         elif entity =="mesh":
             mesh_service.update(conn, entity_id, updateData)
         else:
             raise ValueError("Unsupported entity type")
-    find_node = graph_service.find_entity( entity, entity_id=entity_id)  # 同步更新图数据库中的节点信息
-    if find_node:
-        graph_service.update_entity(find_node, updateData)
+    if entity != "association": 
+        find_node = graph_service.find_entity( entity, entity_id=entity_id)  # 同步更新图数据库中的节点信息
+        if find_node:
+            graph_service.update_entity(find_node, updateData)
     return {"message": "Entity updated successfully"}
 
 @entity_api.post("/add/{entity}")
 async def add_entity(entity: str, data: dict):
+    if "tags" in data and isinstance(data["tags"], list):
+        data["tags"] = json.dumps(data["tags"], ensure_ascii=False)
+    if "short_name" in data and isinstance(data["short_name"], list):
+        data["short_name"] = json.dumps(data["short_name"], ensure_ascii=False)
     with get_engine().begin() as conn:
         if entity=="taxonomy":  
             taxonomy_service.add_taxonomy(conn, data)
@@ -117,7 +147,12 @@ async def add_entity(entity: str, data: dict):
         elif entity == "diet_and_food":
             diet_and_food_service.add(conn, data)
         elif entity == "association":
-            association_service.add(conn, data)
+            entity_id = association_service.add(conn, data)
+            find_data = association_service.find_by_id(conn, entity_id)
+            find_association= dict(find_data)
+            entity,relationship = association_service.get_entity(conn,find_association)
+            graph_service.create_node_relation(entity,relationship)
+            pass
         elif entity =="mesh":
             mesh_service.add_mesh_node(conn, AddMeshNode(**data))
         else:
@@ -172,7 +207,7 @@ async def get_entity(entity: str, entity_id: str,
     if type(result) != dict:
         # raise HTTPException(status_code=404, detail=f"{entity} with id {entity_id} not found")
         result = dict(result)
-    result["entity_type"] = entity
+    # result["entity_type"] = entity
     nodes = detailsNodeQuery.nodes
     if entity not in nodes:
         nodes.append(entity)
