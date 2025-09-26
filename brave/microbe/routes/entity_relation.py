@@ -3,8 +3,9 @@ from fastapi import APIRouter, HTTPException,Query
 from brave.api.config.config import  get_graph
 from py2neo import Graph, Node, Relationship
 
-from brave.microbe.schemas.entity import GraphQuery, RelationshipRequest,GraphQueryV2
-from brave.microbe.service import graph_service
+from brave.api.config.db import get_engine
+from brave.microbe.schemas.entity import GraphQuery, PageEntity, RelationshipRequest,GraphQueryV2
+from brave.microbe.service import association_service, graph_service
 entity_relation_api = APIRouter(prefix="/entity-relation")
 
 @entity_relation_api.get("/test")
@@ -15,7 +16,7 @@ async def test_entity_relation():
 
 
 @entity_relation_api.post("/relationships")
-def create_relationship(req: RelationshipRequest):
+async def create_relationship(req: RelationshipRequest):
     graph = get_graph()
     # MERGE 节点 A
     query = f"""
@@ -41,7 +42,7 @@ def create_relationship(req: RelationshipRequest):
 
 
 @entity_relation_api.post("/graph-v2")
-def get_graph_relations(graphQuery: GraphQuery):
+async def get_graph_relations(graphQuery: GraphQuery):
     """
     获取图数据，包括 Taxonomy、干预、文献和疾病关系
     - label: 过滤节点类型，如 Taxonomy
@@ -139,7 +140,7 @@ def get_graph_relations(graphQuery: GraphQuery):
 
 
 @entity_relation_api.post("/graph")
-def get_graph_relations(graphQuery: GraphQuery):
+async def get_graph_relations(graphQuery: GraphQuery):
     """
     获取图数据
     - label: 过滤节点类型，如 Study, Disease, Taxonomy
@@ -174,7 +175,7 @@ def get_graph_relations(graphQuery: GraphQuery):
 
     if graphQuery.locale and graphQuery.locale=="zh_CN":
         query += """
-        WITH a, b, collect({type: type(r), effect: r.effect,study_name:r.study_name,predicate:r.predicate}) AS relations
+        WITH a, b, collect({association_id:r.association_id,type: type(r), effect: r.effect,study_name:r.study_name,predicate:r.predicate}) AS relations
         RETURN a.entity_id AS from_id, labels(a) AS from_label, 
             coalesce(a.entity_name_zh, a.entity_name) AS from_name,
             a.entity_name AS from_name_en,
@@ -185,7 +186,7 @@ def get_graph_relations(graphQuery: GraphQuery):
         """
     else:
         query += """
-        WITH a, b, collect({type: type(r), effect: r.effect,study_name:r.study_name,predicate:r.predicate}) AS relations
+        WITH a, b, collect({association_id:r.association_id,type: type(r), effect: r.effect,study_name:r.study_name,predicate:r.predicate}) AS relations
         RETURN a.entity_id AS from_id, labels(a) AS from_label, a.entity_name AS from_name,
             b.entity_id AS to_id, labels(b) AS to_label, b.entity_name AS to_name,
             relations
@@ -224,7 +225,7 @@ def get_graph_relations(graphQuery: GraphQuery):
     }
 
 @entity_relation_api.post("/graph-v2")
-def get_graph_relations(graphQuery: GraphQuery):
+async def get_graph_relations(graphQuery: GraphQuery):
     """
     获取图数据，包括游离节点
     """
@@ -313,7 +314,7 @@ def get_graph_relations(graphQuery: GraphQuery):
     }
 
 @entity_relation_api.get("/relation/{relation_id}")
-def get_relation_by_id(relation_id: int):
+async def get_relation_by_id(relation_id: int):
     graph = get_graph()
 
     query = """
@@ -335,7 +336,7 @@ def get_relation_by_id(relation_id: int):
 
 
 @entity_relation_api.delete("/relation/{relation_id}")
-def delete_relation_by_id(relation_id: int):
+async def delete_relation_by_id(relation_id: int):
     graph = get_graph()
 
     # # 先获取关系两端节点的 id
@@ -372,3 +373,55 @@ def delete_relation_by_id(relation_id: int):
 
 
 
+@entity_relation_api.get("/find-by-paired-entity/{from_entity}/{to_entity}")
+async def find_by_paired_entity(from_entity: str, to_entity: str):
+    """
+    根据两个实体 ID 查找它们之间的所有关系
+    """
+    graph = get_graph()
+    
+    # 使用 Cypher 查询
+    query = """
+    MATCH (a)-[r]->(b)
+    WHERE a.entity_id = $from_entity AND b.entity_id = $to_entity
+    RETURN type(r) AS relation_type, r, a.entity_id AS from_id, b.entity_id AS to_id
+    """
+    
+    result = graph.run(query, from_entity=from_entity, to_entity=to_entity)
+    
+    # 返回列表，每条关系包括类型和属性
+    relationships = []
+    for record in result:
+        relationships.append({
+            "relation_type": record["relation_type"],
+            "properties": dict(record["r"]),
+            "from_id": record["from_id"],
+            "to_id": record["to_id"]
+        })
+    
+    return relationships
+
+def delete_relationship_by_association_id(association_id: str):
+    graph = get_graph()
+    query = """
+    MATCH ()-[r]->()
+    WHERE r.association_id = $association_id
+    DELETE r
+    """
+    graph.run(query, association_id=association_id)
+    # print(f"Deleted relationship with association_id={association_id}")
+
+@entity_relation_api.delete("/delete-association/{asso_id}")
+async def delete_entity( asso_id: str): 
+    delete_relationship_by_association_id(asso_id)
+    with get_engine().begin() as conn:
+
+        association_service.delete_by_id(conn, asso_id)
+
+    return {"message": f"删除成功 {asso_id}"}
+
+@entity_relation_api.post("/page")
+async def page_entity( query: PageEntity):
+    with get_engine().begin() as conn:
+        result = association_service.page(conn, query)
+    return result

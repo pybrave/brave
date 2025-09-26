@@ -221,6 +221,10 @@ def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
 def get_analysis_result_metadata(item):
     if item["metadata"]:
         metadata = json.loads(item["metadata"])
+        prefix = ""
+        if item["sample_source"]:
+            prefix = f"{item['sample_source']}-"
+        metadata = {k:f"{prefix}{v}" for k,v in metadata.items() if v is not None}
         item = {**metadata,**item}
         del item["metadata"]
     return item
@@ -370,7 +374,8 @@ async def import_data(importDataList:List[ImportData]):
             stmt = analysis_result.select().where(and_(
                 analysis_result.c.sample_id==sample_id,
                 analysis_result.c.component_id==importData.component_id,
-                analysis_result.c.project==importData.project
+                analysis_result.c.project==importData.project,
+                analysis_result.c.sample_source==importData.sample_source
             ))
             result = conn.execute(stmt).fetchall()
             if result:
@@ -385,6 +390,7 @@ async def import_data(importDataList:List[ImportData]):
                 sample_id=sample_id,
                 analysis_result_id=analysis_result_id,
                 file_name=importData.file_name,
+                sample_source=importData.sample_source,
                 # sample_name=importData.sample_name,
                 # sample_name=analysis_label,
                 content_type="json",

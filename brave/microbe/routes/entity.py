@@ -67,9 +67,9 @@ async def page_entity(entity: str, query: PageEntity):
         else:
             raise ValueError("Unsupported entity type")
     
-    entity_ids = [item.entity_id for item in result["items"]]
+    entity_ids = [item["entity_id"] for item in result["items"]]
     entity_ids_map = graph_service.check_nodes_exist_batch(entity_ids,entity)
-    result["items"] = [{"is_exist_graph":entity_ids_map[item.entity_id],**formt_items(item)} for item in result["items"]]
+    result["items"] = [{"is_exist_graph":entity_ids_map[item["entity_id"]],**formt_items(item)} for item in result["items"]]
     return result
 
 @entity_api.get("/get/{entity}/{entity_id}")
@@ -262,8 +262,8 @@ async def delete_entity(entity: str, entity_id: str,force: bool=False):
                 chemicals_and_drugs_service.delete_by_id(conn, entity_id)
             elif entity == "diet_and_food":
                 diet_and_food_service.delete_by_id(conn, entity_id)
-            elif entity == "association":
-                association_service.delete_by_id(conn, entity_id)
+            # elif entity == "association":
+            #     association_service.delete_by_id(conn, entity_id)
             elif entity =="mesh":
                 mesh_service.delete_by_id(conn,entity_id)
             else:

@@ -82,6 +82,8 @@ analysis_result = Table(
     Column("id", Integer, primary_key=True),
     Column("analysis_result_id", String(255)),
     Column("sample_id", String(255)),
+    Column("sample_source", String(255)),
+
 
     # Column("sample_name", String(255)),
     # Column("sample_key", String(255)),

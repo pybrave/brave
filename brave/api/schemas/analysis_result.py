@@ -61,6 +61,7 @@ class ImportData(BaseModel):
     project: str
     content: str
     sample_name: str
+    sample_source: str
     file_name: Optional[str]=None
     # content_type:Optional[str]="json"
     # analysis_type:Optional[str]="import_data"

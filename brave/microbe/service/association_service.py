@@ -48,11 +48,20 @@ def page(conn: Connection, query: PageEntity):
         count_stmt = select(func.count()).select_from(t_association)
     if query.page_size != -1:
         stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
-    find_disease = conn.execute(stmt).mappings().all()
+    stmt = stmt.order_by(association.c.id.desc())
+    result  = conn.execute(stmt).mappings().all()
     total = conn.execute(count_stmt).scalar()
 
+    formatted_result = []
+    for row in result:
+        new_row = dict(row)  # 转成普通字典
+        for field in ["created_at", "updated_at"]:
+            if field in new_row and new_row[field]:
+                new_row[field] = new_row[field].strftime("%Y-%m-%d %H:%M:%S")
+        formatted_result.append(new_row)
+
     return {
-        "items": find_disease,
+        "items": formatted_result ,
         "total":total,
         "page_number":query.page_number,
         "page_size":query.page_size

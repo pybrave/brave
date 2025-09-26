@@ -200,13 +200,16 @@ t_diet_and_food  = Table(
 t_association  = Table(
     "association",
     meta,
-    Column("entity_id", String(255), primary_key=True, index=True),
+    Column("id", Integer, primary_key=True, autoincrement=True), 
+    Column("entity_id", String(255),  index=True),
     Column("subject_id", String(255)), # Subject = 作用者（who does something）
     Column("object_id", String(255)), # Object = 被作用者（who receives the effect）
     Column("observed_id", String(255)), 
     Column("study_id", String(255)),
     Column("predicate", String(255)),
     Column("effect", String(255)),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
     # Column("participates_in_pathway", String(255)),
     # Column("produces_metabolite", String(255)),
     # Column("regulates_gene", String(255)),

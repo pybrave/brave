@@ -10,6 +10,10 @@ from collections import defaultdict
 def get_analysis_result_metadata(item):
     if item["metadata"]:
         metadata = json.loads(item["metadata"])
+        prefix = ""
+        if item["sample_source"]:
+            prefix = f"{item['sample_source']}-"
+        metadata = {k:f"{prefix}{v}" for k,v in metadata.items() if v is not None}
         item = {**metadata,**item}
         del item["metadata"]
     return item
@@ -79,13 +83,22 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
 
     stmt= stmt.where(and_( *conditions))
     
-    if analysisResultQuery.ids:
+    if analysisResultQuery.ids :
         case_order = case(
             {id_: index for index, id_ in enumerate(analysisResultQuery.ids)},
             value=analysis_result.c.id,
             else_=len(analysisResultQuery.ids)
         )
         stmt = stmt.order_by(case_order)
+    
+    if analysisResultQuery.component_ids:
+        case_order = case(
+            {id_: index for index, id_ in enumerate(analysisResultQuery.component_ids)},
+            value=analysis_result.c.component_id,
+            else_=len(analysisResultQuery.component_ids)
+        )
+        stmt = stmt.order_by(case_order)
+    
     
 
     result  = conn.execute(stmt)
