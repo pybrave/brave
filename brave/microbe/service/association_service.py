@@ -131,7 +131,7 @@ def get_entity(conn: Connection,association:dict):
     
     observed = mesh_service.find_by_id(conn,observed_id)
 
-    study = mesh_service.find_by_id(conn,study_id)
+    study = study_service.find_study_by_id(conn,study_id)
 
 
     entity = {

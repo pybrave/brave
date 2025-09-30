@@ -108,3 +108,9 @@ def import_studies(conn: Connection, records: list, batch_size: int = 1000):
 def delete_study_by_id(conn: Connection, entity_id: str):
     stmt = t_study.delete().where(t_study.c.entity_id == entity_id)
     conn.execute(stmt)
+
+
+def mining_study(conn: Connection, entity_id: str):
+    stmt = t_study.select().where(t_study.c.entity_id ==entity_id)
+    find_study = conn.execute(stmt).mappings().first()
+    return find_study

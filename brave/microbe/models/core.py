@@ -90,7 +90,8 @@ t_study = Table(
     Column("title", Text, comment="研究标题"),
     Column("overall_design", Text, comment="研究总体设计"),
     Column("criteria_for_disorder", Text, comment="疾病诊断或入选标准"),
-    
+    Column("fulltext",Text().with_variant(LONGTEXT(), "mysql")),
+
     Column("sample_size", Integer, comment="单组样本量"),
     Column("total_sample_size", Integer, comment="总样本量"),
     Column("age", String(50), comment="平均年龄或年龄范围"),
@@ -102,6 +103,7 @@ t_study = Table(
     Column("reference_database", String(255), comment="参考数据库"),
     Column("original_data_available", String(255), comment="原始数据是否可用"),
     
+    Column("pmcid", String(255), comment="PubMed ID"),
     Column("pmid", String(255), comment="PubMed ID"),
     Column("doi", String(255), comment="DOI"),
     Column("country", String(255), comment="研究国家/地区"),

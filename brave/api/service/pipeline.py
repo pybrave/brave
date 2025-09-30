@@ -329,11 +329,15 @@ def list_pipeline(conn,queryPipeline:QueryPipeline):
     return find_pipeine
 
 def format_pipeline_componnet_one(item):
-    content = json.loads(item['content'])
-    item = {**content,**{k:v for k,v in item.items() if k != 'content'}}
-    if 'img' in item:
-        if not item['img']:
-            item['img'] = f"/brave-api/img/pipeline.jpg"
+    try:
+        content = json.loads(item['content'])
+        item = {**content,**{k:v for k,v in item.items() if k != 'content'}}
+        if 'img' in item:
+            if not item['img']:
+                item['img'] = f"/brave-api/img/pipeline.jpg"
+    except Exception as e:
+        print("component json error",json.dumps(item,indent=4))
+ 
         # else:
         #     item['img'] = f"/brave-api/pipeline-dir/{item['namespace']}/{item['component_type']}/{item['component_id']}/{item['img']}"
     return item
