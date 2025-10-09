@@ -85,11 +85,25 @@ def format_table_output(path):
         with open(path,"r") as f:
             data = f.read()
         data_type="text"
+    elif path.endswith(".download.tsv"):
+        # df =  pd.read_csv(path,sep="\t", nrows=50).iloc[:, :30]
+        # # df = pd.read_csv(path,sep="\t")
+        # data = json.loads(df.to_json(orient="records")) 
+        data=[]
+        data_type="download"
     elif path.endswith("tsv"):
         df =  pd.read_csv(path,sep="\t", nrows=50).iloc[:, :30]
         # df = pd.read_csv(path,sep="\t")
         data = json.loads(df.to_json(orient="records")) 
         data_type="table"
+    elif path.endswith(".vis"):
+        data_type = os.path.basename(path).replace(".vis","")
+        # df =  pd.read_csv(path,sep="\t", dtype={"pathwayId": str})
+        # df = pd.read_csv(path,sep="\t")
+        with open(path) as f:
+            data = json.load(f)
+        # data = json.loads(df.to_json(orient="records")) 
+        # data_type="kegg_map"
     elif path.endswith("json"):
         with open(path,"r") as f:
             data = f.read()
@@ -142,7 +156,7 @@ async def visualization_results(path):
     images = await asyncio.gather(*tasks)
     # images = []
     tables = []
-    for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx","*.info"):
+    for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx","*.info","*.vis"):
         tables.extend(glob.glob(os.path.join(path, ext)))
     tables = [format_table_output(table) for table in tables]
     tables = sorted(tables, key=lambda x: x.get("order", 0), reverse=True)

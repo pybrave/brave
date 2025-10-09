@@ -60,8 +60,13 @@ def parse_kgml(pathway_id: str):
         name = entry.attrib.get("name")
         type_ = entry.attrib.get("type")
         link = entry.attrib.get("link")
+        name = name.split()
+        if type_=="compound":
+            name = [item.replace("cpd:","") for item in name]
         g = entry.find("graphics")
         if g is None:
+            continue
+        if g.attrib.get("type")=="line":
             continue
         x = float(g.attrib.get("x"))
         y = float(g.attrib.get("y"))

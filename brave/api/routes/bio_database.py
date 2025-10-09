@@ -53,3 +53,11 @@ async def delete_bio_database(database_id: int):
     with get_engine().begin() as conn:
         conn.execute(t_bio_database.delete().where(t_bio_database.c.id == database_id))
     return {"message": "Database deleted successfully"}
+
+
+# async def get_database_content_by_name(name: str):
+#     with get_engine().begin() as conn:
+#         stmt = select(t_bio_database).where(t_bio_database.c.name == name)
+#         result = conn.execute(stmt).first()
+        
+#     return result
