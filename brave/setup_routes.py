@@ -15,6 +15,8 @@ from brave.api.routes.pipeline import pipeline
 from brave.api.routes.literature import literature_api
 from brave.api.routes.sse import sseController
 from brave.api.routes.namespace import namespace
+from brave.api.routes.index import index_api
+
 from brave.api.routes.file_operation import file_operation
 from brave.api.routes.setting import setting_controller
 from brave.api.config.config import get_settings
@@ -32,6 +34,8 @@ import httpx
 import websockets
 
 def setup_routes(app: FastAPI,manager:AppManager):
+  
+    
     frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "build","assets")), name="assets")
     # frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
@@ -60,6 +64,7 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.include_router(study_api, prefix="/brave-api")
     app.include_router(nlp_api, prefix="/brave-api")
     app.include_router(kegg_api, prefix="/brave-api")
+    app.include_router(index_api,prefix="/brave-api")
 
     app.get("/brave-api/sse-group")(manager.sse_service.create_endpoint())  
     endpoint = manager.ingress_manager.create_endpoint()

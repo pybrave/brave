@@ -15,16 +15,17 @@ class Settings:
     def __init__(self):
         # 读取 base_dir
         home_dir = Path.home()
-        
-        default_base_dir= f"{home_dir}/.brave/base_dir"
-        if not  os.path.exists(default_base_dir):    
-            os.makedirs(default_base_dir) 
-        base_dir = os.getenv("BASE_DIR",default_base_dir)
+        base_dir = os.getenv("BASE_DIR")
+        if not base_dir:
+            base_dir= f"{home_dir}/.brave"
+            # if not  os.path.exists(default_base_dir):    
+            #     os.makedirs(default_base_dir) 
+
         self.BASE_DIR = Path(base_dir).resolve()# / "data"
         self.BASE_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using BASE_DIR: {self.BASE_DIR}")
 
-        default_databases_dir= f"{home_dir}/.brave/databases"
+        default_databases_dir= f"{base_dir}/databases"
         if not  os.path.exists(default_databases_dir):    
             os.makedirs(default_databases_dir) 
         databases_dir = os.getenv("DATABASES_DIR",default_databases_dir)
@@ -32,15 +33,15 @@ class Settings:
         self.DATABASES_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using DATABASES_DIR: {self.DATABASES_DIR}")
   
-
-        work_dir = os.getenv("WORK_DIR",default_base_dir)
+        default_work_dir= f"{base_dir}/work"
+        work_dir = os.getenv("WORK_DIR",default_work_dir)
         self.WORK_DIR = Path(work_dir).resolve()# / "data"
         self.WORK_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using WORK_DIR: {self.WORK_DIR}")
 
         # pipeline_dir_default = get_pipeline_dir()
        
-        default_pipeline_dir = f"{home_dir}/.brave/pipeline"
+        default_pipeline_dir = f"{base_dir}/pipeline"
         if not  os.path.exists(default_pipeline_dir):    
             os.makedirs(default_pipeline_dir)    
         pipeline_dir = os.getenv("PIPELINE_DIR",default_pipeline_dir)
@@ -51,7 +52,7 @@ class Settings:
             sys.path.insert(0, pipeline_dir)
 
 
-        default_data_dir = f"{home_dir}"
+        default_data_dir = f"{base_dir}"
         data_dir = os.getenv("DATA_DIR",default_data_dir)
         self.DATA_DIR = Path(data_dir).resolve()# / "data"
         # self.WORK_DIR.mkdir(parents=True, exist_ok=True)
@@ -59,7 +60,7 @@ class Settings:
         
         
 
-        default_literature_dir = f"{home_dir}/.brave/literature"
+        default_literature_dir = f"{base_dir}/literature"
         if not  os.path.exists(default_literature_dir):    
             os.makedirs(default_literature_dir)    
         literature_dir = os.getenv("LITERATURE_DIR",default_literature_dir)
@@ -69,9 +70,12 @@ class Settings:
    
 
         # 读取数据库配置
-        self.DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
-        if self.DB_TYPE == "mysql":
-            MYSQL_URL = os.getenv("MYSQL_URL")
+        # self.DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
+        # if self.DB_TYPE == "mysql":
+
+        MYSQL_URL = os.getenv("MYSQL_URL")
+        if MYSQL_URL:
+            # root:123456@192.168.3.60:53306/pipeline
             self.DB_URL = f"mysql+pymysql://{MYSQL_URL}"
         else:
             self.DB_URL = f"sqlite:///{self.BASE_DIR / 'data.db'}"

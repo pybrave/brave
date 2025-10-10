@@ -30,6 +30,7 @@ from brave.api.routes.setting import setting_controller
 from brave.app_manager import AppManager
 from brave.app_container import AppContainer
 from brave.setup_routes import setup_routes
+from fastapi.middleware.cors import CORSMiddleware
 
 container = AppContainer()
 # container.config.executer_type.from_env("EXECUTER_TYPE","local")    
@@ -41,6 +42,7 @@ container.config.from_dict({
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     manager = AppManager()
     # container.app_manager.override(providers.Object(manager))
     await manager.start()
@@ -101,6 +103,13 @@ async def lifespan(app: FastAPI):
     
 def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],      # 放开所有来源
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     return app
 
 # import logging

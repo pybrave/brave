@@ -41,7 +41,8 @@ setup(
             "frontend/**/*",  # 包含静态资源
             "frontend/build/**/*", 
             "pipeline/**/*",
-            "templete/**/*"
+            "templete/**/*",
+            "cert/*.pem"
         ]
     },
 )

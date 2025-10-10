@@ -9,21 +9,23 @@ from brave.api.config.db import meta,Base
 app = typer.Typer()
 
 
+
 @app.command()
 def main(
     host: str = typer.Option("0.0.0.0", help="Host to bind"), 
     port: int =  typer.Option(5000, help="Port to bind"),
     reload: bool =  typer.Option(False, help="reload"),
+    use_https: bool =  typer.Option(False, help="Use https"),
     base_dir: str =typer.Option(None, help="Base directory"),
     work_dir: str =typer.Option(None, help="Work directory"),
     pipeline_dir: str =typer.Option(None, help="Pipeline directory"),
     literature_dir: str =typer.Option(None, help="Literature directory"),
-    db_type: str =typer.Option("sqlite", help="Db type[ mysql, sqlite ]"),
-    mysql_url: str =typer.Option("root:123456@192.168.3.60:53306/pipeline", help="Mysql url")
+    # db_type: str =typer.Option("sqlite", help="Db type[ mysql, sqlite ]"),
+    mysql_url: str =typer.Option(None, help="Mysql url")
     ):
     
     
-    os.environ["DB_TYPE"] = db_type
+    # os.environ["DB_TYPE"] = db_type
     os.environ["MYSQL_URL"] = mysql_url
     if base_dir:
         os.environ["BASE_DIR"] = base_dir
@@ -35,15 +37,29 @@ def main(
         os.environ["LITERATURE_DIR"] = literature_dir
 
 
-
     # settings = get_settings()
     engine = init_engine()
 
     meta.create_all(engine)
     Base.metadata.create_all(bind=engine)
 
+    cret_path = os.path.join(os.path.dirname(__file__), "cert")
+
     # typer.echo(f"base_dir={base_dir}, host={host}, port={port}")
-    uvicorn.run("brave.main:create_app", host=host, port=port, factory=True,reload=reload)
+    if use_https:
+        uvicorn.run("brave.main:create_app", 
+                    host=host, 
+                    port=port, 
+                    ssl_keyfile=f"{cret_path}/key.pem",
+                    ssl_certfile=f"{cret_path}/cert.pem",
+                    factory=True,
+                    reload=reload)
+    else:
+        uvicorn.run("brave.main:create_app", 
+                    host=host, 
+                    port=port, 
+                    factory=True,
+                    reload=reload)
 
 
 if __name__ == "__main__":
