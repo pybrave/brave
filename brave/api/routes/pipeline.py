@@ -207,7 +207,7 @@ async def get_component_parent(component_id,component_type):
         t_namespace.c.name.label("namespace_name"),
         cast(null(), String(255)).label("relation_type"),
         cast(null(), String(255)).label("parent_component_id"),
-        cast(null(), String(255)).label("order_index"),
+        cast(null(), Integer).label("order_index"),
         cast(null(), String(255)).label("relation_id"),
     ).select_from(
         t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
