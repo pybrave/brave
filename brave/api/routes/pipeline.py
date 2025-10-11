@@ -636,8 +636,8 @@ async def save_pipeline(savePipeline:SavePipeline):
             if savePipeline.parent_component_id:
                 parent_component = pipeline_service.find_pipeline_by_id(conn,savePipeline.parent_component_id)
                 if parent_component:
-                    save_pipeline_dict['namespace'] = parent_component.namespace
-                    namespace = parent_component.namespace
+                    save_pipeline_dict['namespace'] = parent_component["namespace"]
+                    namespace = parent_component["namespace"]
                 else:
                     raise HTTPException(status_code=500, detail=f"根据父{savePipeline.parent_component_id}不能找到记录!")
             else:
