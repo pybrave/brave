@@ -29,10 +29,11 @@ class NextflowAnalysis(BaseAnalysis):
                 {component_script} \\
                 -params-file {params_path} \\
                 -w {work_dir} \\
-                -plugins nf-hello@0.7.0 \\
                 -c {nextflow_config} \\
                 -with-trace {trace_file} | tee {workflow_log_file} ; exit ${{PIPESTATUS[0]}}
             """)
+        # -plugins nf-hello@0.7.0 \\
+
         return command
         
     def write_config(self,output_dir,component_script):

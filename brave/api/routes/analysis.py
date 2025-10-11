@@ -743,6 +743,7 @@ async def edit_params(analysis_id):
         "is_report":find_analysis["is_report"],
         "analysis_id":find_analysis["analysis_id"],
         "component_name":find_component["component_name"],
+        "component_type":find_component["component_type"],
         "component_id":find_component["component_id"],
         "request_param":json.loads(find_analysis["request_param"]),
         "content":json.loads(find_component["content"]),

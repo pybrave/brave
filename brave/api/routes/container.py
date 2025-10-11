@@ -1,18 +1,44 @@
 
-from fastapi import APIRouter
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException
+from brave.api.config.config import get_settings
+from brave.api.core.evenet_bus import EventBus
+from brave.api.core.event import AnalysisExecutorEvent
+from brave.api.core.routers_name import RoutersName
+from brave.api.executor.base import JobExecutor
+from brave.api.schemas.analysis import AnalysisExecuterModal
 from brave.api.schemas.container import PageContainerQuery,SaveContainer
 import brave.api.service.container_service as container_service
 from brave.api.config.db import get_engine
 from brave.api.config.db import get_engine
 import brave.api.service.pipeline as pipeline_service
 import uuid
+from dependency_injector.wiring import Provide
+from dependency_injector.wiring import inject
+
+from brave.app_container import AppContainer
 
 container_controller = APIRouter(prefix="/container")
 
 @container_controller.post("/page", tags=['container'])
-async def page_container(query:PageContainerQuery):
+@inject
+async def page_container(query:PageContainerQuery,
+                         job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
     with get_engine().begin() as conn:
-        return container_service.page_container(conn,query)
+        page_list =  container_service.page_container(conn,query)
+    containers = await job_executor.list_running()
+    containers = [{container.name:container.id} for container in containers]
+    containers_dict = {k: v for d in containers for k, v in d.items()}
+    items = []
+    for item in page_list['items']:
+        if item["container_id"] in containers_dict:
+            item["status"] = "running"
+            item["docker_id"] = containers_dict[item["container_id"]]
+        else:
+            item["status"] = "stopped"
+        items.append(item)
+    page_list['items'] = items
+    return page_list
 
 @container_controller.get("/find-by-id/{container_id}", tags=['container'])
 async def find_by_id(container_id):
@@ -48,7 +74,57 @@ async def delete_by_container_id(container_id:str):
                 raise HTTPException(status_code=400, detail=f"container {container_id} 存在组件，不能删除")
         container_service.delete_container(conn,container_id)
 
-    container_service.write_all_container(conn,find_container.container_id)
+        container_service.write_all_container(conn,find_container.namespace)
     return {"message":"success"}
 
 
+
+
+@container_controller.post("/run-container/{container_id}")
+@inject
+async def run_container(
+    container_id,
+    # executor: JobExecutor = Depends(get_executor_dep),
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+    settings = get_settings()
+
+    data_dir = str(settings.DATA_DIR)
+    analysis_ =  AnalysisExecuterModal(
+        analysis_id=container_id,
+        container_id=container_id,
+        output_dir=data_dir,
+        pipeline_script=f"{data_dir}/run.sh",
+        run_type="retry"
+    )
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
+    
+    
+    # job_id = await executor.submit_job(LocalJobSpec(
+    #     job_id=analysis_id,
+    #     command=["bash", "run.sh"],
+    #     output_dir=analysis_['output_dir'],
+    #     process_id=analysis_['process_id']
+    # ))
+
+    return {"msg":"success"}
+
+
+@container_controller.post("/stop-container/{container_id}")
+@inject
+async def run_container(
+    container_id,
+    # executor: JobExecutor = Depends(get_executor_dep),
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+    settings = get_settings()
+
+    data_dir = str(settings.DATA_DIR)
+    analysis_ =  AnalysisExecuterModal(
+        analysis_id=container_id,
+        container_id=container_id,
+        output_dir=data_dir,
+        pipeline_script=f"{data_dir}/run.sh",
+        run_type="retry"
+    )
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)

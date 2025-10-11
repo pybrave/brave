@@ -22,13 +22,18 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
 
         if event == AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE or event == AnalysisExecutorEvent.ON_ANALYSIS_FAILED:    
             if isinstance(payload, AnalysisId):
+                # if payload.run_type =="retry":
+                #     payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type=payload.run_type)
+                # else:
                 with get_engine().begin() as conn:
                     analysis =  analysis_service.find_analysis_by_id(conn,payload.analysis_id)
                     if analysis:
                         payload = AnalysisExecuterModal(**analysis)
+                    else:
+                        payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type="retry")
                 # payload = AnalysisExecuterModal(analysis_id=payload.analysis_id)
 
-        if not isinstance(payload, AnalysisExecuterModal):
+        if   not isinstance(payload, AnalysisExecuterModal):
             raise TypeError(f"[EventRouter] Expected payload type {AnalysisExecuterModal}, got {type(payload)}")
         if handlers:
             for handler in handlers:

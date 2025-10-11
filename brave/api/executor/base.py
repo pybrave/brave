@@ -34,3 +34,6 @@ class JobExecutor(ABC):
     
     async def remove_job(self, job_id: str) -> None:
         pass
+
+    async def list_running(self) -> None:
+        pass

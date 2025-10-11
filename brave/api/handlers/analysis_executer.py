@@ -57,23 +57,28 @@ def setup_handlers(
     async def on_analysis_stoped(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_stoped] {payload.analysis_id}")
         await job_executor.remove_job(payload.analysis_id)
-        asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"failed"))
+        if payload.run_type !="retry":
+            asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"failed"))
 
     
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE)
     async def on_analysis_complete(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_complete] {payload.analysis_id} {payload.run_type}")
-        if payload.run_type =="job":
-            asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
-            # await result_parse_manage.parse(payload.analysis_id)
-         
-        elif payload.run_type =="server":
-            await analysis_service.update_ports(payload.analysis_id,None )
+
+        if payload.run_type !="retry":
+            if payload.run_type =="job":
+                asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
+                # await result_parse_manage.parse(payload.analysis_id)
             
-        asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"finished"))
+            elif payload.run_type =="server":
+                await analysis_service.update_ports(payload.analysis_id,None )
+                
+            asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"finished"))
+
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
-            "event": "analysis_complete"
+            "event": "analysis_complete",
+            "run_type":payload.run_type
             })})
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STARTED)
@@ -90,7 +95,8 @@ def setup_handlers(
             await analysis_service.update_url(payload.analysis_id,f"http://10.110.1.11:5003/container/{payload.analysis_id}")
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
-            "event": "analysis_started"
+            "event": "analysis_started",
+            "run_type":payload.run_type
             })})
     #         asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
     #         asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"finished"))
@@ -105,10 +111,12 @@ def setup_handlers(
         print(f"🚀 [on_analysis_failed] {payload.analysis_id}")
         if payload.run_type =="server":
             await analysis_service.update_url(payload.analysis_id,None )
-        asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"failed"))
+        if payload.run_type !="retry":
+            asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"failed"))
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
-            "event": "analysis_failed"
+            "event": "analysis_failed",
+            "run_type":payload.run_type
             })})
         # await sse_service.push_message({"group": "default", "data": json.dumps(msg)})
         # asyncio.create_task(analysis_service.finished_analysis(analysis.analysis_id))

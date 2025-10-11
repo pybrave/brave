@@ -115,12 +115,15 @@ class DockerExecutor(JobExecutor):
         # "R_USER_WORKDIR":"$OUTPUT_DIR",
         # "R_SCRIPT":"$SCRIPT_FILE"
         # }
-        
+        sock_gid = os.stat('/var/run/docker.sock').st_gid
+
         envionment = {}
         if find_container["envionment"]:
             envionment = find_container["envionment"]
             envionment = envionment.replace("$USERID", str(user_id))
             envionment = envionment.replace("$GROUPID", str(group_id))
+            envionment = envionment.replace("$DOCKER_GROUPID", str(sock_gid))
+
             envionment = envionment.replace("$OUTPUT_DIR", job.output_dir)
             envionment = envionment.replace("$SCRIPT_FILE", job.pipeline_script)
             envionment = json.loads(envionment) 
@@ -143,16 +146,15 @@ class DockerExecutor(JobExecutor):
         #     raise e  # 其他错误不应吞掉
 
 
-        sock_gid = os.stat('/var/run/docker.sock').st_gid
 
-        command = f"bash -c  \"bash ./run.sh  2>&1 | tee {job.command_log_path}; exit ${{PIPESTATUS[0]}}\""
+        command = f"-c  \"bash ./run.sh  2>&1 | tee {job.command_log_path}; exit ${{PIPESTATUS[0]}}\""
         port = {}
         docker_uid = user_id
         labels ={}
         network = None
         url_predix = f"container/{job.analysis_id}"
-        if job.run_type=="server":
-            command = find_container["command"]
+        if job.run_type=="server" or job.run_type=="retry":
+            command = find_container["command"] or  ""
             command = command.replace("$SCRIPT_DIR",script_dir)
             command = command.replace("$URL_PREFIX",url_predix)
             # command = f"{command}  > {job.command_log_path}"
@@ -175,7 +177,9 @@ class DockerExecutor(JobExecutor):
                         "bind": "/data",
                         "mode": "rw"
                     }})
-
+        entrypoint = None
+        if  job.run_type=="job":
+            entrypoint="bash"
         try:
             container: Container = self.client.containers.run(
                 image=find_container.image,
@@ -184,6 +188,7 @@ class DockerExecutor(JobExecutor):
                 group_add=["users",str(sock_gid)],
                 command=command,
                 network=network,
+                entrypoint=entrypoint,
                 volumes={
                     job.output_dir: {
                         "bind": job.output_dir,
@@ -206,6 +211,10 @@ class DockerExecutor(JobExecutor):
                         "mode": "rw"
                     },
                     **volumes,
+                    "/usr/bin/docker":{
+                        "bind": "/usr/bin/docker",
+                        "mode": "rw"
+                    },
                     "/tmp/brave.sock": {
                         "bind": "/tmp/brave.sock",
                         "mode": "rw"
@@ -304,7 +313,7 @@ class DockerExecutor(JobExecutor):
                 await asyncio.sleep(self._monitor_interval)
             except Exception as e:
             
-                print(f"Error removing container {job_id}: {e}")
+                print(f"Error auto removing container {job_id}: {e}")
                 traceback.print_exc()
                 pass
 
@@ -332,3 +341,10 @@ class DockerExecutor(JobExecutor):
         except Exception as e:
             print(f"Error removing container {job_id}: {e}")
             pass
+
+    async def list_running(self) :
+        label_filter = {"label": "project=brave"}
+        # 获取运行中的容器（filtered by label）
+        containers = self.client.containers.list(filters=label_filter)
+        return containers
+
