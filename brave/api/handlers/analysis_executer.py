@@ -123,3 +123,10 @@ def setup_handlers(
         # result_parse_manage.remove(analysis.analysis_id)
 
 
+    @router.on_event(AnalysisExecutorEvent.ON_CONTAINER_PULLED)
+    async def on_container_pulled(payload:AnalysisExecuterModal):
+        await sse_service.push_message({"group": "default", "data": json.dumps({
+            "analysis_id": payload.analysis_id,
+            "event": "container_pulled",
+            "run_type":payload.run_type
+        })})

@@ -35,5 +35,10 @@ class JobExecutor(ABC):
     async def remove_job(self, job_id: str) -> None:
         pass
 
-    async def list_running(self) -> None:
+    async def list_running(self):
+        pass
+
+    def get_image(self):
+       pass
+    def pull_image(self,container_id,image_name):
         pass

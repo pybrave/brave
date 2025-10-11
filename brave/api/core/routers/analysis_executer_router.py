@@ -32,7 +32,8 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
                     else:
                         payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type="retry")
                 # payload = AnalysisExecuterModal(analysis_id=payload.analysis_id)
-
+        elif event == AnalysisExecutorEvent.ON_CONTAINER_PULLED:
+            payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type="retry")
         if   not isinstance(payload, AnalysisExecuterModal):
             raise TypeError(f"[EventRouter] Expected payload type {AnalysisExecuterModal}, got {type(payload)}")
         if handlers:

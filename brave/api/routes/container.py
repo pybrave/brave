@@ -15,6 +15,7 @@ import brave.api.service.pipeline as pipeline_service
 import uuid
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
+import asyncio
 
 from brave.app_container import AppContainer
 
@@ -27,7 +28,6 @@ async def page_container(query:PageContainerQuery,
     with get_engine().begin() as conn:
         page_list =  container_service.page_container(conn,query)
     containers = await job_executor.list_running()
-    containers = [{container.name:container.id} for container in containers]
     containers_dict = {k: v for d in containers for k, v in d.items()}
     items = []
     for item in page_list['items']:
@@ -49,19 +49,34 @@ async def find_by_id(container_id):
 
 
 @container_controller.post("/add-or-update-container",tags=['container'])
-async def save_namespace_controller(saveContainer:SaveContainer):
+@inject
+async def save_namespace_controller(saveContainer:SaveContainer, job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+    image = ""
+    save_container_dict  = saveContainer.model_dump()
     with get_engine().begin() as conn:
         if saveContainer.container_id:
             find_container= container_service.find_container_by_id(conn,saveContainer.container_id)
             container_id = find_container.container_id 
-            container_service.update_container(conn,saveContainer.container_id,saveContainer.dict())
+            image = saveContainer.image or find_container.image
+            image = job_executor.get_image(image)
+            if image:
+                save_container_dict.update({"image_id":image.id,"image_status":"exist"})
+            else:
+                save_container_dict.update({"image_status":"not_exist"})
+            container_service.update_container(conn,saveContainer.container_id,save_container_dict)
         else:
             str_uuid = str(uuid.uuid4())
-            saveContainer.container_id = str_uuid
+            save_container_dict["container_id"] = str_uuid
             container_id = str_uuid
-            container_service.save_container(conn,saveContainer.dict())
+            image = saveContainer.image
+            image = job_executor.get_image(image)
+            if image:
+                save_container_dict.update({"image_id":image.id,"image_status":"exist"})
+            else:
+                save_container_dict.update({"image_status":"not_exist"})
+            container_service.save_container(conn,save_container_dict)
         container_service.write_all_container(conn,saveContainer.namespace)
-
+    
     return {"message":"success"}
 
 @container_controller.delete("/delete-container-by-id/{container_id}",tags=['container'])
@@ -128,3 +143,18 @@ async def run_container(
         run_type="retry"
     )
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)
+
+
+@container_controller.post("/pull-image/{container_id}")
+@inject
+async def page_container(container_id,
+                         job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+    with get_engine().begin() as conn:
+        find_container = container_service.find_container_by_id(conn,container_id)
+        
+
+        asyncio.create_task(job_executor.pull_image(container_id,find_container.image))
+        container_service.update_container(conn,
+                                            container_id,
+                                            {"image_status":"pulling"})
+    return "success"

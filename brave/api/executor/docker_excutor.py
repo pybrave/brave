@@ -20,6 +20,10 @@ import brave.api.service.container_service as container_service
 from brave.api.config.db import get_engine
 import json
 from brave.api.schemas.analysis import AnalysisExecuterModal
+from docker.errors import ImageNotFound
+from brave.api.service import container_service
+import os
+
 
 class DockerExecutor(JobExecutor):
 
@@ -30,8 +34,12 @@ class DockerExecutor(JobExecutor):
         # self._monitor_task = None
         self._monitor_interval = 2.0  # 秒
         self.to_remove = []
+        self.setting  = get_settings()
         asyncio.create_task(self.recover_running_containers())
         asyncio.create_task(self._monitor_containers())
+        asyncio.create_task(self.update_images_status())
+        self.running_conntainer =  []
+        asyncio.to_thread(self._list_running())
         self.executor = ThreadPoolExecutor(max_workers=5)
         
 
@@ -158,13 +166,25 @@ class DockerExecutor(JobExecutor):
             command = command.replace("$SCRIPT_DIR",script_dir)
             command = command.replace("$URL_PREFIX",url_predix)
             # command = f"{command}  > {job.command_log_path}"
-            port = find_container["port"]
-            port =  {f"{port}/tcp":None}
+            port = {}
+            port_str = find_container["port"]
+            if ":" in port_str:
+                for item in port_str.split(","):
+                    host_port, container_port = item.split(":")
+                    # Docker SDK 需要字典 {container_port/tcp: host_port}
+                    port[f"{container_port}/tcp"] = int(host_port)
+            elif  port!="":
+                port =  {f"{port_str}/tcp":None}
+
             docker_uid = user_id if find_container["change_uid"] else None
             labels = find_container["labels"]
-            labels = labels.replace("$URL_PREFIX",url_predix)
-            labels = labels.replace("$CONTAINER_NAME",job.analysis_id)
-            labels = json.loads(labels)
+            if labels:
+                labels = labels.replace("$URL_PREFIX",url_predix)
+                labels = labels.replace("$CONTAINER_NAME",job.analysis_id)
+                labels = json.loads(labels)
+            else:
+                labels={}
+            
             try:
                 network = self.client.networks.get("traefik_proxy")
             except docker.errors.NotFound:
@@ -256,6 +276,7 @@ class DockerExecutor(JobExecutor):
         job.ports = ports
         # if self._monitor_task is None:
         #     self._monitor_task = asyncio.create_task(self._monitor_containers())
+        self._list_running()
         asyncio.run(self.event_bus.dispatch(
             RoutersName.ANALYSIS_EXECUTER_ROUTER,
             AnalysisExecutorEvent.ON_ANALYSIS_STARTED,
@@ -286,6 +307,7 @@ class DockerExecutor(JobExecutor):
                                     AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE,
                                     analysis_id
                                 )
+                                self._list_running()
                             else:
                                 # 执行失败，保留容器调试
                                 print(f"[{job_id}] 执行失败（ExitCode={exit_code}），保留容器")
@@ -295,10 +317,12 @@ class DockerExecutor(JobExecutor):
                                     AnalysisExecutorEvent.ON_ANALYSIS_FAILED,
                                     analysis_id
                                 )  
+                                self._list_running()
                     except Exception as e:
                         print(f"Error monitoring container {job_id}: {e}")
                         self.to_remove.append(job_id)
-
+                        self._list_running()
+                
 
                 for job_id in self.to_remove:
                     if job_id in self.containers:
@@ -331,6 +355,7 @@ class DockerExecutor(JobExecutor):
     def stop_job(self, job_id: str) -> None:
         try:
             self.client.containers.get(job_id).stop()
+            self._list_running()
         except Exception as e:
             print(f"Error stopping container {job_id}: {e}")
             pass
@@ -338,13 +363,80 @@ class DockerExecutor(JobExecutor):
     async def remove_job(self, job_id: str) -> None:
         try:
             self.client.containers.get(job_id).remove(force=True)
+            self._list_running()
         except Exception as e:
             print(f"Error removing container {job_id}: {e}")
             pass
 
-    async def list_running(self) :
+    def _list_running(self) :
         label_filter = {"label": "project=brave"}
         # 获取运行中的容器（filtered by label）
         containers = self.client.containers.list(filters=label_filter)
-        return containers
+        containers = [{container.name:container.id} for container in containers]
+        self.running_conntainer = containers
+    
+    async def list_running(self) :
+        return self.running_conntainer
 
+    async def update_images_status(self):
+        with get_engine().begin() as conn: 
+            container_list = container_service.list_container(conn)
+            for item in container_list:
+                image = self.get_image(item.image)
+                if image:
+                    container_service.update_container(conn,
+                                                       item.container_id,
+                                                       {"image_id":image.id,"image_status":"exist"})
+                else:
+                    container_service.update_container(conn,
+                                                       item.container_id,
+                                                       {"image_status":"not_exist"})
+             
+            
+
+    def get_image(self, image_name):
+        try:
+            image = self.client.images.get(image_name)
+            return image
+        except ImageNotFound:
+            print(f"Image ({image_name}) not exist!")
+            return None
+        except Exception as e:
+            return None
+    
+    def pull_image_with_log(self,container_id,image_name: str):
+        client = docker.APIClient(base_url="unix://var/run/docker.sock")
+        stream = client.pull(image_name, stream=True, decode=True)
+        log_file = f"{self.setting.BASE_DIR}/log"
+        if not  os.path.exists(log_file):    
+            os.makedirs(log_file) 
+        print(f"pull {image_name} log :{log_file}/{container_id}.log")
+        with open(f"{log_file}/{container_id}.log", "w", encoding="utf-8") as f:
+            for log in stream:
+                log_str = json.dumps(log, ensure_ascii=False)
+                # print(log_str)  # 继续打印到控制台
+                f.write(log_str + "\n")  # 写入文件
+
+        # for log in stream:
+            
+        #     print(json.dumps(log, indent=2, ensure_ascii=False))
+
+    async def pull_image(self,container_id,image_name):
+        print(f"pull {image_name}")
+        # a = self.client.images.pull(image_name)
+        
+        await asyncio.to_thread(self.pull_image_with_log,container_id,image_name)
+        image = self.get_image(image_name)
+        if image:
+            print(f"pull {image_name} complete!")
+            with get_engine().begin() as conn: 
+                container_service.update_container(conn,
+                                                    container_id,
+                                                    {"image_id":image.id,"image_status":"exist"})
+        analysis_id = AnalysisId(analysis_id=container_id)
+        # asyncio.create_task() 
+        await self.event_bus.dispatch(
+            RoutersName.ANALYSIS_EXECUTER_ROUTER,
+            AnalysisExecutorEvent.ON_CONTAINER_PULLED,
+            analysis_id
+        )
