@@ -1,6 +1,6 @@
 
 from brave.api.executor.base import JobExecutor
-from brave.api.schemas.container import PageContainerQuery,SaveContainer
+from brave.api.schemas.container import ListContainerQuery, PageContainerQuery,SaveContainer
 from brave.api.models.core import t_container,t_namespace
 from sqlalchemy import delete, select, and_, join, func,insert,update
 # from brave.api.service.pipeline import get_pipeline_dir 
@@ -95,6 +95,14 @@ def import_container(conn,namespace,force=False):
             conn.execute(insert(t_container).values(item))   
 
 
+
+def list_container_key(conn,query:ListContainerQuery):
+    stmt = t_container.select().where(t_container.c.container_key.in_(query.container_key))
+    return conn.execute(stmt).mappings().all()
+
+def find_container_key(conn,query:ListContainerQuery):
+    stmt = t_container.select().where(t_container.c.container_key==query.container_key)
+    return conn.execute(stmt).mappings().first()
 # def update_images_status(conn,job_executor:JobExecutor ):
 #     container_list = list_container()
 #     for item in container_list:

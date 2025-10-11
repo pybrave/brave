@@ -7,7 +7,7 @@ from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.core.routers_name import RoutersName
 from brave.api.executor.base import JobExecutor
 from brave.api.schemas.analysis import AnalysisExecuterModal
-from brave.api.schemas.container import PageContainerQuery,SaveContainer
+from brave.api.schemas.container import ListContainerQuery, PageContainerQuery,SaveContainer
 import brave.api.service.container_service as container_service
 from brave.api.config.db import get_engine
 from brave.api.config.db import get_engine
@@ -75,7 +75,8 @@ async def save_namespace_controller(saveContainer:SaveContainer, job_executor:Jo
             else:
                 save_container_dict.update({"image_status":"not_exist"})
             container_service.save_container(conn,save_container_dict)
-        container_service.write_all_container(conn,saveContainer.namespace)
+        if saveContainer.namespace!="default":
+            container_service.write_all_container(conn,saveContainer.namespace)
     
     return {"message":"success"}
 
@@ -88,8 +89,8 @@ async def delete_by_container_id(container_id:str):
             if find_component:
                 raise HTTPException(status_code=400, detail=f"container {container_id} 存在组件，不能删除")
         container_service.delete_container(conn,container_id)
-
-        container_service.write_all_container(conn,find_container.namespace)
+        if find_container.namespace!="default":
+            container_service.write_all_container(conn,find_container.namespace)
     return {"message":"success"}
 
 
@@ -158,3 +159,46 @@ async def page_container(container_id,
                                             container_id,
                                             {"image_status":"pulling"})
     return "success"
+
+
+@container_controller.post("/list-container-key")
+@inject
+async def  list_container_key(query:ListContainerQuery,
+                               job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+    with get_engine().begin() as conn:
+        find_container=  container_service.list_container_key(conn,query)
+        find_container = [dict(item) for item in find_container]
+        containers = await job_executor.list_running()
+        
+        containers_dict = {k: v for d in containers for k, v in d.items()}
+        items = []
+        for item in find_container:
+            if item["container_id"] in containers_dict:
+                item["status"] = "running"
+                item["docker_id"] = containers_dict[item["container_id"]]
+            else:
+                item["status"] = "stopped"
+            items.append(item)
+    return items
+
+
+@container_controller.post("/find-container-key")
+@inject
+async def  find_container_key(query:ListContainerQuery,
+                               job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+    with get_engine().begin() as conn:
+        find_container=  container_service.find_container_key(conn,query)
+        if not find_container:
+            return {}
+    find_container = dict(find_container)
+    containers = await job_executor.list_running()
+    
+    containers_dict = {k: v for d in containers for k, v in d.items()}
+    items = []
+    if find_container["container_id"] in containers_dict:
+        find_container["status"] = "running"
+        find_container["docker_id"] = containers_dict[find_container["container_id"]]
+    else:
+        find_container["status"] = "stopped"
+        
+    return items

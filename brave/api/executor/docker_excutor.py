@@ -406,7 +406,7 @@ class DockerExecutor(JobExecutor):
     
     def pull_image_with_log(self,container_id,image_name: str):
         client = docker.APIClient(base_url="unix://var/run/docker.sock")
-        stream = client.pull(image_name, stream=True, decode=True)
+        stream = client.pull(image_name.strip(), stream=True, decode=True)
         log_file = f"{self.setting.BASE_DIR}/log"
         if not  os.path.exists(log_file):    
             os.makedirs(log_file) 
