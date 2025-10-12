@@ -20,12 +20,14 @@ def main(
     work_dir: str =typer.Option(None, help="Work directory"),
     pipeline_dir: str =typer.Option(None, help="Pipeline directory"),
     literature_dir: str =typer.Option(None, help="Literature directory"),
+    mysql_url: str =typer.Option(None, help="Mysql url"),
     # db_type: str =typer.Option("sqlite", help="Db type[ mysql, sqlite ]"),
-    mysql_url: str =typer.Option(None, help="Mysql url")
+    executer_type: str =typer.Option("docker", help="Executer Type [local, docker]")
     ):
     
     
     # os.environ["DB_TYPE"] = db_type
+    os.environ["EXECUTER_TYPE"] = executer_type
     if mysql_url:
         os.environ["MYSQL_URL"] = mysql_url
     if base_dir:

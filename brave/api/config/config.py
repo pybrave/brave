@@ -82,6 +82,8 @@ class Settings:
 
         print(f"✅ Using DB_URL: {self.DB_URL}")
 
+        self.EXECUTER_TYPE = os.getenv("EXECUTER_TYPE")
+        print(f"✅ Using EXECUTER_TYPE: {self.EXECUTER_TYPE}")
         
 
 

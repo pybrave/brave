@@ -39,7 +39,7 @@ class DockerExecutor(JobExecutor):
         asyncio.create_task(self._monitor_containers())
         asyncio.create_task(self.update_images_status())
         self.running_conntainer =  []
-        asyncio.to_thread(self._list_running())
+        asyncio.create_task(asyncio.to_thread(self._list_running))
         self.executor = ThreadPoolExecutor(max_workers=5)
         
 

@@ -36,12 +36,14 @@ container = AppContainer()
 # container.config.executer_type.from_env("EXECUTER_TYPE","local")    
 
 container.wire(modules=["brave.api.routes"], packages=["brave.api.routes","brave.api.handlers"])
-container.config.from_dict({
-    'executer_type': 'docker'
-})
+# 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
+    container.config.from_dict({
+        'executer_type': settings.EXECUTER_TYPE
+    })
 
     manager = AppManager()
     # container.app_manager.override(providers.Object(manager))
