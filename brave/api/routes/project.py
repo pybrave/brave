@@ -39,7 +39,7 @@ async def list_project():
 async def find_by_project_id(project_id:str):
     with get_engine().begin() as conn:
         project = await project_service.find_by_project_id(conn,project_id)
-        return project
+        return get_one_project(project)
 
 @project_api.delete("/delete-project/{project_id}")
 async def delete_project(project_id:str):
