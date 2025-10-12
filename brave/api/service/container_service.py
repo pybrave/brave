@@ -22,8 +22,8 @@ def page_container(conn,query:PageContainerQuery):
     )
    
     conditions = []
-    # if query.component_type is not None:
-    #     conditions.append(t_pipeline_components.c.component_type == query.component_type)
+    if query.namespace is not None:
+        conditions.append(t_container.c.namespace == query.namespace)
     
     stmt = stmt.where(and_(*conditions))
     count_stmt = select(func.count()).select_from(t_container).where(and_(*conditions))
@@ -97,7 +97,13 @@ def import_container(conn,namespace,force=False):
 
 
 def list_container_key(conn,query:ListContainerQuery):
-    stmt = t_container.select().where(t_container.c.container_key.in_(query.container_key))
+    stmt = t_container.select().where(
+        and_(
+            t_container.c.container_key.in_(query.container_key),
+            t_container.c.namespace ==query.namespace
+        )
+        
+    )
     return conn.execute(stmt).mappings().all()
 
 def find_container_key(conn,query:ListContainerQuery):

@@ -113,8 +113,11 @@ async def run_container(
         pipeline_script=f"{data_dir}/run.sh",
         run_type="retry"
     )
+    # try:
+    # raise RuntimeError("oops!")
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
-    
+    # except Exception as e:
+    #     raise HTTPException(status_code=400, detail=str(e))
     
     # job_id = await executor.submit_job(LocalJobSpec(
     #     job_id=analysis_id,

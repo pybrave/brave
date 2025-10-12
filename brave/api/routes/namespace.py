@@ -14,7 +14,6 @@ namespace = APIRouter()
 
 @namespace.post("/save-or-update-namespace",tags=['namespace'])
 async def save_namespace_controller(saveNamespace:SaveNamespace):
-    pipeline_dir = pipeline_service.get_pipeline_dir()
     with get_engine().begin() as conn:
         if saveNamespace.namespace_id:
             find_namespace = namespace_service.find_namespace(conn,saveNamespace.namespace_id)
@@ -25,13 +24,14 @@ async def save_namespace_controller(saveNamespace:SaveNamespace):
             str_uuid = str(uuid.uuid4())
             saveNamespace.namespace_id = str_uuid
             namespace_id = str_uuid
-            namespace_service.save_namespace(conn,saveNamespace.dict())
+            namespace_service.save_namespace(conn,saveNamespace.model_dump())
     
-    namespace = f"{pipeline_dir}/{namespace_id}"
-    if not os.path.exists(namespace):
-        os.makedirs(namespace)
-    with open(f"{namespace}/namespace.json","w") as f:
-        f.write(json.dumps(saveNamespace.dict()))
+    # namespace = f"{pipeline_dir}/{namespace_id}"
+    # if not os.path.exists(namespace):
+    #     os.makedirs(namespace)
+    # with open(f"{namespace}/namespace.json","w") as f:
+    #     f.write(json.dumps(saveNamespace.dict()))
+    namespace_service.write_namespace(namespace_id,saveNamespace.model_dump())
     return {"message":"success"}
 
 @namespace.get("/list-namespace",tags=['namespace'])

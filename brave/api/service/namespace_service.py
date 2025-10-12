@@ -1,6 +1,7 @@
 
 
 import json
+import os
 
 from sqlalchemy import insert
 from brave.api.models.core import t_namespace
@@ -44,3 +45,22 @@ def import_namespace(conn,namespace_id,force=False):
     else:
         conn.execute(insert(t_namespace).values(namespace_json))
     return namespace_json
+
+def write_namespace(namespace_id,saveNamespace):
+    pipeline_dir = get_pipeline_dir()
+    namespace = f"{pipeline_dir}/{namespace_id}"
+    if not os.path.exists(namespace):
+        os.makedirs(namespace)
+    with open(f"{namespace}/namespace.json","w") as f:
+        f.write(json.dumps(saveNamespace))
+
+async def init_db(conn):
+    namespace = find_namespace(conn,"default")
+    if not namespace:
+        namespace_dict = {"namespace_id":"default","name":"default"}
+        save_namespace(conn,namespace_dict)
+        write_namespace("default",namespace_dict)
+
+    
+    
+

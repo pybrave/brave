@@ -1,8 +1,9 @@
 # https://github.com/FaztWeb/fastapi-mysql-restapi/blob/main/routes/user.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from dependency_injector import providers
+from fastapi.encoders import jsonable_encoder
 
 from brave.api.routes.file_parse_plot import file_parse_plot
 from brave.api.routes.sample_result import sample_result
@@ -18,6 +19,8 @@ from brave.api.service.process_monitor_service import ProcessMonitor
 from brave.api.routes.bio_database import bio_database
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
+
 import os
 from brave.api.config.config import get_settings,init as init_config
 from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
@@ -112,6 +115,23 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # 异常处理函数
+    async def value_error_handler(request: Request, exc: Exception):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": str(exc)},
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+
+    # 注册异常处理器
+    app.add_exception_handler(Exception, value_error_handler)
+    # # @app.exception_handler(Exception)
+    # async def value_error_handler(request: Request, exc: ValueError):
+    #      return JSONResponse(
+    #             status_code=400,
+    #             content=jsonable_encoder({"detail":"aa", "body":"aa"}),
+    #         )
+  
     return app
 
 # import logging

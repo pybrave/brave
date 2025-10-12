@@ -10,7 +10,8 @@ from brave.api.handlers import analysis_executer
 from brave.api.service.listener_files_service import get_listener_files_service
 from brave.api.service.process_monitor_service import ProcessMonitor
 from brave.api.service.sse_service import SSESessionService
-
+from brave.api.config.db import get_engine
+from brave.api.service import namespace_service, project_service
 from brave.api.ingress.manager import IngressManager
 from brave.api.handlers import workflow_events,analysis_result   
 from brave.api.core.workflow_queue import WorkflowQueueManager
@@ -160,6 +161,11 @@ class AppManager:
         self.tasks.append(asyncio.create_task(self.process_monitor.startup_process_event()))
         # 挂载到 app.state，方便别处访问
         # self.app.state.manager = self
+
+        # init db
+        with get_engine().begin() as conn: 
+            await namespace_service.init_db(conn)
+            await project_service.init_db(conn)
 
         
 

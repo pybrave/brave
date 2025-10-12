@@ -1,7 +1,7 @@
 import asyncio
 from fastapi import FastAPI, Request,Response, WebSocket
 import os
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketDisconnect
@@ -35,7 +35,7 @@ import websockets
 
 def setup_routes(app: FastAPI,manager:AppManager):
   
-    
+
     frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "build","assets")), name="assets")
     # frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
@@ -65,6 +65,8 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.include_router(nlp_api, prefix="/brave-api")
     app.include_router(kegg_api, prefix="/brave-api")
     app.include_router(index_api,prefix="/brave-api")
+
+
 
     app.get("/brave-api/sse-group")(manager.sse_service.create_endpoint())  
     endpoint = manager.ingress_manager.create_endpoint()
@@ -179,6 +181,17 @@ def setup_routes(app: FastAPI,manager:AppManager):
     #     for task in [producer_task, broadcast_task]:
     #         if task:
     #             task.cancel()
+
+
+    # async def value_error_handler(request: Request, exc: Exception):
+    #     return JSONResponse(
+    #         status_code=400,
+    #         content={"detail": str(exc), "type": "ValueError"}
+    #     )
+
+    # # 注册异常处理器
+    # app.add_exception_handler(Exception, value_error_handler)
+    # @app.exception_handler(Exception)
     @app.get("/favicon.ico")
     async def serve_favicon():
         favicon = os.path.join(frontend_path, "build/favicon.ico")
@@ -197,3 +210,4 @@ def setup_routes(app: FastAPI,manager:AppManager):
     async def serve_frontend(full_path: str):
         index_path = os.path.join(frontend_path, "build/index.html")
         return FileResponse(index_path)
+

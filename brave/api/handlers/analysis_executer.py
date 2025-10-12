@@ -2,6 +2,7 @@
 import asyncio
 import json
 from dependency_injector.wiring import inject
+from fastapi import HTTPException
 from brave.api.core.evenet_bus import EventBus
 from brave.api.core.routers.analysis_executer_router import AnalysisExecutorRouter
 from dependency_injector.wiring import inject, Provide
@@ -15,6 +16,7 @@ from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.executor.models import JobSpec, LocalJobSpec, DockerJobSpec
 from brave.api.service.sse_service import SSESessionService
 from brave.api.service.result_parse.analysis_manage import AnalysisManage
+from brave.api.executor.local_executor import LocalExecutor
 
 @inject
 def setup_handlers(
@@ -49,6 +51,11 @@ def setup_handlers(
         #         change_uid=
         #         resources={}
         #     )
+        if payload.run_type =="retry":
+            if isinstance(job_executor,LocalExecutor):
+                raise HTTPException(status_code=400, detail="LocalExecutor does not support container!")
+                # raise ValueError("LocalExecutor does not support container!")
+    
         await job_executor.submit_job(payload)
 
 

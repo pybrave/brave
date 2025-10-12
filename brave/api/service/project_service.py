@@ -49,3 +49,11 @@ async def delete_project(conn,project_id:str):
     stmt = t_project.delete().where(t_project.c.project_id==project_id)
     conn.execute(stmt)
     return project_id
+
+async def init_db(conn):
+    stmt = t_project.select().where(t_project.c.project_id=="default")
+    result = conn.execute(stmt).fetchone()
+    if not result:
+        project_dict = {"project_id":"default","project_name":"default","metadata_form":"[]"}
+        stmt = t_project.insert().values(project_dict)
+        conn.execute(stmt)

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 class PageContainerQuery(BaseModel):
     page_number: Optional[int]=1
     page_size: Optional[int]=10
+    namespace:Optional[str]=None
 
 class SaveContainer(BaseModel):
     name: Optional[str]
@@ -17,6 +18,9 @@ class SaveContainer(BaseModel):
     labels: Optional[str]=None
     change_uid:Optional[bool]=True
     container_key:Optional[str]=None
+    
 
 class ListContainerQuery(BaseModel):
     container_key: Optional[list]=None
+    namespace:Optional[str]=None
+
