@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter
 from brave.api.schemas.project import AddProject,UpdateProject
 from brave.api.service import project_service
@@ -16,12 +17,21 @@ async def update_project(UpdateProject:UpdateProject):
     with get_engine().begin() as conn:
         project_id = await project_service.update_project(conn,UpdateProject)
         return {"project_id":project_id}
+    
+def get_one_project(item):
+    item = dict(item)
+    try:
+        item['metadata_form'] = json.loads(item['metadata_form'])
+    except:
+        item["metadata_form"] = []
 
+    return item
 
 @project_api.get("/list-project")
 async def list_project():
     with get_engine().begin() as conn:
         projects = await project_service.list_project(conn)
+        projects = [get_one_project(item) for item in projects]
         return projects
 
 
