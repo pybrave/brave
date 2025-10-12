@@ -1,7 +1,6 @@
 
 
 import json
-from turtle import update
 
 from sqlalchemy import insert
 from brave.api.models.core import t_namespace
