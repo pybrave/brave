@@ -38,7 +38,7 @@ class JobExecutor(ABC):
     async def list_running(self):
         return []
 
-    def get_image(self):
+    def get_image(self,image_name):
        pass
     def pull_image(self,container_id,image_name):
         pass
