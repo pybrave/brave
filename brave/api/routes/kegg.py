@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from Bio.KEGG.KGML.KGML_parser import read
 import requests
 import os
-from lxml import etree
+# from lxml import etree
 
 kegg_api = APIRouter(prefix="/kegg")
 

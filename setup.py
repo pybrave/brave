@@ -19,7 +19,12 @@ setup(
         "httpx",
         "nbformat",
         "PyMuPDF",
-        "py2neo"
+        "py2neo",
+        "python-multipart",
+        "aiofiles",
+        "shortuuid",
+        "aiohttp",
+        "Bio"
         ],
     entry_points={
         "console_scripts": [

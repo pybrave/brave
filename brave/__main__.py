@@ -26,7 +26,8 @@ def main(
     
     
     # os.environ["DB_TYPE"] = db_type
-    os.environ["MYSQL_URL"] = mysql_url
+    if mysql_url:
+        os.environ["MYSQL_URL"] = mysql_url
     if base_dir:
         os.environ["BASE_DIR"] = base_dir
     if work_dir:
