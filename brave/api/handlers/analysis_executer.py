@@ -1,7 +1,6 @@
 
 import asyncio
 import json
-from tkinter import E
 from dependency_injector.wiring import inject
 from brave.api.core.evenet_bus import EventBus
 from brave.api.core.routers.analysis_executer_router import AnalysisExecutorRouter
