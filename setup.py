@@ -24,7 +24,8 @@ setup(
         "aiofiles",
         "shortuuid",
         "aiohttp",
-        "Bio"
+        "Bio",
+        "nbconvert"
         ],
     entry_points={
         "console_scripts": [
