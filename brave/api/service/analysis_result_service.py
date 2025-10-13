@@ -153,15 +153,6 @@ def find_analysis_result_exist(conn,component_id,file_name,project):
     return result 
 
 
-# def save_or_update_analysis_result_list(conn, analysis_result_list):
-#     for item in analysis_result_list:
-#         result = find_analysis_result_exist(conn,item['component_id'],item['file_name'],item['project'])
-#         if result:
-#             stmt = analysis_result.update().where(analysis_result.c.id == result.id).values(item)
-#             conn.execute(stmt)
-#         else:
-#             stmt = analysis_result.insert().values(item)
-#             conn.execute(stmt)
             
 def add_analysis_result(conn,analysis_result_dict):
     print(f"添加分析结果: {analysis_result_dict['file_name']}")

@@ -82,6 +82,18 @@ def get_parse_analysis_result_params(conn,analysis_id):
 
 
 def execute_parse(analysis,parse,file_format_list):
+    analysis_params_path = analysis.get('params_path')
+    if not analysis_params_path or not os.path.exists(analysis_params_path):
+        raise HTTPException(status_code=500, detail=f"Analysis params_path {analysis_params_path} not found")
+    
+    with open(analysis_params_path,"r") as f:
+        analysis_params = json.load(f)
+        if "sample_list" in analysis_params:
+            sample_list = analysis_params["sample_list"]
+            
+
+
+
     result_dict = {}
     result_list = []
     for item in file_format_list:        
@@ -90,12 +102,13 @@ def execute_parse(analysis,parse,file_format_list):
         args = {
             "dir_path":dir_path,
             # "analysis": dict(result),
-            "file_format":item['fileFormat']
+            "file_format":item['fileFormat'],
+            "sample_list":sample_list
             # "args":moduleArgs,
         
         }
         res = parse(**args)
-        
+       
         for sub_item in  res:
             sub_item.update({
                 "component_id":item['component_id'],

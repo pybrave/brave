@@ -5,10 +5,12 @@ from brave.api.core.routers_name import RoutersName
 from brave.api.schemas.analysis import Analysis
 from brave.api.schemas.analysis_result import AnalysisResult, AnalysisResultParseModal
 from brave.api.service import analysis_result_service
+from brave.api.service import analysis_service
 from brave.api.service.analysis_result_parse import AnalysisResultParse
 from brave.api.config.db import get_engine
 from brave.api.core.event import AnalysisResultEvent
 from collections import defaultdict
+
 import asyncio
 from typing import  Dict
 
@@ -20,10 +22,12 @@ class ResultParse:
         self.analysis_result_parse_service = AnalysisResultParse()
         self.analysis_locks: Dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
-    async def parse(self):
+    async def parse(self,save:bool=True):
         async with self.analysis_locks[self.analysis_id]:
             with get_engine().begin() as conn:
-                params,result_list,result_dict = self.analysis_result_parse_service.parse_analysis_result(conn,self.analysis_id,True)
+                params = analysis_service.get_parse_analysis_result_params(conn,self.analysis_id)
+                result_list,result_dict = analysis_service.execute_parse(**params)
+                # params,result_list,result_dict = self.analysis_result_parse_service.parse_analysis_result(conn,self.analysis_id,True)
                 print("result_list",json.dumps(result_list,indent=4))
                 for item in result_list:    
                     result = self.analysis_result_parse_service.find_analysis_result_exist(conn,self.analysis_id,item['component_id'],item['file_name'],item['project'],True)
@@ -31,7 +35,8 @@ class ResultParse:
                         find_sample = self.analysis_result_parse_service.find_by_sample_name_and_project(conn,item['file_name'],item['project'])
                         if find_sample:
                             item['sample_id'] = find_sample['sample_id']
-                        analysis_result_service.add_analysis_result(conn,item)
+                        if save:
+                            analysis_result_service.add_analysis_result(conn,item)
                         analsyis = dict(params['analysis'])
                         analsyis = Analysis(**analsyis)
                         analysis_result = AnalysisResultParseModal(**item)
@@ -50,9 +55,12 @@ class ResultParse:
                         # await self.sse_service.push_message(msg)
                     else:
                         if item['analysis_result_hash']!= result['analysis_result_hash']:
-                            analysis_result_service.update_analysis_result(conn,result.id,item)
+                            if save:
+                                analysis_result_service.update_analysis_result(conn,result.id,item)
                             analsyis = dict(params['analysis'])
                             result = dict(result)
                             analsyis = Analysis({**analsyis,**result})
                             analysis_result = AnalysisResultParseModal(**item)
                             await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_UPDATE, analsyis, analysis_result)
+        
+        return result_list,result_dict,params

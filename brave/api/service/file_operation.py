@@ -81,6 +81,10 @@ def format_table_output(path):
         df =  pd.read_excel(path, nrows=50).iloc[:, :30] 
         data = json.loads(df.to_json(orient="records")) 
         data_type="table"
+    elif path.endswith("html") :
+        # with open(path,"r") as f:
+        #     data = f.read()
+        data_type="html"
     elif path.endswith("sh") :
         with open(path,"r") as f:
             data = f.read()

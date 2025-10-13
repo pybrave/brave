@@ -31,6 +31,7 @@ import os
 from brave.api.service.result_parse import script_analysis
 from brave.api.service.result_parse import nextflow_analysis
 from brave.api.service.result_parse.nextflow_analysis    import NextflowAnalysis
+from brave.api.service.result_parse.result_parse import ResultParse
 from brave.api.utils.get_db_utils import get_ids
 from brave.api.config.config import get_settings
 from brave.api.routes.pipeline import get_pipeline_file
@@ -166,45 +167,24 @@ async def browse_output_dir(analysis_id):
 @inject
 async def parse_analysis_result(
     analysis_id,save:Optional[bool]=False,
-    analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])):
+    event_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+   ):
+
+
+    resultParse = ResultParse(analysis_id,event_bus)
+    
     with get_engine().begin() as conn:
         if save:
-            result = await analysis_result_parse_service.save_analysis_result_preview(conn,analysis_id)
+            result_list,result_dict,params = await resultParse.parse(True)
+            # result = await analysis_result_parse_service.save_analysis_result_preview(conn,analysis_id)
         else:
-            result = await analysis_result_parse_service.parse_analysis_result_preview(conn,analysis_id)
-        return result
-    #     params :Any = analysis_service.get_parse_analysis_result_params(conn,analysis_id)
-    #     result_list,result_dict = analysis_service.execute_parse(**params)
+            # result = await analysis_result_parse_service.parse_analysis_result_preview(conn,analysis_id)
+            result_list,result_dict,params = await resultParse.parse(False)
 
-
-    #     analysis :Any = params["analysis"]
-    #     file_format_list = params["file_format_list"]
-    #     file_dict = analysis_service.get_file_dict(file_format_list,analysis['output_dir'])
-            
-    #     if save:
-    #         for item in result_list:
-    #             result = analysis_result_service.find_analysis_result_exist(conn,item['component_id'],item['file_name'],item['project'])
-    #             if not result:
-    #                 find_sample = sample_service.find_by_sample_name_and_project(conn,item['sample_name'],item['project'])
-    #                 if find_sample:
-    #                     item['sample_id'] = find_sample['sample_id']
-    #                 analysis_result_service.add_analysis_result(conn,item)
-    #             else:
-    #                 if item['analysis_result_hash']!= result['analysis_result_hash']:
-    #                     analysis_result_service.update_analysis_result(conn,result.id,item)
-                    
-    #         # sample_name_list = [item['file_name'] for item in result_list]
-    #         # sample_list = sample_service.find_by_sample_name_list(conn,sample_name_list)
-    #         # sample_dict = {item['sample_name']:item for item in sample_list}
-    #         # for item in result_list:
-    #         #     if item['file_name'] in sample_dict:
-    #         #         item['sample_id'] = sample_dict[item['file_name']]['sample_id']
-    #         #     else:
-    #         #         raise HTTPException(status_code=500, detail=f"样本{item['file_name']}不存在!")
-    #         # analysis_result_service.save_or_update_analysis_result_list( conn,result_list)
-    #         # parse_result_oneV2(res,item['name'],result['project'],"V1.0",analysis_id)
-    # return {"result_dict":result_dict,"file_format_list":file_format_list,"file_dict":file_dict}
-
+        file_format_list = params["file_format_list"]
+        file_dict = analysis_service.get_file_dict(file_format_list,params['analysis']['output_dir'])
+        # file_dict = find_file_dict(file_format_list,params['analysis']['output_dir'])   
+        return {"result_dict":result_dict,"file_format_list":file_format_list,"file_dict":file_dict}
 
 
 @analysis_api.post(
