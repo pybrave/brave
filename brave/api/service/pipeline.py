@@ -384,56 +384,13 @@ def page_pipeline(conn,query:PagePipelineQuery):
     }
 
 
-def write_all_component(conn,namespace):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
-    stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
-    find_pipeline = conn.execute(stmt).mappings().all()
-    find_pipeline = [ {k:v for k,v in item.items() if k!="id"} for item in find_pipeline]
-    with open(f"{pipeline_dir}/pipeline_component.json","w") as f:
-        json.dump(find_pipeline,f)
-     
 
-def import_component(conn,namespace,force=False):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
-    with open(f"{pipeline_dir}/pipeline_component.json","r") as f:
-        find_pipeline = json.load(f)
-    for item in find_pipeline:
-        find_pipeline_component = find_pipeline_by_id(conn,item['component_id'])
-        if find_pipeline_component:
-            if force:
-                update_stmt = update(t_pipeline_components).where(t_pipeline_components.c.component_id == item['component_id']).values(item)
-                conn.execute(update_stmt)
-        else:
-            conn.execute(insert(t_pipeline_components).values(item))    
+ 
 def datetime_converter(o):
     if isinstance(o, datetime):
         return o.isoformat()
     raise TypeError(f"Type {type(o)} not serializable")
 
-def write_all_component_relation(conn,namespace):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
-    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.namespace == namespace)
-    find_pipeline = conn.execute(stmt).mappings().all()
-    find_pipeline = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in find_pipeline]
-    with open(f"{pipeline_dir}/pipeline_component_relation.json","w") as f:
-        json.dump(find_pipeline,f, default=datetime_converter)
-
-def import_component_relation(conn,namespace,force=False):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
-    with open(f"{pipeline_dir}/pipeline_component_relation.json","r") as f:
-        find_pipeline = json.load(f)
-    for item in find_pipeline:
-        find_pipeline_component_relation = find_by_relation_id(conn,item['relation_id'])
-        if find_pipeline_component_relation:
-            if force:
-                update_stmt = update(t_pipeline_components_relation).where(t_pipeline_components_relation.c.relation_id == item['relation_id']).values(item)
-                conn.execute(update_stmt)
-        else:
-            conn.execute(insert(t_pipeline_components_relation).values(item))   
 
 
 def find_by_relation_id(conn,relation_id:str):
@@ -723,3 +680,63 @@ def update_component_description(conn, component_id,description):
     stmt = t_pipeline_components.update().where(t_pipeline_components.c.component_id ==component_id).values(description=description)
     conn.execute(stmt)
     # pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def write_all_component(conn,namespace):
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
+    find_pipeline = conn.execute(stmt).mappings().all()
+    find_pipeline = [ {k:v for k,v in item.items() if k!="id"} for item in find_pipeline]
+    with open(f"{pipeline_dir}/pipeline_component.json","w") as f:
+        json.dump(find_pipeline,f)
+     
+def write_all_component_relation(conn,namespace):
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.namespace == namespace)
+    find_pipeline = conn.execute(stmt).mappings().all()
+    find_pipeline = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in find_pipeline]
+    with open(f"{pipeline_dir}/pipeline_component_relation.json","w") as f:
+        json.dump(find_pipeline,f, default=datetime_converter)
+
+def import_component_relation(conn,namespace,force=False):
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    with open(f"{pipeline_dir}/pipeline_component_relation.json","r") as f:
+        find_pipeline = json.load(f)
+    for item in find_pipeline:
+        find_pipeline_component_relation = find_by_relation_id(conn,item['relation_id'])
+        if find_pipeline_component_relation:
+            if force:
+                update_stmt = update(t_pipeline_components_relation).where(t_pipeline_components_relation.c.relation_id == item['relation_id']).values(item)
+                conn.execute(update_stmt)
+        else:
+            conn.execute(insert(t_pipeline_components_relation).values(item))   
+def import_component(conn,namespace,force=False):
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    with open(f"{pipeline_dir}/pipeline_component.json","r") as f:
+        find_pipeline = json.load(f)
+    for item in find_pipeline:
+        find_pipeline_component = find_pipeline_by_id(conn,item['component_id'])
+        if find_pipeline_component:
+            if force:
+                update_stmt = update(t_pipeline_components).where(t_pipeline_components.c.component_id == item['component_id']).values(item)
+                conn.execute(update_stmt)
+        else:
+            conn.execute(insert(t_pipeline_components).values(item))   
