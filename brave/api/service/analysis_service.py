@@ -215,6 +215,8 @@ def list_analysis(conn,query:QueryAnalysis):
         t_container.c.name.label("container_name"),
         t_container.c.image.label("container_image"),
         t_container.c.container_id.label("container_id"),
+        t_container.c.image_status.label("image_status"),
+        t_container.c.image_id.label("image_id")
         # t_sub_container.c.name.label("sub_container_name"),
         # t_sub_container.c.image.label("sub_container_image")
     )
