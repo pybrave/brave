@@ -18,16 +18,20 @@ def main(
     use_https: bool =  typer.Option(False, help="Use https"),
     base_dir: str =typer.Option(None, help="Base directory"),
     work_dir: str =typer.Option(None, help="Work directory"),
+    store_dir: str =typer.Option(None, help="Store directory"),
     pipeline_dir: str =typer.Option(None, help="Pipeline directory"),
     literature_dir: str =typer.Option(None, help="Literature directory"),
     mysql_url: str =typer.Option(None, help="Mysql url"),
     # db_type: str =typer.Option("sqlite", help="Db type[ mysql, sqlite ]"),
     executer_type: str =typer.Option("docker", help="Executer Type [local, docker]")
+    
     ):
     
     
     # os.environ["DB_TYPE"] = db_type
     os.environ["EXECUTER_TYPE"] = executer_type
+    if store_dir:
+        os.environ["STORE_DIR"] = store_dir
     if mysql_url:
         os.environ["MYSQL_URL"] = mysql_url
     if base_dir:

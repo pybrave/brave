@@ -25,6 +25,16 @@ class Settings:
         self.BASE_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using BASE_DIR: {self.BASE_DIR}")
 
+
+        default_store_dir= f"{base_dir}/store"
+        # if not  os.path.exists(default_store_dir):    
+        #     os.makedirs(default_store_dir) 
+        store_dir = os.getenv("STORE_DIR",default_store_dir)
+        self.STORE_DIR = Path(store_dir).resolve()# / "data"
+        self.STORE_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Using STORE_DIR: {self.STORE_DIR}")
+
+
         default_databases_dir= f"{base_dir}/databases"
         if not  os.path.exists(default_databases_dir):    
             os.makedirs(default_databases_dir) 

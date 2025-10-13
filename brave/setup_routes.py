@@ -28,6 +28,7 @@ from brave.microbe.routes.entity import entity_api
 from brave.microbe.routes.study import  study_api
 from brave.microbe.nlp.nlp import  nlp_api
 from brave.api.routes.kegg import kegg_api
+from brave.api.routes.component_store import component_store_api
 
 
 import httpx
@@ -65,6 +66,7 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.include_router(nlp_api, prefix="/brave-api")
     app.include_router(kegg_api, prefix="/brave-api")
     app.include_router(index_api,prefix="/brave-api")
+    app.include_router(component_store_api,prefix="/brave-api")
 
 
 
