@@ -24,6 +24,8 @@ from docker.errors import ImageNotFound
 from brave.api.service import container_service
 import os
 
+from brave.api.service import namespace_service
+
 
 class DockerExecutor(JobExecutor):
 
@@ -114,8 +116,14 @@ class DockerExecutor(JobExecutor):
     def _sync_submit_job(self, job: AnalysisExecuterModal) -> str:
         user_id = os.getuid() 
         group_id = os.getgid()
+
         with get_engine().begin() as conn: 
             find_container = container_service.find_container_by_id(conn,job.container_id)
+            # find_namespace = namespace_service.find_namespace(conn,job.namespace)
+            if not find_container:
+                raise RuntimeError(f"Container {job.container_id} not found")
+            # if not find_namespace:
+            #     raise RuntimeError(f"Namespace {job.namespace} not found")
         # {
         # "DISABLE_AUTH":true,
         # "USERID":"$USERID",
@@ -124,7 +132,12 @@ class DockerExecutor(JobExecutor):
         # "R_SCRIPT":"$SCRIPT_FILE"
         # }
         sock_gid = os.stat('/var/run/docker.sock').st_gid
-
+        settings = get_settings()
+        work_dir = str(settings.WORK_DIR)
+        pipeline_dir = str(settings.PIPELINE_DIR)
+        base_dir = str(settings.BASE_DIR)
+        script_dir = os.path.dirname(job.pipeline_script)
+        connom_script_dir = os.path.dirname(script_dir)
         envionment = {}
         if find_container["envionment"]:
             envionment = find_container["envionment"]
@@ -132,15 +145,11 @@ class DockerExecutor(JobExecutor):
             envionment = envionment.replace("$GROUPID", str(group_id))
             envionment = envionment.replace("$DOCKER_GROUPID", str(sock_gid))
 
+            envionment = envionment.replace("$SCRIPT_DIR", script_dir)
             envionment = envionment.replace("$OUTPUT_DIR", job.output_dir)
             envionment = envionment.replace("$SCRIPT_FILE", job.pipeline_script)
             envionment = json.loads(envionment) 
-        settings = get_settings()
-        work_dir = str(settings.WORK_DIR)
-        pipeline_dir = str(settings.PIPELINE_DIR)
-        base_dir = str(settings.BASE_DIR)
-        script_dir = os.path.dirname(job.pipeline_script)
-        connom_script_dir = os.path.dirname(script_dir)
+    
         # command = job.command
         # command.extend  (["2>&1","|","tee",f"{job.output_dir}/run.log"])
         # try:
@@ -192,11 +201,18 @@ class DockerExecutor(JobExecutor):
             network = "traefik_proxy"
             # $SCRIPT_DIR
         volumes = {}
-        if os.path.exists("/data"):
-            volumes.update({ "/data": {
-                        "bind": "/data",
-                        "mode": "rw"
-                    }})
+
+        if find_container.volumes:
+            volumes_dict = json.loads(find_container.volumes)
+            for k,v in volumes_dict.items():
+                if os.path.exists(k):
+                    volumes.update({ k: v})
+
+        # if os.path.exists("/data"):
+        #     volumes.update({ "/data": {
+        #                 "bind": "/data",
+        #                 "mode": "rw"
+        #             }})
         entrypoint = None
         if  job.run_type=="job":
             entrypoint="bash"
@@ -440,3 +456,18 @@ class DockerExecutor(JobExecutor):
             AnalysisExecutorEvent.ON_CONTAINER_PULLED,
             analysis_id
         )
+    async def get_container_attr(self,container_id):
+        try:
+            container = self.client.containers.get(container_id)
+            container.reload()
+            return container.attrs
+        except Exception as e:
+            print(f"Error getting attrs for container {container_id}: {e}")
+            return None
+    async def get_image_attr(self,image_name):
+        try:
+            image = self.client.images.get(image_name)
+            return image.attrs
+        except Exception as e:
+            print(f"Error getting attrs for image {image_name}: {e}")
+            return None

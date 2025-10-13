@@ -40,6 +40,10 @@ class NextflowAnalysis(BaseAnalysis):
         script_config_file = f"{output_dir}/nextflow.config"
         script_config =  textwrap.dedent(f"""
         trace.overwrite = true
+        docker{{
+            enabled = true
+            runOptions = '--user $(id -u):$(id -g)'
+        }}
         """)
         with open(script_config_file, "w") as f:
             f.write(script_config)

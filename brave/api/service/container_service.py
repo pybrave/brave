@@ -43,11 +43,24 @@ def page_container(conn,query:PageContainerQuery):
 
 
 
+# def find_container_by_id(conn,container_id):
+#     stmt = t_container.select().where(t_container.c.container_id ==container_id)
+#     find_container = conn.execute(stmt).mappings().first()
+#     return find_container
+
 def find_container_by_id(conn,container_id):
-    stmt = t_container.select().where(t_container.c.container_id ==container_id)
+    stmt = select(
+        t_container,
+        t_namespace.c.namespace_id.label("namespace_id"),
+        t_namespace.c.name.label("namespace_name"),
+        t_namespace.c.volumes.label("volumes")
+    )
+    stmt = stmt.select_from(
+       t_container.outerjoin(t_namespace, t_container.c.namespace == t_namespace.c.namespace_id)
+    )
+    stmt = stmt.where(t_container.c.container_id ==container_id)
     find_container = conn.execute(stmt).mappings().first()
     return find_container
-
 
 def save_container(conn,saveContainer):
     # str_uuid = str(uuid.uuid4())     
@@ -114,3 +127,8 @@ def find_container_key(conn,query:ListContainerQuery):
 #     for item in container_list:
 #         image = job_executor.get_image(item.image)
 #         pass
+
+
+def find_by_namespace(conn,namespace):
+    stmt = t_container.select().where(t_container.c.namespace==namespace)
+    return conn.execute(stmt).mappings().all()

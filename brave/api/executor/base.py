@@ -40,5 +40,10 @@ class JobExecutor(ABC):
 
     def get_image(self,image_name):
        pass
-    def pull_image(self,container_id,image_name):
+    async def pull_image(self,container_id,image_name):
+        pass
+
+    async def get_container_attr(self,container_id):
+        pass
+    async def get_image_attr(self,image_name):
         pass

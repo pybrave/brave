@@ -17,7 +17,7 @@ def save_namespace(conn,saveNamespace):
 
 def find_namespace(conn,namespace_id):
     stmt = t_namespace.select().where(t_namespace.c.namespace_id == namespace_id)
-    return conn.execute(stmt).fetchone()
+    return conn.execute(stmt).mappings().first()
 
 def update_namespace(conn,namespace_id,updateNamespace):
     stmt = t_namespace.update().where(t_namespace.c.namespace_id == namespace_id).values(updateNamespace)
@@ -25,6 +25,7 @@ def update_namespace(conn,namespace_id,updateNamespace):
 
 def delete_namespace(conn,namespace_id):
     stmt = t_namespace.delete().where(t_namespace.c.namespace_id == namespace_id)
+
     conn.execute(stmt)
 
 def list_namespace(conn): 

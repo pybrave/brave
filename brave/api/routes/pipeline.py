@@ -609,7 +609,13 @@ async def save_pipeline_relation(conn,savePipelineRelation):
 
 @pipeline.post("/save-pipeline",tags=['pipeline'])
 async def save_pipeline(savePipeline:SavePipeline):
-    
+    try:
+        json.loads(savePipeline.content)
+    except Exception as e:
+        # print("component content json error",json.dumps(savePipeline,indent=4))
+        # raise HTTPException(status_code=500, detail=f"组件内容不是合法的json格式! 错误信息:{str(e)}")
+        raise ValueError(f"The component content is not valid JSON format! Error message:{str(e)}")
+ 
  
     save_pipeline_dict = savePipeline.dict()
     save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="parent_component_id" and k!="pipeline_id" and k!='relation_type' }

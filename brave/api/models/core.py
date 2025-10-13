@@ -215,6 +215,7 @@ t_namespace = Table(
     Column("id", Integer, primary_key=True),
     Column("namespace_id", String(255)),
     Column("name", String(255)),
+    Column("volumes", Text().with_variant(LONGTEXT(), "mysql")),
 )
 
 # t_relation_pipeline_software = Table(

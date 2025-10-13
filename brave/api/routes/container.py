@@ -205,3 +205,24 @@ async def  find_container_key(query:ListContainerQuery,
         find_container["status"] = "stopped"
         
     return items
+
+
+@container_controller.get("/inspect/{container_id}", tags=['container'])
+@inject
+async def get_inspect(container_id: str,
+                         job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+    container_attr = await job_executor.get_container_attr(container_id)
+    if container_attr:
+        return container_attr
+    else:
+        raise HTTPException(status_code=404, detail=f"Container {container_id} not found or not running")
+
+@container_controller.get("/image-inspect/{image_name}", tags=['container'])
+@inject
+async def get_image_inspect(image_name: str,
+                         job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+    image_attr = await job_executor.get_image_attr(image_name)
+    if image_attr:
+        return image_attr
+    else:
+        raise HTTPException(status_code=404, detail=f"Image {image_name} not found")

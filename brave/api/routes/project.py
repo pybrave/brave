@@ -19,6 +19,8 @@ async def update_project(UpdateProject:UpdateProject):
         return {"project_id":project_id}
     
 def get_one_project(item):
+    if not item:
+        return {}
     item = dict(item)
     try:
         item['metadata_form'] = json.loads(item['metadata_form'])

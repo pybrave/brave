@@ -507,12 +507,12 @@ async def run_analysis_v2(
         if run_type == "job":
             analysis_["container_id"] =component["container_id"]
         else:
-            if component_type=="script":
-                analysis_["container_id"] =component["container_id"]
-            else: 
-                if not component["sub_container_id"]:
-                    raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
-                analysis_["container_id"] = component["sub_container_id"]
+            # if component_type=="script":
+            analysis_["container_id"] =component["container_id"]
+            # else: 
+            #     if not component["sub_container_id"]:
+            #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
+            #     analysis_["container_id"] = component["sub_container_id"]
 
         # analysis_["image"] = find_container["image"]
         analysis_ = AnalysisExecuterModal(**analysis_)
