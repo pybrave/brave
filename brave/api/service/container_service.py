@@ -95,8 +95,7 @@ def write_all_container(conn,namespace):
 
 def import_container(conn,path,force=False):
     # pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{path}"
-    with open(f"{pipeline_dir}/container.json","r") as f:
+    with open(f"{path}/container.json","r") as f:
         find_container_list = json.load(f)
     for item in find_container_list:
         find_container = find_container_by_id(conn,item['container_id'])

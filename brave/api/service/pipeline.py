@@ -71,12 +71,7 @@ def find_component_module(component,script_name:ScriptName) -> dict:
             return default_module
         # else:
         #     raise HTTPException(status_code=500, detail=f"{script_name.value}没有找到默认模块!")
-    # try:
-    # except Exception as e:
-    #     print(f"Component with id {component.component_id} not found or missing content.")
-    #     module_path =  create_file(component.namespace,component.component_id,content,component.component_type,file_type)
 
-    # return module_path
 
 
 
@@ -747,7 +742,6 @@ def write_component_json(component_id):
     if not current_component:
         raise HTTPException(status_code=500, detail=f"组件{component_id}没有找到!")
     current_component = current_component[0]
-    namespace = current_component["namespace"]
     component_type = current_component["component_type"]
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{component_type}/{component_id}"
@@ -772,7 +766,7 @@ def write_component_json(component_id):
         json.dump({
             "component_type":component_type,
             "component_id":component_id,
-            "component_name":current_component["component_name"]
+            "component_name":current_component["component_name"],
         },f)
     
 
@@ -785,28 +779,27 @@ def write_component_json(component_id):
 
 
 
-def write_all_component(conn,namespace):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
-    stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
-    find_pipeline = conn.execute(stmt).mappings().all()
-    find_pipeline = [ {k:v for k,v in item.items() if k!="id"} for item in find_pipeline]
-    with open(f"{pipeline_dir}/pipeline_component.json","w") as f:
-        json.dump(find_pipeline,f)
+# def write_all_component(conn,namespace):
+#     pipeline_dir = get_pipeline_dir()
+#     pipeline_dir = f"{pipeline_dir}/{namespace}"
+#     stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
+#     find_pipeline = conn.execute(stmt).mappings().all()
+#     find_pipeline = [ {k:v for k,v in item.items() if k!="id"} for item in find_pipeline]
+#     with open(f"{pipeline_dir}/pipeline_component.json","w") as f:
+#         json.dump(find_pipeline,f)
      
-def write_all_component_relation(conn,namespace):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
-    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.namespace == namespace)
-    find_pipeline = conn.execute(stmt).mappings().all()
-    find_pipeline = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in find_pipeline]
-    with open(f"{pipeline_dir}/pipeline_component_relation.json","w") as f:
-        json.dump(find_pipeline,f, default=datetime_converter)
+# def write_all_component_relation(conn,namespace):
+#     pipeline_dir = get_pipeline_dir()
+#     pipeline_dir = f"{pipeline_dir}/{namespace}"
+#     stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.namespace == namespace)
+#     find_pipeline = conn.execute(stmt).mappings().all()
+#     find_pipeline = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in find_pipeline]
+#     with open(f"{pipeline_dir}/pipeline_component_relation.json","w") as f:
+#         json.dump(find_pipeline,f, default=datetime_converter)
 
 def import_component_relation(conn,path,force=False):
     # pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{path}"
-    with open(f"{pipeline_dir}/pipeline_component_relation.json","r") as f:
+    with open(f"{path}/pipeline_component_relation.json","r") as f:
         find_pipeline = json.load(f)
     for item in find_pipeline:
         find_pipeline_component_relation = find_by_relation_id(conn,item['relation_id'])

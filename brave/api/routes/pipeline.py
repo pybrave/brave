@@ -741,16 +741,30 @@ async def install_component(installComponent:InstallComponent,force:bool=False,
     job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
 ):
     pipeline_dir = pipeline_service.get_pipeline_dir()
-    with open(installComponent.file,"r") as f:
+    with open(installComponent.path,"r") as f:
         data = json.load(f)
-    path = os.path.dirname(installComponent.file)
+    path = os.path.dirname(installComponent.path)
 
-    path = f"{pipeline_dir}/{data['component_type']}/{data['component_id']}"
+    
     with get_engine().begin() as conn:
         pipeline_service.import_component(conn,path,force)
         pipeline_service.import_component_relation(conn,path,force)
         # namespace_service.import_namespace(conn,path,force)
         container_service.import_container(conn,path,force)
+    
+    install_path = f"{pipeline_dir}/{data['component_type']}/{data['component_id']}"
+
+    if not os.path.exists(install_path):
+        os.makedirs(install_path)
+        shutil.copytree(path, install_path)
+        print("copytree",path, install_path)
+    else:
+        if force:   
+            shutil.rmtree(install_path)
+            shutil.copytree(path, install_path)
+            print("force copytree",path, install_path)
+    
+
     
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
