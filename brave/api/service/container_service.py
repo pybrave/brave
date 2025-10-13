@@ -106,6 +106,7 @@ def import_container(conn,namespace,force=False):
                 conn.execute(update_stmt)
         else:
             conn.execute(insert(t_container).values(item))   
+        
 
 
 

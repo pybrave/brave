@@ -47,3 +47,6 @@ class JobExecutor(ABC):
         pass
     async def get_image_attr(self,image_name):
         pass
+
+    async def update_images_status(self):
+        pass

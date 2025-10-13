@@ -33,6 +33,7 @@ import shutil
 from fastapi import  File, UploadFile
 import shutil
 import time
+from brave.api.executor.base import JobExecutor
 
 
 pipeline = APIRouter()
@@ -731,12 +732,17 @@ async def find_by_components_id(component_id):
     
 
 @pipeline.post("/import-namespace-component",tags=['pipeline'])
-async def import_namespace_component(namespace:str,force:bool=False):
+@inject
+async def import_namespace_component(namespace:str,force:bool=False,
+    job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
+):
     with get_engine().begin() as conn:
         pipeline_service.import_component(conn,namespace,force)
         pipeline_service.import_component_relation(conn,namespace,force)
         namespace_service.import_namespace(conn,namespace,force)
         container_service.import_container(conn,namespace,force)
+    
+    asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 
 def get_namespace_by_file(file):
