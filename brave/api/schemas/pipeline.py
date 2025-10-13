@@ -81,3 +81,7 @@ class SavePipelineComponentsEdges(BaseModel):
     component_id: str
     edges: str
     position:str
+
+class InstallComponent(BaseModel):
+    path: str
+    namespace: str

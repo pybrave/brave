@@ -64,7 +64,6 @@ def get_parse_analysis_result_params(conn,analysis_id):
         # raise HTTPException(status_code=500, detail=f"组件{component_id}的输出文件没有配置fileFormat!请检查!")
 
 
-    # py_module = pipeline_service.find_module(component_.namespace,"py_parse_analysis_result",component_id,parse_analysis_result_module,'py')['module']
     module_info = pipeline_service.find_component_module(component_, ScriptName.output_parse)
     if not module_info:
         raise HTTPException(status_code=500, detail=f"组件{component_id}的输出解析模块没有找到!")

@@ -56,13 +56,13 @@ def find_component_module(component,script_name:ScriptName) -> dict:
             raise HTTPException(status_code=500, detail=f"script_type {script_type} not found!")
     else:
         file_type = "py"
-    module_info = find_module(component['namespace'],component['component_id'],script_name,file_type)
+    module_info = find_module(component['component_id'],script_name,file_type)
     if module_info:
         return module_info
     else:
         if script_name == ScriptName.main:
-            create_file(component['namespace'],component['component_id'],component['component_type'],file_type)
-            module_info = find_module(component['namespace'],component['component_id'],script_name,file_type)
+            create_file(component['component_id'],component['component_type'],file_type)
+            module_info = find_module(component['component_id'],script_name,file_type)
             if not module_info:
                 raise HTTPException(status_code=500, detail=f"组件{component.component_id}的{script_name.value}模块没有找到!")
             return module_info
@@ -81,7 +81,7 @@ def find_component_module(component,script_name:ScriptName) -> dict:
 
 
 
-def find_module(namespace,module_dir,script_name:ScriptName,file_type):
+def find_module(module_dir,script_name:ScriptName,file_type):
     # if script_name == ScriptName.input_parse:
     # if not module_name:
     #     if  module_type == "script":
@@ -92,7 +92,7 @@ def find_module(namespace,module_dir,script_name:ScriptName,file_type):
         # raise HTTPException(status_code=500, detail=f"模块名称不能为空!")
     # if module_name =="default":
        
-    path_dict = get_all_module(namespace,file_type)
+    path_dict = get_all_module(file_type)
     # if module_name is None: 
     #     module_name = module_type
     if module_dir in path_dict:
@@ -125,14 +125,14 @@ def get_default_module(script_name:ScriptName):
             "path":str(py_parse_analysis_result)
         }
     raise HTTPException(status_code=500, detail=f"{script_name.value}没有找到默认模块!")
-def get_all_module(namespace,file_type):
+def get_all_module(file_type):
     suffix = file_type
     # if module_type.startswith("py_"):
     #     suffix = "py"
     # else:
     #     suffix = "nf"
     pipeline_dir =  get_pipeline_dir()
-    nextflow_list = glob.glob(f"{pipeline_dir}/{namespace}/*/*/*.{suffix}")
+    nextflow_list = glob.glob(f"{pipeline_dir}/*/*/*.{suffix}")
     result = {}
     for item in nextflow_list:
         
@@ -173,9 +173,9 @@ def delete_wrap_pipeline_dir(pipeline_key):
     #     if not os.path.exists(item):
     #         os.makedirs(item) 
 
-def create_file(namespace,component_id,component_type,file_type):
+def create_file(component_id,component_type,file_type):
     pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
+    pipeline_dir = f"{pipeline_dir}"
 
     content_text = ""
     if file_type == "py":
@@ -687,12 +687,101 @@ def update_component_description(conn, component_id,description):
 
 
 
+def get_components(conn, component_id):
+    base = (
+        select(t_pipeline_components)
+        .where(t_pipeline_components.c.component_id == component_id)
+        .cte(name="base", recursive=True)
+    )
+    tp1 = aliased(t_pipeline_components)
+    rel = t_pipeline_components_relation
+    base_alias = base.alias()
+
+    # Use INNER JOINs for the recursive part to comply with MySQL's CTE restrictions
+    recursive = (
+        select(tp1)
+        .select_from(
+            tp1.join(rel, tp1.c.component_id == rel.c.component_id)
+               .join(base_alias, rel.c.parent_component_id == base_alias.c.component_id)
+        )
+    )
+
+    cte = base.union_all(recursive)
+    final_query = select(cte)
+    data = conn.execute(final_query).mappings().all()
+    return data
+
+def get_component_relation(conn,component_id):
+    base = (select(
+        t_pipeline_components_relation
+    ).where(
+        t_pipeline_components_relation.c.parent_component_id == component_id,
+    ).cte(name="base", recursive=True))
+    tr1 = aliased(t_pipeline_components_relation)
+
+    base_alias = base.alias()
+
+    recursive = select(tr1).select_from(
+        tr1.join(base_alias, tr1.c.parent_component_id == base_alias.c.component_id)
+    )
+
+    cte = base.union_all(recursive) 
+    final_query = select(cte)
+    data = conn.execute(final_query).mappings().all()
+    return data
 
 
 
+def write_component_json(component_id):
+    
 
 
 
+    with get_engine().begin() as conn:
+        component_list = get_components(conn,component_id)
+        component_relation_list =  get_component_relation(conn,component_id)
+        container_id_list = [ item['container_id'] for item in component_list if item['container_id'] is not None ]
+        container_list = container_service.find_by_container_ids(conn,container_id_list)
+    
+    current_component = [item for item in component_list if item.component_id == component_id]
+    if not current_component:
+        raise HTTPException(status_code=500, detail=f"组件{component_id}没有找到!")
+    current_component = current_component[0]
+    namespace = current_component["namespace"]
+    component_type = current_component["component_type"]
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+    # pipeline_dir = f"{pipeline_dir}/{namespace}"
+    if not os.path.exists(pipeline_dir):
+        os.makedirs(pipeline_dir)
+    
+    pipeline_component_file = f"{pipeline_dir}/pipeline_component.json"
+    pipeline_component_relation_file = f"{pipeline_dir}/pipeline_component_relation.json"
+    with open(pipeline_component_file,"w") as f:
+        json.dump([ {k:v for k,v in item.items() if k!="id"} for item in component_list],f, default=datetime_converter)
+    with open(pipeline_component_relation_file,"w") as f:
+        json.dump([ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in component_relation_list],f, default=datetime_converter)    
+
+    container_file = f"{pipeline_dir}/container.json"
+    container_list = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in container_list]
+    with open(container_file,"w") as f:
+        json.dump(container_list,f)
+    
+    install_file = f"{pipeline_dir}/install.json"
+    with open(install_file,"w") as f:
+        json.dump({
+            "component_type":component_type,
+            "component_id":component_id,
+            "component_name":current_component["component_name"]
+        },f)
+    
+
+        # component = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
+    print(f"export pipeline_component_file: {pipeline_component_file}!")
+    print(f"export pipeline_component_relation_file: {pipeline_component_relation_file}!")
+    print(f"export container_file: {container_file}!")
+
+    pass
 
 
 
@@ -714,9 +803,9 @@ def write_all_component_relation(conn,namespace):
     with open(f"{pipeline_dir}/pipeline_component_relation.json","w") as f:
         json.dump(find_pipeline,f, default=datetime_converter)
 
-def import_component_relation(conn,namespace,force=False):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
+def import_component_relation(conn,path,force=False):
+    # pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{path}"
     with open(f"{pipeline_dir}/pipeline_component_relation.json","r") as f:
         find_pipeline = json.load(f)
     for item in find_pipeline:
@@ -727,10 +816,9 @@ def import_component_relation(conn,namespace,force=False):
                 conn.execute(update_stmt)
         else:
             conn.execute(insert(t_pipeline_components_relation).values(item))   
-def import_component(conn,namespace,force=False):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
-    with open(f"{pipeline_dir}/pipeline_component.json","r") as f:
+def import_component(conn,path,force=False):
+
+    with open(f"{path}/pipeline_component.json","r") as f:
         find_pipeline = json.load(f)
     for item in find_pipeline:
         find_pipeline_component = find_pipeline_by_id(conn,item['component_id'])

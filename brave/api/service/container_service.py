@@ -93,9 +93,9 @@ def write_all_container(conn,namespace):
         json.dump(find_container,f)
      
 
-def import_container(conn,namespace,force=False):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
+def import_container(conn,path,force=False):
+    # pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{path}"
     with open(f"{pipeline_dir}/container.json","r") as f:
         find_container_list = json.load(f)
     for item in find_container_list:
@@ -132,4 +132,11 @@ def find_container_key(conn,query:ListContainerQuery):
 
 def find_by_namespace(conn,namespace):
     stmt = t_container.select().where(t_container.c.namespace==namespace)
+    return conn.execute(stmt).mappings().all()
+
+
+def find_by_container_ids(conn,container_ids):
+    if not container_ids:
+        return []
+    stmt = t_container.select().where(t_container.c.container_id.in_(container_ids))
     return conn.execute(stmt).mappings().all()

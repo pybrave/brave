@@ -16,7 +16,6 @@ from brave.api.config.config import get_settings
 from sqlalchemy import select
 import textwrap
 import uuid
-from brave.api.service.pipeline  import find_module
 import importlib
 from brave.api.utils.get_db_utils import get_ids,get_group
 from brave.api.core.routers_name import RoutersName
@@ -53,17 +52,7 @@ class BaseAnalysis(ABC):
         pass
     
   
-    # def get_script(self,namespace,component_id,script_type) -> str:
-    #     if script_type == "nextflow":
-    #         component_script = pipeline_service.find_module(namespace,"nextflow",component_id,None,"nf")['path']
-    #     elif script_type == "python":
-    #     elif script_type == "shell":
-    #         component_script = pipeline_service.find_module(namespace,"script",component_id,None,"sh")['path']
-    #     elif script_type == "r":
-    #         component_script = pipeline_service.find_module(namespace,"script",component_id,None,"r")['path']
-    #     else:
-    #         raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found or missing content.")
-    #     return component_script
+
 
 
     async def save_analysis(self,conn,request_param,parse_analysis_result,component,is_submit):
@@ -159,12 +148,7 @@ class BaseAnalysis(ABC):
             # try:
                 
 
-            #     # component_script = self.get_script(component.namespace,component.component_id,component_content['script_type'])
-            # except Exception as e:
-            #     print(f"Component with id {component.component_id} not found or missing content.")
-            #     pipeline_service.create_file(component.namespace,component.component_id,component_content,component.component_type,component_content['script_type'])
-            #     component_script = self.get_script(component.namespace,component.component_id,component_content['script_type'])
-            
+         
             # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
             new_analysis['pipeline_script'] = component_script
             command = self._get_command(str_uuid,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace,component["script_type"])
@@ -254,7 +238,6 @@ class BaseAnalysis(ABC):
 
     def parse_analysis(self,conn,request_param,component,query_name_list):
 
-        # py_module = find_module(namespace,"py_parse_analysis",component_id,module_name,'py')['module']
         module_info = pipeline_service.find_component_module(component, ScriptName.input_parse)
         if not module_info:
             raise HTTPException(status_code=500, detail=f"组件{component['component_id']}的输入解析模块没有找到!")

@@ -76,7 +76,7 @@ async def save_namespace_controller(saveContainer:SaveContainer, job_executor:Jo
                 save_container_dict.update({"image_status":"not_exist"})
             container_service.save_container(conn,save_container_dict)
         # if saveContainer.namespace!="default":
-        container_service.write_all_container(conn,saveContainer.namespace)
+        # container_service.write_all_container(conn,saveContainer.namespace)
     
     return {"message":"success"}
 
@@ -90,7 +90,7 @@ async def delete_by_container_id(container_id:str):
                 raise HTTPException(status_code=400, detail=f"container {container_id} 存在组件，不能删除")
         container_service.delete_container(conn,container_id)
         # if find_container.namespace!="default":
-        container_service.write_all_container(conn,find_container.namespace)
+        # container_service.write_all_container(conn,find_container.namespace)
     return {"message":"success"}
 
 

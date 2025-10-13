@@ -15,7 +15,7 @@ import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import or_, select, and_, join, func,insert,update
 import re
-from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
+from brave.api.schemas.pipeline import InstallComponent, PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
 import brave.api.service.pipeline  as pipeline_service
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
@@ -588,6 +588,7 @@ async def save_pipeline_relation(conn,savePipelineRelation):
         if parent_component:
             save_pipeline_relation_dict['namespace'] = parent_component["namespace"]
             namespace = parent_component["namespace"]
+            component_id = parent_component["component_id"]
     if savePipelineRelation.relation_id:
         stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
     else:
@@ -597,7 +598,8 @@ async def save_pipeline_relation(conn,savePipelineRelation):
         stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
         conn.execute(stmt)
     
-    pipeline_service.write_all_component_relation(conn,namespace)
+    pipeline_service.write_component_json(component_id)
+    # pipeline_service.write_all_component_relation(conn,namespace)
 
     # stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipelineRelation.component_id)
     # find_pipeine = conn.execute(stmt).fetchone()
@@ -671,8 +673,8 @@ async def save_pipeline(savePipeline:SavePipeline):
         # if component_type == "software" or component_type =="script":
         #     if "script_type" in content:
         #         await run_in_threadpool(pipeline_service.create_file,namespace, component_id ,component_type,content['script_type'])
-        pipeline_service.write_all_component(conn,namespace)
-    
+        # pipeline_service.write_all_component(conn,namespace)
+    pipeline_service.write_component_json(component_id)
     # t0 = time.time()
     
 
@@ -682,22 +684,23 @@ async def save_pipeline(savePipeline:SavePipeline):
     return {"message":"success"}
 
 
-# def create_pipeline_dir(pipeline_id,content,component_type):
-#     # pipeline_service.create_wrap_pipeline_dir(pipeline_id)
-#     # content = json.loads(content)
-#     pipeline_service.create_file(pipeline_id,component_type,content)
-
 
 @pipeline.delete("/delete-pipeline-relation/{relation_id}")
 async def delete_pipeline_relation(relation_id: str):
+    component_id = None
     with get_engine().begin() as conn:
         component_relation = pipeline_service.find_by_relation_id(conn,relation_id)
         if not component_relation:
             raise HTTPException(status_code=500, detail=f"根据{relation_id}不能找到记录!") 
+        parent_component = pipeline_service.find_pipeline_by_id(conn,component_relation.parent_component_id)
+        if parent_component:
+            component_id = parent_component["component_id"]
         stmt = t_pipeline_components_relation.delete().where(t_pipeline_components_relation.c.relation_id == relation_id)
         conn.execute(stmt)
-        pipeline_service.write_all_component_relation(conn,component_relation.namespace)
-        return {"message":"success"}
+        # pipeline_service.write_all_component_relation(conn,component_relation.namespace)
+    if component_id:
+        pipeline_service.write_component_json(component_id)
+    return {"message":"success"}
 
 
 
@@ -718,9 +721,10 @@ async def delete_component(component_id: str):
             conn.execute(stmt)
             pipeline_service.delete_wrap_pipeline_dir(component_id)
 
-    with get_engine().begin() as conn:   
-        pipeline_service.write_all_component(conn,find_component["namespace"])
-        pipeline_service.write_all_component_relation(conn,find_component["namespace"])
+    pipeline_service.write_component_json(component_id)
+    # with get_engine().begin() as conn:   
+    #     pipeline_service.write_all_component(conn,find_component["namespace"])
+    #     pipeline_service.write_all_component_relation(conn,find_component["namespace"])
     return {"message":"success"}
 
 @pipeline.get("/find-by-component-id/{component_id}",tags=['pipeline'])
@@ -731,19 +735,40 @@ async def find_by_components_id(component_id):
 
     
 
-@pipeline.post("/import-namespace-component",tags=['pipeline'])
+@pipeline.post("/install-components",tags=['pipeline'])
 @inject
-async def import_namespace_component(namespace:str,force:bool=False,
+async def install_component(installComponent:InstallComponent,force:bool=False,
     job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
 ):
+    pipeline_dir = pipeline_service.get_pipeline_dir()
+    with open(installComponent.file,"r") as f:
+        data = json.load(f)
+    path = os.path.dirname(installComponent.file)
+
+    path = f"{pipeline_dir}/{data['component_type']}/{data['component_id']}"
     with get_engine().begin() as conn:
-        pipeline_service.import_component(conn,namespace,force)
-        pipeline_service.import_component_relation(conn,namespace,force)
-        namespace_service.import_namespace(conn,namespace,force)
-        container_service.import_container(conn,namespace,force)
+        pipeline_service.import_component(conn,path,force)
+        pipeline_service.import_component_relation(conn,path,force)
+        # namespace_service.import_namespace(conn,path,force)
+        container_service.import_container(conn,path,force)
     
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
+
+    
+# @pipeline.post("/import-namespace-component",tags=['pipeline'])
+# @inject
+# async def import_namespace_component(namespace:str,force:bool=False,
+#     job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
+# ):
+#     with get_engine().begin() as conn:
+#         pipeline_service.import_component(conn,namespace,force)
+#         pipeline_service.import_component_relation(conn,namespace,force)
+#         namespace_service.import_namespace(conn,namespace,force)
+#         container_service.import_container(conn,namespace,force)
+    
+#     asyncio.create_task(job_executor.update_images_status())
+#     return {"message":"success"}
 
 def get_namespace_by_file(file):
     with open(file,"r") as f:
