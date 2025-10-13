@@ -767,7 +767,7 @@ def write_component_json(component_id):
             "component_type":component_type,
             "component_id":component_id,
             "component_name":current_component["component_name"],
-            "img":current_component["img"]
+            "img":os.path.basename(current_component["img"]) if current_component["img"] else "",
         },f)
     
 

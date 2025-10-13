@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter
 from brave.api.config.config import get_settings
 import glob
@@ -28,5 +29,9 @@ async def scm_store():
             file_dict["pipeline"].append(item)
         elif "file" in item["file_path"]:
             file_dict["file"].append(item)
-
+        if "img" in item and item["img"] !="":
+            img_dir = item["file_path"].replace(str(settings.STORE_DIR),"")
+            img_dir = os.path.dirname(img_dir)
+            img_name=item["img"]
+            item["img"] = f"/brave-api/store-dir{img_dir}/{img_name}"
     return file_dict

@@ -47,6 +47,8 @@ def setup_routes(app: FastAPI,manager:AppManager):
 
     app.mount("/brave-api/literature/dir", StaticFiles(directory=os.path.join(settings.LITERATURE_DIR)), name="literature_dir")
     app.mount("/brave-api/pipeline-dir", StaticFiles(directory=os.path.join(settings.PIPELINE_DIR)), name="pipeline_dir")
+    app.mount("/brave-api/store-dir", StaticFiles(directory=os.path.join(settings.STORE_DIR)), name="store_dir")
+
     app.include_router(sample_result,prefix="/brave-api")
     app.include_router(file_parse_plot,prefix="/brave-api")
     app.include_router(sample,prefix="/brave-api")
