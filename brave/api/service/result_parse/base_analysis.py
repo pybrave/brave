@@ -67,7 +67,6 @@ class BaseAnalysis(ABC):
             "component_id":component['component_id'],
             # "is_report":request_param['is_report'] if "is_report" in request_param else False,
             "data_component_ids":request_param['data_component_ids'],
-            # "analysis_status": "running" if is_submit else "created"
             # "parse_analysis_module":parse_analysis_module
         }
         new_analysis = {k:v for k,v in new_analysis.items() if v is not None}
@@ -95,8 +94,8 @@ class BaseAnalysis(ABC):
                 json.dump(parse_analysis_result,f)
 
             # new_analysis['container_id'] = component["container_id"]
-            if result.run_type =="job" and result.analysis_status != "running":
-                new_analysis["analysis_status"] = "updated"
+            if  result.job_status != "running":
+                new_analysis["job_status"] = "updated"
             # new_analysis['output_format'] = parse_analysis_result_module
             stmt = t_analysis.update().values(new_analysis).where(t_analysis.c.analysis_id==request_param['analysis_id'])
             conn.execute(stmt)
@@ -185,7 +184,7 @@ class BaseAnalysis(ABC):
             new_analysis['script_config_file'] = script_config_file
             new_analysis['command_log_path'] = command_log_path
             # new_analysis['container_id'] = component["container_id"]
-            new_analysis["analysis_status"] = "created"
+            new_analysis["job_status"] = "created"
             with open(command_path, "w") as f:
                 f.write(command)
             with open(params_path, "w") as f:
@@ -305,7 +304,7 @@ class BaseAnalysis(ABC):
 
 
     def change_status(self,conn,analysis):
-        stmt = t_analysis.update().values({"analysis_status":"running"}).where(t_analysis.c.analysis_id==analysis.analysis_id)
+        stmt = t_analysis.update().values({"job_status":"running"}).where(t_analysis.c.analysis_id==analysis.analysis_id)
         conn.execute(stmt)
 
     async def submit_analysis(self,analysis):

@@ -215,7 +215,8 @@ def build_tree(data):
                 "component_id": it["component_id"],
                 "component_name": it["component_name"],
                 "component_type": it["component_type"],
-                "analysis_status": it["analysis_status"],
+                "job_status": it["job_status"],
+                "server_status": it["server_status"],
                 "component_order_index": it["component_order_index"]
 
             })
@@ -472,7 +473,7 @@ async def run_analysis_v2(
         # process_id = analysis_['process_id']
         component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
         component_type = component['component_type']
-        if component_type=="script":
+        if run_type=="job" and component_type=="script":
             output_dir = f"{analysis_['output_dir']}/output"
             # if os.path.exists(output_dir):
             delete_all_in_dir(output_dir)
