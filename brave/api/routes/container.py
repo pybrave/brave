@@ -30,10 +30,13 @@ async def page_container(query:PageContainerQuery,
     containers = await job_executor.list_running()
     containers_dict = {k: v for d in containers for k, v in d.items()}
     items = []
+ 
     for item in page_list['items']:
-        if item["container_id"] in containers_dict:
+        container_id = item["container_id"]
+        run_id = f"retry-{container_id}"
+        if run_id in containers_dict:
             item["status"] = "running"
-            item["docker_id"] = containers_dict[item["container_id"]]
+            item["docker_id"] = containers_dict[run_id]
         else:
             item["status"] = "stopped"
         items.append(item)
@@ -103,12 +106,13 @@ async def run_container(
     settings = get_settings()
 
     data_dir = str(settings.DATA_DIR)
+    run_id = f"retry-{container_id}"
     analysis_ =  AnalysisExecuterModal(
         analysis_id=container_id,
         container_id=container_id,
         output_dir=data_dir,
         pipeline_script=f"{data_dir}/run.sh",
-        run_type="retry"
+        run_id=run_id
     )
     # try:
     # raise RuntimeError("oops!")
@@ -136,12 +140,13 @@ async def run_container(
     settings = get_settings()
 
     data_dir = str(settings.DATA_DIR)
+    run_id = f"retry-{container_id}"
     analysis_ =  AnalysisExecuterModal(
         analysis_id=container_id,
         container_id=container_id,
         output_dir=data_dir,
         pipeline_script=f"{data_dir}/run.sh",
-        run_type="retry"
+        run_id=run_id
     )
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)
 
@@ -207,8 +212,10 @@ async def  find_container_key(query:ListContainerQuery,
 @container_controller.get("/inspect/{container_id}", tags=['container'])
 @inject
 async def get_inspect(container_id: str,
+                            run_type,
                          job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
-    container_attr = await job_executor.get_container_attr(container_id)
+    run_id = f"{run_type}-{container_id}"
+    container_attr = await job_executor.get_container_attr(run_id)
     if container_attr:
         return container_attr
     else:

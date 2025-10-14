@@ -1,4 +1,4 @@
-from operator import and_
+from operator import and_, or_
 from brave.api.config.db import get_engine
 from brave.api.models.core import analysis as t_analysis, t_pipeline_components,t_project
 from sqlalchemy import select,update
@@ -122,10 +122,20 @@ def execute_parse(analysis,parse,file_format_list):
         result_list = result_list + res
     return result_list,result_dict
 
+def add_run_id(item):
+    item= dict(item)
+    if item['job_status'] == "running":
+        item['run_id'] = f"job-{item['analysis_id']}"
+        item['run_type'] = "job"
+    elif item['server_status'] == "running":
+        item['run_id'] = f"server-{item['analysis_id']}"
+        item['run_type'] = "server"
+    return item
 
 def find_running_analysis(conn):
-    stmt = select(t_analysis).where(t_analysis.c.analysis_status=="running")
+    stmt = select(t_analysis).where(or_(t_analysis.c.job_status == "running",t_analysis.c.server_status == "running"))
     result = conn.execute(stmt).mappings().all()
+    result = [add_run_id(item) for item in result]
     return result
 
 def get_all_files_recursive(directory,dir_name,file_dict):
@@ -148,13 +158,23 @@ def find_analysis_by_id(conn,analysis_id):
     return result
 
 
-async def finished_analysis(analysis_id,status):
+async def finished_analysis(analysis_id,run_type,status):
     with get_engine().begin() as conn:  
-        stmt = (
-            update(t_analysis)
-            .where(t_analysis.c.analysis_id == analysis_id)
-            .values(process_id=None,analysis_status = status)
-        )
+        if run_type == "job":
+            stmt = (
+                update(t_analysis)
+                .where(t_analysis.c.analysis_id == analysis_id)
+                .values(job_status = status)
+            )
+        elif run_type == "server":
+            stmt = (
+                update(t_analysis)
+                .where(t_analysis.c.analysis_id == analysis_id)
+                .values(server_status = status)
+            )
+        else:
+            raise ValueError(f"Invalid run_type: {run_type}")
+        
         conn.execute(stmt)
         conn.commit()
     print(f"Analysis {analysis_id} {status}")

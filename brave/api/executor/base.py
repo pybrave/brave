@@ -8,8 +8,8 @@ class JobExecutor(ABC):
     def __init__(self):
         pass
     async def submit_job(self, job_spec: AnalysisExecuterModal) -> str:
-        if self.is_already_running(job_spec.analysis_id):
-            await self.remove_job(job_spec.analysis_id)
+        if self.is_already_running(job_spec.run_id):
+            await self.remove_job(job_spec.run_id)
             # raise Exception(f"Job {job_spec.job_id} is already running")
         await self._do_submit_job(job_spec)
         # await self.router.dispatch(WorkflowEvent.ON_JOB_SUBMITTED,{"event": "on_job_submitted", "job_id": job_spec.job_id})

@@ -133,11 +133,7 @@ class AppManager:
         # self.workflow_event_router.register_handler(WorkflowEvent.ON_FLOW_COMPLETE,  push_default_message)
         # self.workflow_event_router.register_handler(WorkflowEvent.ON_JOB_SUBMITTED,  push_default_message)
 
-        # def finished_analysis_handler(analysis_id:str,msg:dict  ):
-        #     # analysis_id = msg.get("analysis_id")
-        #     if analysis_id:
-        #         asyncio.create_task(analysis_service.finished_analysis(analysis_id))
-
+     
         # self.workflow_event_router.register_handler(WorkflowEvent.ON_FLOW_COMPLETE, finished_analysis_handler)
 
         # self.workflow_queue_manager.register_subscriber("", subscriber)

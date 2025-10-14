@@ -36,13 +36,14 @@ class Analysis(BaseModel):
     pipeline_script: Optional[str]
     parse_analysis_module: Optional[str]
     process_id: Optional[str]
-    analysis_status: Optional[str]
+    # analysis_status: Optional[str]
 
 
 class AnalysisExecuterModal(BaseModel):
     id: Optional[int]=None
     project: Optional[str]=None
     analysis_id: str
+    run_id:str
     component_id: Optional[str]=None
     analysis_method: Optional[str]=None
     analysis_name: Optional[str]=None
@@ -65,7 +66,7 @@ class AnalysisExecuterModal(BaseModel):
     ports: Optional[Any]=None
 
 class AnalysisId(BaseModel):
-    analysis_id: str
+    run_id: str
     run_type:Optional[str]=None
 
 

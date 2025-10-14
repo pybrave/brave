@@ -43,16 +43,7 @@ class AnalysisResultParse:
 
         # self._load_parsed_analysis_result()
 
-    # def _load_parsed_analysis_result(self):
-    #     """
-    #     加载已经解析过的分析结果
-    #     """
-    #     with get_engine().begin() as conn:
-    #         analysis_list = analysis_service.find_running_analysis(conn)
-    #         analysis_id_list = [item['analysis_id'] for item in analysis_list]
-    #         for analysis_id in analysis_id_list:
-    #             self.add_sample(conn,analysis_id)
-    #             self.add_params(conn,analysis_id)
+ 
     async def add_analysis_id(self,analysis_id):
         async with self.analysis_locks[analysis_id]:
             self.analysis_id_list.append(analysis_id)

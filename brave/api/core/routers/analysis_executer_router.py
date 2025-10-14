@@ -19,6 +19,10 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
         # if  expected_type:
         #     if not isinstance(payload, expected_type):
         #         raise TypeError(f"[EventRouter] Expected payload type {expected_type}, got {type(payload)}")
+        if payload.run_id is None:
+            raise ValueError("run_id is required in payload")
+      
+
 
         if event == AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE or event == AnalysisExecutorEvent.ON_ANALYSIS_FAILED:    
             if isinstance(payload, AnalysisId):
@@ -26,16 +30,34 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
                 #     payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type=payload.run_type)
                 # else:
                 with get_engine().begin() as conn:
-                    analysis =  analysis_service.find_analysis_by_id(conn,payload.analysis_id)
+                    run_type = payload.run_id.split("-")[0]
+                    analysis_id = payload.run_id.replace(f"{run_type}-","")
+                    analysis =  analysis_service.find_analysis_by_id(conn,analysis_id)
                     if analysis:
-                        payload = AnalysisExecuterModal(**analysis)
+                        payload = AnalysisExecuterModal(run_id=payload.run_id,**analysis)
                     else:
-                        payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type="retry")
+                        payload = AnalysisExecuterModal(run_id=payload.run_id,analysis_id=payload.run_id.split("-")[-1])
+
                 # payload = AnalysisExecuterModal(analysis_id=payload.analysis_id)
         elif event == AnalysisExecutorEvent.ON_CONTAINER_PULLED:
-            payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type="retry")
+            payload = AnalysisExecuterModal(run_id=payload.run_id, analysis_id=payload.run_id.split("-")[-1])
+
+            
         if   not isinstance(payload, AnalysisExecuterModal):
             raise TypeError(f"[EventRouter] Expected payload type {AnalysisExecuterModal}, got {type(payload)}")
+    
+
+        run_id = payload.run_id
+        if run_id.startswith("job-"):
+            payload.run_type = "job"
+        elif run_id.startswith("server-"):
+            payload.run_type = "server"
+        elif run_id.startswith("retry-"):
+            payload.run_type = "retry"
+        else:
+            raise ValueError(f"Invalid run_id format: {run_id}")
+            
+
         if handlers:
             for handler in handlers:
                 if asyncio.iscoroutinefunction(handler):

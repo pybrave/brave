@@ -56,30 +56,13 @@ class DockerExecutor(JobExecutor):
 
         for job in running_jobs:
             try:
-                # containers = self.client.containers.list(
-                #     all=True,
-                #     filters={"label": f"run_type=job"}
-                # )
 
-                # # 找到匹配的容器
-                # container = next(
-                #     (c for c in containers if c.name == job.analysis_id),
-                #     None
-                # )
-                # if container:
-                #     container = self.client.containers.get(job.analysis_id)
-                #     self.containers[job.analysis_id] = container
-                container = self.client.containers.get(job.analysis_id) 
-                self.containers[job.analysis_id] = container
+                container = self.client.containers.get(job["run_id"])
+                self.containers[job["run_id"]] = container
             except Exception as e:
-                print(f"Error recovering container {job.analysis_id}: {e}")
-                # 容器不存在，可能已退出或删除
-                # await self.event_bus.dispatch(
-                #     RoutersName.ANALYSIS_EXECUTER_ROUTER,
-                #     AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE,
-                #     AnalysisId(analysis_id=job.analysis_id)
-                # )
-                self.to_remove.append(job.analysis_id)
+                print(f"Error recovering container {job['run_id']}: {e}")
+
+                self.to_remove.append(job["run_id"])
                 pass
 
         # if self.containers and self._monitor_task is None:
@@ -105,14 +88,7 @@ class DockerExecutor(JobExecutor):
 
 
 
-#  job_id= payload.analysis_id,
-#                 command_log_path= payload.command_log_path,
-#                 command=["./run.sh"],
-#                 output_dir= payload.output_dir,
-#                 container_id=payload.container_id,
-#                 run_type=payload.run_type,
-#                 change_uid=
-#                 resources={}
+
     def _sync_submit_job(self, job: AnalysisExecuterModal) -> str:
         user_id = os.getuid() 
         group_id = os.getgid()
@@ -168,7 +144,7 @@ class DockerExecutor(JobExecutor):
         labels ={}
         network = None
         url_predix = f"container/{job.analysis_id}"
-        if job.run_type=="server" or job.run_type=="retry":
+        if job.run_id.startswith("server-") or job.run_id.startswith("retry-"):
             command = find_container["command"] or  ""
             command = command.replace("$SCRIPT_DIR",script_dir)
             command = command.replace("$URL_PREFIX",url_predix)
@@ -212,12 +188,12 @@ class DockerExecutor(JobExecutor):
         #                 "mode": "rw"
         #             }})
         entrypoint = None
-        if  job.run_type=="job":
+        if job.run_id.startswith("job-"):
             entrypoint="bash"
         try:
             container: Container = self.client.containers.run(
                 image=find_container.image,
-                name=job.analysis_id,
+                name=job.run_id,
                 user= docker_uid,
                 group_add=["users",str(sock_gid)],
                 command=command,
@@ -267,10 +243,11 @@ class DockerExecutor(JobExecutor):
                 working_dir=job.output_dir,
                 detach=True,
                 labels={
-                    "job_id": job.analysis_id,
+                    "job_id": job.run_id,
+                    "analysis_id": job.analysis_id,
                     "project": "brave",
                     "user": str(user_id),
-                    "run_type":job.run_type,
+                    "type":job.run_id.split("-")[0],
                     **labels
                 },
                  ports=port
@@ -278,13 +255,13 @@ class DockerExecutor(JobExecutor):
             )
             
         except Exception as e:
-            print(f"Error running container {job.analysis_id}: {e}")
-            self.to_remove.append(job.analysis_id)
+            print(f"Error running container {job.run_id}: {e}")
+            self.to_remove.append(job.run_id)
             raise e
         if container.id is None:
             raise RuntimeError("Container did not return a valid ID")
         
-        self.containers[job.analysis_id] = container
+        self.containers[job.run_id] = container
         container.reload()
         ports = container.attrs['NetworkSettings']['Ports']
         job.ports = ports
@@ -306,7 +283,7 @@ class DockerExecutor(JobExecutor):
                 for job_id, container in list(self.containers.items()):
                     try:
                         container.reload()
-                        analysis_id = AnalysisId(analysis_id=job_id)
+                        run_id = AnalysisId(run_id=job_id)
                         if container.status in ("exited", "dead"):
                             exit_code = container.attrs["State"]["ExitCode"]
 
@@ -319,7 +296,7 @@ class DockerExecutor(JobExecutor):
                                 await self.event_bus.dispatch(
                                     RoutersName.ANALYSIS_EXECUTER_ROUTER,
                                     AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE,
-                                    analysis_id
+                                    run_id
                                 )
                                 self._list_running()
                             else:
@@ -329,7 +306,7 @@ class DockerExecutor(JobExecutor):
                                 await self.event_bus.dispatch(
                                     RoutersName.ANALYSIS_EXECUTER_ROUTER,
                                     AnalysisExecutorEvent.ON_ANALYSIS_FAILED,
-                                    analysis_id
+                                    run_id
                                 )  
                                 self._list_running()
                     except Exception as e:
@@ -341,11 +318,11 @@ class DockerExecutor(JobExecutor):
                 for job_id in self.to_remove:
                     if job_id in self.containers:
                         self.containers.pop(job_id, None)
-                    analysis_id = AnalysisId(analysis_id=job_id)
+                    run_id = AnalysisId(run_id=job_id)
                     await self.event_bus.dispatch(
                             RoutersName.ANALYSIS_EXECUTER_ROUTER,
                             AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE,
-                            analysis_id
+                            run_id
                         )
                     self.to_remove.remove(job_id)
                 await asyncio.sleep(self._monitor_interval)
@@ -447,12 +424,12 @@ class DockerExecutor(JobExecutor):
                 container_service.update_container(conn,
                                                     container_id,
                                                     {"image_id":image.id,"image_status":"exist"})
-        analysis_id = AnalysisId(analysis_id=container_id)
+        run_id = AnalysisId(run_id=container_id)
         # asyncio.create_task() 
         await self.event_bus.dispatch(
             RoutersName.ANALYSIS_EXECUTER_ROUTER,
             AnalysisExecutorEvent.ON_CONTAINER_PULLED,
-            analysis_id
+            run_id
         )
     async def get_container_attr(self,container_id):
         try:

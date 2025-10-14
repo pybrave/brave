@@ -40,7 +40,6 @@ import textwrap
 from brave.api.routes.sample_result import parse_result_one
 import  brave.api.service.pipeline as pipeline_service
 import brave.api.service.bio_database_service as bio_database_service
-import inspect
 from typing import Optional
 import pandas as pd
 import subprocess
@@ -483,7 +482,8 @@ async def run_analysis_v2(
 
         # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
         analysis_ = dict(analysis_)
-        analysis_["run_type"] = run_type
+        analysis_["run_id"] = f"{run_type}-{analysis_id}"
+        
         if run_type == "job":
             analysis_["container_id"] =component["container_id"]
         else:
@@ -497,7 +497,8 @@ async def run_analysis_v2(
         # analysis_["image"] = find_container["image"]
         analysis_ = AnalysisExecuterModal(**analysis_)
         # analysis_.image = find_container["image"]
-        stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
+        await analysis_service.finished_analysis(analysis_id,run_type,"running")
+        # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
         conn.execute(stmt)
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
     
@@ -516,6 +517,7 @@ async def run_analysis_v2(
 @inject
 async def stop_analysis(
     analysis_id,
+    run_type,
     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
     ):
 
@@ -527,55 +529,17 @@ async def stop_analysis(
         if analysis_ is None:
             raise HTTPException(status_code=404, detail="Analysis not found")
         
-
-        analysis_ = AnalysisExecuterModal(**analysis_)
+        run_id = f"{run_type}-{analysis_id}"
+        analysis_ = AnalysisExecuterModal(**analysis_,run_id=run_id)
+        
         # stmt = analysis.update().values({"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
         # conn.execute(stmt)
+
         await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)
         
     
         return {"msg":"success"}
 
-    #     analysis_dict = dict(analysis_)
-    #     analysis_dict['job_id'] = job_id
-    #     await process_monitor.add_process(analysis_dict)
-    #     if auto_parse:
-    #         await analysis_result_parse_service.add_analysis_id(analysis_id)
-    #     if process_id is not None:
-    #         try:
-    #             proc = psutil.Process(int(process_id))
-    #             if proc.is_running():
-    #                 raise Exception(f"Analysis is already running with process_id={process_id}")
-    #         except (psutil.NoSuchProcess, ValueError):
-    #             pass  # 进程不存在或 process_id 非法，继续执行
-        
-    #     pid = start_background(analysis_.output_dir, ["bash","run.sh"])
-    #     stmt = analysis.update().values({"process_id":pid,"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
-    #     conn.execute(stmt)
-    #     analysis_dict = dict(analysis_)
-
-    #     analysis_dict['process_id'] = pid
-    #     # await queue_process.put(analysis_dict)
-    #     await process_monitor.add_process(analysis_dict)
-    #     if auto_parse:
-    #         await analysis_result_parse_service.add_analysis_id(analysis_id)
-    # return {"pid":pid}
-
-
-# @analysis_api.get("/monitor-analysis/{analysis_id}")
-# async def pipeline_monitor(analysis_id):
-#     with get_engine().begin() as conn:
-#         stmt = select(analysis).where(analysis.c.id == analysis_id)
-#         result = conn.execute(stmt)
-#         result = result.mappings().fetchone()
-#     if not result:
-#         return {}
-
-#     output_dir = result['output_dir']
-#     trace_file = f"{output_dir}/trace.txt"
-#     if os.path.exists(trace_file):
-#         df = pd.read_csv(trace_file,sep="\t")
-#     return  df.to_dict(orient="records")   
 
 @analysis_api.get("/find-analysis-by-id/{analysis_id}") 
 async def find_analysis_by_id(analysis_id):
@@ -639,10 +603,10 @@ async def visualization_results(analysis_id):
     # file_result = {}
     file_result['description'] = find_component["description"]
     file_result['analysis_name'] = find_analysis["analysis_name"]
-    file_result['analysis_status'] = find_analysis["analysis_status"]
+    file_result['job_status'] = find_analysis["job_status"]
+    file_result['server_status'] = find_analysis["server_status"]
     file_result['is_report'] = find_analysis["is_report"]
     file_result['analysis_id'] = find_analysis["analysis_id"]
-    file_result['run_type'] = find_analysis["run_type"]
 
     file_result['component_name'] = find_component["component_name"]
     file_result['component_id'] = find_component["component_id"]
