@@ -116,15 +116,13 @@ class DockerExecutor(JobExecutor):
     def _sync_submit_job(self, job: AnalysisExecuterModal) -> str:
         user_id = os.getuid() 
         group_id = os.getgid()
-
+        used_namespace=None
         with get_engine().begin() as conn: 
             find_container = container_service.find_container_by_id(conn,job.container_id)
-            # find_namespace = namespace_service.find_namespace(conn,job.namespace)
             if not find_container:
                 raise RuntimeError(f"Container {job.container_id} not found")
-            # if not find_namespace:
-            #     raise RuntimeError(f"Namespace {job.namespace} not found")
-        # {
+            used_namespace = namespace_service.get_used_namespace(conn)
+    
         # "DISABLE_AUTH":true,
         # "USERID":"$USERID",
         # "GROUPID":"$GROUPID",
@@ -202,8 +200,8 @@ class DockerExecutor(JobExecutor):
             # $SCRIPT_DIR
         volumes = {}
 
-        if find_container.volumes:
-            volumes_dict = json.loads(find_container.volumes)
+        if used_namespace and used_namespace.volumes:
+            volumes_dict = json.loads(used_namespace.volumes)
             for k,v in volumes_dict.items():
                 if os.path.exists(k):
                     volumes.update({ k: v})

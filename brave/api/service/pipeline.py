@@ -11,7 +11,7 @@ import shutil
 from fastapi import Depends, HTTPException
 from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule,SaveOrder,SavePipelineComponentsEdges
 from brave.api.config.db import get_engine
-from brave.api.models.core import t_namespace, t_pipeline_components, t_pipeline_components_edges, t_pipeline_components_relation
+from brave.api.models.core import  t_pipeline_components, t_pipeline_components_edges, t_pipeline_components_relation
 import importlib.resources as resources
 from sqlalchemy import delete, select, and_, join, func,insert,update,or_
 from datetime import datetime
@@ -309,8 +309,7 @@ def list_pipeline(conn,queryPipeline:QueryPipeline):
     conditions = []
     if queryPipeline.component_type is not None:
         conditions.append(t_pipeline_components.c.component_type == queryPipeline.component_type)
-    if queryPipeline.namespace is not None:
-        conditions.append(t_pipeline_components.c.namespace == queryPipeline.namespace)
+
     # if analysisResultQuery.ids is not None:
     #     conditions.append(analysis_result.c.id.in_(analysisResultQuery.ids))
     # if analysisResultQuery.analysis_method is not None:
@@ -334,19 +333,14 @@ def format_pipeline_componnet_one(item):
         print("component json error",json.dumps(item,indent=4))
  
         # else:
-        #     item['img'] = f"/brave-api/pipeline-dir/{item['namespace']}/{item['component_type']}/{item['component_id']}/{item['img']}"
     return item
 
 def page_pipeline(conn,query:PagePipelineQuery):
     stmt =select(
         t_pipeline_components,
-        t_namespace.c.name.label("namespace_name")
     ) 
     
-    # Left join with t_namespace to get namespace name
-    stmt = stmt.select_from(
-       t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
-    )
+   
 
     conditions = []
     if query.component_type is not None:
@@ -395,15 +389,11 @@ def find_by_relation_id(conn,relation_id:str):
 
 
 
-def find_component_by_namespace(conn,namespace):
-    stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
-    return conn.execute(stmt).mappings().all()
-
 def find_component_by_container_id(conn,container_id):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.container_id == container_id)
     return conn.execute(stmt).mappings().all()
 
-def get_child_depend_component(conn,namespace, component_id):
+def get_child_depend_component(conn, component_id):
     
     stmt = select(
         t_pipeline_components_relation.c.relation_id,
@@ -412,7 +402,6 @@ def get_child_depend_component(conn,namespace, component_id):
         t_pipeline_components.c.component_type,
         t_pipeline_components.c.component_name,
         t_pipeline_components.c.description,
-        t_pipeline_components.c.namespace
         ).select_from(
             t_pipeline_components_relation.outerjoin(
                 t_pipeline_components,
@@ -420,14 +409,13 @@ def get_child_depend_component(conn,namespace, component_id):
             )
         ).where(
             t_pipeline_components_relation.c.parent_component_id == component_id,
-            t_pipeline_components_relation.c.namespace == namespace
         )
     
 
 
     return conn.execute(stmt).mappings().all()
 
-def get_parent_depend_component(conn, namespace, component_id):
+def get_parent_depend_component(conn, component_id):
 
     stmt = select(
         t_pipeline_components_relation.c.relation_id,
@@ -436,7 +424,6 @@ def get_parent_depend_component(conn, namespace, component_id):
         t_pipeline_components.c.component_type,
         t_pipeline_components.c.component_name,
         t_pipeline_components.c.description,
-        t_pipeline_components.c.namespace
     ).select_from(
         t_pipeline_components_relation.outerjoin(
             t_pipeline_components,
@@ -444,18 +431,16 @@ def get_parent_depend_component(conn, namespace, component_id):
         )
     ).where(
         t_pipeline_components_relation.c.component_id == component_id,
-        t_pipeline_components_relation.c.namespace == namespace
     )
     return conn.execute(stmt).mappings().all()
 
 
 
 
-def get_child_component_count(conn,namespace, component_id,relation_type):
+def get_child_component_count(conn, component_id,relation_type):
     stmt = select(func.count()).select_from(t_pipeline_components_relation).where(
         t_pipeline_components_relation.c.parent_component_id == component_id,
         t_pipeline_components_relation.c.relation_type == relation_type,
-        t_pipeline_components_relation.c.namespace == namespace
     )
     return conn.execute(stmt).scalar()
 
@@ -496,19 +481,15 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
         t_pipeline_components.c.component_type,
         t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
-        t_pipeline_components.c.namespace,
         t_pipeline_components.c.component_name,
         t_pipeline_components.c.position,
         t_pipeline_components.c.edges,
         t_pipeline_components.c.tags,
         t_pipeline_components.c.description,
-        t_namespace.c.name.label("namespace_name"),
         cast(null(), String(255)).label("relation_type"),
         cast(null(), String(255)).label("parent_component_id"),
         cast(null(), String(255)).label("order_index"),
         cast(null(), String(255)).label("relation_id"),
-    ).select_from(
-        t_pipeline_components.outerjoin(t_namespace, t_pipeline_components.c.namespace == t_namespace.c.namespace_id)
     ).where(
         t_pipeline_components.c.component_id == name,
         t_pipeline_components.c.component_type == component_type,
@@ -519,7 +500,6 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
     # cte = base.cte(name="full_pipeline", recursive=True)
 
     tp1 = aliased(t_pipeline_components)
-    tn1 = aliased(t_namespace)
     rel = t_pipeline_components_relation
     # fp = aliased(cte)  # 引用递归CTE自身
     base_alias = base.alias()
@@ -529,20 +509,17 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
         tp1.c.component_type,
         tp1.c.install_key,
         tp1.c.content,
-        tp1.c.namespace,
         tp1.c.component_name,
         tp1.c.position,
         tp1.c.tags,
         tp1.c.edges,
         tp1.c.description,
-        tn1.c.name.label("namespace_name"),
         rel.c.relation_type,
         rel.c.parent_component_id,
         rel.c.order_index,
         rel.c.relation_id,
     ).select_from(
-        tp1.outerjoin(tn1, tp1.c.namespace == tn1.c.namespace_id)
-        .join(rel, tp1.c.component_id == rel.c.component_id)
+        tp1.join(rel, tp1.c.component_id == rel.c.component_id)
         .join(base_alias, rel.c.parent_component_id == base_alias.c.component_id)
     )
 
@@ -747,7 +724,6 @@ def write_component_json(component_id):
     component_type = current_component["component_type"]
     pipeline_dir = get_pipeline_dir()
     pipeline_dir = f"{pipeline_dir}/{component_type}/{component_id}"
-    # pipeline_dir = f"{pipeline_dir}/{namespace}"
     if not os.path.exists(pipeline_dir):
         os.makedirs(pipeline_dir)
     
@@ -781,24 +757,6 @@ def write_component_json(component_id):
     pass
 
 
-
-# def write_all_component(conn,namespace):
-#     pipeline_dir = get_pipeline_dir()
-#     pipeline_dir = f"{pipeline_dir}/{namespace}"
-#     stmt = t_pipeline_components.select().where(t_pipeline_components.c.namespace == namespace)
-#     find_pipeline = conn.execute(stmt).mappings().all()
-#     find_pipeline = [ {k:v for k,v in item.items() if k!="id"} for item in find_pipeline]
-#     with open(f"{pipeline_dir}/pipeline_component.json","w") as f:
-#         json.dump(find_pipeline,f)
-     
-# def write_all_component_relation(conn,namespace):
-#     pipeline_dir = get_pipeline_dir()
-#     pipeline_dir = f"{pipeline_dir}/{namespace}"
-#     stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.namespace == namespace)
-#     find_pipeline = conn.execute(stmt).mappings().all()
-#     find_pipeline = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in find_pipeline]
-#     with open(f"{pipeline_dir}/pipeline_component_relation.json","w") as f:
-#         json.dump(find_pipeline,f, default=datetime_converter)
 
 def import_component_relation(conn,path,force=False):
     # pipeline_dir = get_pipeline_dir()

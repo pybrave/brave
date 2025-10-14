@@ -33,6 +33,8 @@ def list_namespace(conn):
     return conn.execute(stmt).mappings().all()
 
 
+
+
 # def import_namespace(conn,namespace_id,force=False):
 #     pipeline_dir = get_pipeline_dir()
 #     pipeline_dir = f"{pipeline_dir}/{namespace_id}"
@@ -58,10 +60,18 @@ def list_namespace(conn):
 async def init_db(conn):
     namespace = find_namespace(conn,"default")
     if not namespace:
-        namespace_dict = {"namespace_id":"default","name":"default"}
+        namespace_dict = {"namespace_id":"default","name":"default","is_use":True}
         save_namespace(conn,namespace_dict)
         # write_namespace("default",namespace_dict)
 
     
-    
+def get_used_namespace(conn):
+    stmt = t_namespace.select().where(t_namespace.c.is_use == True)
+    return conn.execute(stmt).mappings().first()
 
+def set_used_namespace(conn,namespace_id):
+    stmt = t_namespace.update().where(t_namespace.c.is_use == True).values({"is_use":False})
+    conn.execute(stmt)
+    stmt = t_namespace.update().where(t_namespace.c.namespace_id == namespace_id).values({"is_use":True})
+    conn.execute(stmt)
+    return find_namespace(conn,namespace_id)

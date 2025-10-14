@@ -51,14 +51,7 @@ async def list_namespace():
 async def delete_namespace_by_namespace_id(namespace_id:str):
     with get_engine().begin() as conn:
         find_namespace = namespace_service.find_namespace(conn,namespace_id)
-        if find_namespace:
-            find_component =  pipeline_service.find_component_by_namespace(conn,find_namespace.namespace_id)
-            if find_component:
-                raise HTTPException(status_code=400, detail=f"namespace {find_namespace.name} 存在组件，不能删除")
-            container_services = container_service.find_by_namespace(conn,namespace_id)
-            if container_services:
-                raise HTTPException(status_code=400, detail=f"namespace {find_namespace.name} 存在容器，不能删除")
-
+      
         if find_namespace:
             namespace_service.delete_namespace(conn,namespace_id)
             return {"message":"success"}
@@ -71,3 +64,20 @@ async  def find_by_id(namespace_id):
         if not find_namespace:
             raise HTTPException(status_code=404, detail=f"Namespace with id {namespace_id} not found")
         return find_namespace
+
+
+@namespace.get("/get-used-namespace",tags=['namespace'])
+async def get_used_namespace():
+    with get_engine().begin() as conn:
+        find_namespace = namespace_service.get_used_namespace(conn)
+        return find_namespace or {}
+        # if not find_namespace:
+        #     raise HTTPException(status_code=404, detail=f"Namespace with id default not found")
+        # return find_namespace
+@namespace.post("/set-used-namespace/{namespace_id}",tags=['namespace'])
+async def set_used_namespace(namespace_id:str):
+    with get_engine().begin() as conn:
+        find_namespace = namespace_service.find_namespace(conn,namespace_id)
+        if not find_namespace:
+            raise HTTPException(status_code=404, detail=f"Namespace with id {namespace_id} not found")
+        return namespace_service.set_used_namespace(conn,namespace_id)

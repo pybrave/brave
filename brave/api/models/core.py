@@ -161,7 +161,7 @@ t_pipeline_components = Table(
     Column("sub_container_id", String(255)),
     Column("tags", String(255)), 
     Column("category", String(255)), 
-    Column("namespace", String(255)),
+    # Column("namespace", String(255)),
     Column("content", Text),
     Column("order_index", Integer),
     Column("position", Text),
@@ -180,7 +180,7 @@ t_pipeline_components_relation = Table(
     Column("component_id", String(255)),
     Column("parent_component_id", String(255)),
     Column("order_index", Integer),
-    Column("namespace", String(255)),
+    # Column("namespace", String(255)),
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)
 
@@ -216,6 +216,7 @@ t_namespace = Table(
     Column("namespace_id", String(255)),
     Column("name", String(255)),
     Column("volumes", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("is_use",  Boolean, default=False),
 )
 
 # t_relation_pipeline_software = Table(
@@ -292,7 +293,7 @@ t_container = Table(
     Column("image_id", String(255)),
     Column("image_status", String(255)),
     Column("description", String(255)),
-    Column("namespace", String(255)),
+    # Column("namespace", String(255)),
     Column("envionment", String(255)),
     Column("command", String(255)),
     Column("port", String(255)),

@@ -111,8 +111,7 @@ class BaseAnalysis(ABC):
             work_dir = settings.WORK_DIR
             pieline_dir = settings.PIPELINE_DIR
             str_uuid = str(uuid.uuid4())
-            namespace = component["namespace"]
-            pieline_dir_with_namespace = f"{pieline_dir}/{namespace}"
+            pieline_dir_with_namespace = f"{pieline_dir}"
             # /ssd1/wy/workspace2/nextflow_workspace
             # wrap_analysis_pipline = ""
             # if 'wrap_analysis_pipeline' in request_param:

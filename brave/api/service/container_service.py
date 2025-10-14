@@ -1,7 +1,7 @@
 
 from brave.api.executor.base import JobExecutor
 from brave.api.schemas.container import ListContainerQuery, PageContainerQuery,SaveContainer
-from brave.api.models.core import t_container,t_namespace
+from brave.api.models.core import t_container
 from sqlalchemy import delete, select, and_, join, func,insert,update
 # from brave.api.service.pipeline import get_pipeline_dir 
 import json
@@ -12,19 +12,12 @@ def page_container(conn,query:PageContainerQuery):
     stmt =select(t_container) 
     
     stmt =select(
-        t_container,
-        t_namespace.c.name.label("namespace_name")
+        t_container
     ) 
     
-    # Left join with t_namespace to get namespace name
-    stmt = stmt.select_from(
-       t_container.outerjoin(t_namespace, t_container.c.namespace == t_namespace.c.namespace_id)
-    )
    
     conditions = []
-    if query.namespace is not None:
-        conditions.append(t_container.c.namespace == query.namespace)
-    
+ 
     stmt = stmt.where(and_(*conditions))
     count_stmt = select(func.count()).select_from(t_container).where(and_(*conditions))
 
@@ -43,21 +36,13 @@ def page_container(conn,query:PageContainerQuery):
 
 
 
-# def find_container_by_id(conn,container_id):
-#     stmt = t_container.select().where(t_container.c.container_id ==container_id)
-#     find_container = conn.execute(stmt).mappings().first()
-#     return find_container
+
 
 def find_container_by_id(conn,container_id):
     stmt = select(
-        t_container,
-        t_namespace.c.namespace_id.label("namespace_id"),
-        t_namespace.c.name.label("namespace_name"),
-        t_namespace.c.volumes.label("volumes")
+        t_container
     )
-    stmt = stmt.select_from(
-       t_container.outerjoin(t_namespace, t_container.c.namespace == t_namespace.c.namespace_id)
-    )
+   
     stmt = stmt.where(t_container.c.container_id ==container_id)
     find_container = conn.execute(stmt).mappings().first()
     return find_container
@@ -83,15 +68,6 @@ def list_container(conn):
 def get_pipeline_dir():
     settings = get_settings()
     return settings.PIPELINE_DIR
-def write_all_container(conn,namespace):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace}"
-    stmt = t_container.select().where(t_container.c.namespace == namespace)
-    find_container = conn.execute(stmt).mappings().all()
-    find_container = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in find_container]
-    with open(f"{pipeline_dir}/container.json","w") as f:
-        json.dump(find_container,f)
-     
 
 def import_container(conn,path,force=False):
     # pipeline_dir = get_pipeline_dir()
@@ -112,8 +88,7 @@ def import_container(conn,path,force=False):
 def list_container_key(conn,query:ListContainerQuery):
     stmt = t_container.select().where(
         and_(
-            t_container.c.container_key.in_(query.container_key),
-            t_container.c.namespace ==query.namespace
+            t_container.c.container_key.in_(query.container_key)
         )
         
     )
@@ -128,10 +103,6 @@ def find_container_key(conn,query:ListContainerQuery):
 #         image = job_executor.get_image(item.image)
 #         pass
 
-
-def find_by_namespace(conn,namespace):
-    stmt = t_container.select().where(t_container.c.namespace==namespace)
-    return conn.execute(stmt).mappings().all()
 
 
 def find_by_container_ids(conn,container_ids):

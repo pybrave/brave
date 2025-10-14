@@ -50,7 +50,7 @@ async def find_by_id(container_id):
 
 @container_controller.post("/add-or-update-container",tags=['container'])
 @inject
-async def save_namespace_controller(saveContainer:SaveContainer, job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+async def save_container_controller(saveContainer:SaveContainer, job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
     image = ""
     save_container_dict  = saveContainer.model_dump()
     with get_engine().begin() as conn:
@@ -75,9 +75,7 @@ async def save_namespace_controller(saveContainer:SaveContainer, job_executor:Jo
             else:
                 save_container_dict.update({"image_status":"not_exist"})
             container_service.save_container(conn,save_container_dict)
-        # if saveContainer.namespace!="default":
-        # container_service.write_all_container(conn,saveContainer.namespace)
-    
+  
     return {"message":"success"}
 
 @container_controller.delete("/delete-container-by-id/{container_id}",tags=['container'])
@@ -89,8 +87,7 @@ async def delete_by_container_id(container_id:str):
             if find_component:
                 raise HTTPException(status_code=400, detail=f"container {container_id} 存在组件，不能删除")
         container_service.delete_container(conn,container_id)
-        # if find_container.namespace!="default":
-        # container_service.write_all_container(conn,find_container.namespace)
+   
     return {"message":"success"}
 
 
