@@ -725,13 +725,15 @@ def get_component_relation(conn,component_id):
     data = conn.execute(final_query).mappings().all()
     return data
 
-
+def delete_component_file(component):
+    component_type = component["component_type"]
+    component_id = component["component_id"]
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+    if os.path.exists(pipeline_dir):
+        shutil.rmtree(pipeline_dir)
 
 def write_component_json(component_id):
-    
-
-
-
     with get_engine().begin() as conn:
         component_list = get_components(conn,component_id)
         component_relation_list =  get_component_relation(conn,component_id)
@@ -822,3 +824,10 @@ def import_component(conn,path,force=False):
                 conn.execute(update_stmt)
         else:
             conn.execute(insert(t_pipeline_components).values(item))   
+
+
+# Find components by a list of component IDs
+def find_by_component_ids(conn,component_ids):
+    stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id.in_(component_ids))
+    find_pipeline = conn.execute(stmt).mappings().all()
+    return find_pipeline

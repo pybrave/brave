@@ -708,20 +708,23 @@ async def delete_pipeline_relation(relation_id: str):
 async def delete_component(component_id: str):
 
     with get_engine().begin() as conn:
+        find_component = pipeline_service.find_component_by_id(conn,component_id)
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"Cannot find component for {component_id}!")
         stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.parent_component_id ==component_id)
         parent_find_pipeine = conn.execute(stmt).fetchone()
         stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.component_id ==component_id)
         child_find_pipeine = conn.execute(stmt).fetchall()
 
         if  parent_find_pipeine or child_find_pipeine:
-            raise HTTPException(status_code=500, detail=f"不能删除存在关联!") 
+            raise HTTPException(status_code=500, detail=f"Cannot delete because there are existing associations!") 
         else:
-            find_component = pipeline_service.find_component_by_id(conn,component_id)
+            # find_component = pipeline_service.find_component_by_id(conn,component_id)
             stmt = t_pipeline_components.delete().where(t_pipeline_components.c.component_id == component_id)
             conn.execute(stmt)
-            pipeline_service.delete_wrap_pipeline_dir(component_id)
+            # pipeline_service.delete_wrap_pipeline_dir(component_id)
 
-    pipeline_service.write_component_json(component_id)
+    pipeline_service.delete_component_file(find_component)
     # with get_engine().begin() as conn:   
     #     pipeline_service.write_all_component(conn,find_component["namespace"])
     #     pipeline_service.write_all_component_relation(conn,find_component["namespace"])
@@ -755,7 +758,7 @@ async def install_component(installComponent:InstallComponent,force:bool=False,
     install_path = f"{pipeline_dir}/{data['component_type']}/{data['component_id']}"
 
     if not os.path.exists(install_path):
-        os.makedirs(install_path)
+        # os.makedirs(install_path)
         shutil.copytree(path, install_path)
         print("copytree",path, install_path)
     else:

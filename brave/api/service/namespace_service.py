@@ -33,34 +33,34 @@ def list_namespace(conn):
     return conn.execute(stmt).mappings().all()
 
 
-def import_namespace(conn,namespace_id,force=False):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}/{namespace_id}"
-    with open(f"{pipeline_dir}/namespace.json","r") as f:
-        namespace_json = json.load(f)
-    find_namespace_db = find_namespace(conn,namespace_id)
-    if find_namespace_db:
-        if force:
-            update_stmt = t_namespace.update().where(t_namespace.c.namespace_id == namespace_id).values(namespace_json)
-            conn.execute(update_stmt)
-    else:
-        conn.execute(insert(t_namespace).values(namespace_json))
-    return namespace_json
+# def import_namespace(conn,namespace_id,force=False):
+#     pipeline_dir = get_pipeline_dir()
+#     pipeline_dir = f"{pipeline_dir}/{namespace_id}"
+#     with open(f"{pipeline_dir}/namespace.json","r") as f:
+#         namespace_json = json.load(f)
+#     find_namespace_db = find_namespace(conn,namespace_id)
+#     if find_namespace_db:
+#         if force:
+#             update_stmt = t_namespace.update().where(t_namespace.c.namespace_id == namespace_id).values(namespace_json)
+#             conn.execute(update_stmt)
+#     else:
+#         conn.execute(insert(t_namespace).values(namespace_json))
+#     return namespace_json
 
-def write_namespace(namespace_id,saveNamespace):
-    pipeline_dir = get_pipeline_dir()
-    namespace = f"{pipeline_dir}/{namespace_id}"
-    if not os.path.exists(namespace):
-        os.makedirs(namespace)
-    with open(f"{namespace}/namespace.json","w") as f:
-        f.write(json.dumps(saveNamespace))
+# def write_namespace(namespace_id,saveNamespace):
+#     pipeline_dir = get_pipeline_dir()
+#     namespace = f"{pipeline_dir}/{namespace_id}"
+#     if not os.path.exists(namespace):
+#         os.makedirs(namespace)
+#     with open(f"{namespace}/namespace.json","w") as f:
+#         f.write(json.dumps(saveNamespace))
 
 async def init_db(conn):
     namespace = find_namespace(conn,"default")
     if not namespace:
         namespace_dict = {"namespace_id":"default","name":"default"}
         save_namespace(conn,namespace_dict)
-        write_namespace("default",namespace_dict)
+        # write_namespace("default",namespace_dict)
 
     
     

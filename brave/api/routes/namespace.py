@@ -37,7 +37,7 @@ async def save_namespace_controller(saveNamespace:SaveNamespace):
     #     os.makedirs(namespace)
     # with open(f"{namespace}/namespace.json","w") as f:
     #     f.write(json.dumps(saveNamespace.dict()))
-    namespace_service.write_namespace(namespace_id,saveNamespace.model_dump())
+    # namespace_service.write_namespace(namespace_id,saveNamespace.model_dump())
     return {"message":"success"}
 
 @namespace.get("/list-namespace",tags=['namespace'])
