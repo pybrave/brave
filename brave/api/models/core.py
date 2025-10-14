@@ -296,6 +296,7 @@ t_container = Table(
     Column("container_key", String(255)),
     Column("name", String(255)),
     Column("image", String(255)),
+    Column("img",  Text().with_variant(LONGTEXT(), "mysql")),
     Column("image_id", String(255)),
     Column("image_status", String(255)),
     Column("description", String(255)),

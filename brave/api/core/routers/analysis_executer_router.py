@@ -22,7 +22,8 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
         if payload.run_id is None:
             raise ValueError("run_id is required in payload")
       
-
+        run_type = payload.run_id.split("-")[0]
+        analysis_id = payload.run_id.replace(f"{run_type}-","")
 
         if event == AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE or event == AnalysisExecutorEvent.ON_ANALYSIS_FAILED:    
             if isinstance(payload, AnalysisId):
@@ -30,17 +31,17 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
                 #     payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type=payload.run_type)
                 # else:
                 with get_engine().begin() as conn:
-                    run_type = payload.run_id.split("-")[0]
-                    analysis_id = payload.run_id.replace(f"{run_type}-","")
+                    
                     analysis =  analysis_service.find_analysis_by_id(conn,analysis_id)
                     if analysis:
                         payload = AnalysisExecuterModal(run_id=payload.run_id,**analysis)
                     else:
-                        payload = AnalysisExecuterModal(run_id=payload.run_id,analysis_id=payload.run_id.split("-")[-1])
+                       
+                        payload = AnalysisExecuterModal(run_id=payload.run_id,analysis_id=analysis_id)
 
                 # payload = AnalysisExecuterModal(analysis_id=payload.analysis_id)
         elif event == AnalysisExecutorEvent.ON_CONTAINER_PULLED:
-            payload = AnalysisExecuterModal(run_id=payload.run_id, analysis_id=payload.run_id.split("-")[-1])
+            payload = AnalysisExecuterModal(run_id=payload.run_id, analysis_id=analysis_id)
 
             
         if   not isinstance(payload, AnalysisExecuterModal):

@@ -21,17 +21,13 @@ from brave.app_container import AppContainer
 
 container_controller = APIRouter(prefix="/container")
 
-@container_controller.post("/page", tags=['container'])
-@inject
-async def page_container(query:PageContainerQuery,
-                         job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
-    with get_engine().begin() as conn:
-        page_list =  container_service.page_container(conn,query)
+
+async def format_container(job_executor, container_list):
     containers = await job_executor.list_running()
-    containers_dict = {k: v for d in containers for k, v in d.items()}
+    containers_dict = {item["name"]: item["id"] for item in containers }
     items = []
- 
-    for item in page_list['items']:
+
+    for item in container_list:
         container_id = item["container_id"]
         run_id = f"retry-{container_id}"
         if run_id in containers_dict:
@@ -40,7 +36,16 @@ async def page_container(query:PageContainerQuery,
         else:
             item["status"] = "stopped"
         items.append(item)
-    page_list['items'] = items
+    return items
+
+@container_controller.post("/page", tags=['container'])
+@inject
+async def page_container(query:PageContainerQuery,
+                         job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+    with get_engine().begin() as conn:
+        page_list =  container_service.page_container(conn,query)
+
+    page_list['items'] = await format_container(job_executor, page_list["items"])
     return page_list
 
 @container_controller.get("/find-by-id/{container_id}", tags=['container'])
@@ -105,13 +110,13 @@ async def run_container(
     ):
     settings = get_settings()
 
-    data_dir = str(settings.DATA_DIR)
+    base_dir = str(settings.BASE_DIR)
     run_id = f"retry-{container_id}"
     analysis_ =  AnalysisExecuterModal(
         analysis_id=container_id,
         container_id=container_id,
-        output_dir=data_dir,
-        pipeline_script=f"{data_dir}/run.sh",
+        output_dir=base_dir,
+        pipeline_script=f"{base_dir}/run.sh",
         run_id=run_id
     )
     # try:
@@ -132,7 +137,7 @@ async def run_container(
 
 @container_controller.post("/stop-container/{container_id}")
 @inject
-async def run_container(
+async def stop_container(
     container_id,
     # executor: JobExecutor = Depends(get_executor_dep),
     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
@@ -144,6 +149,27 @@ async def run_container(
     analysis_ =  AnalysisExecuterModal(
         analysis_id=container_id,
         container_id=container_id,
+        output_dir=data_dir,
+        pipeline_script=f"{data_dir}/run.sh",
+        run_id=run_id
+    )
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)
+
+
+@container_controller.post("/stop-container-by-run-id/{run_id}")
+@inject
+async def run_container_by_run_id(
+    run_id,
+    # executor: JobExecutor = Depends(get_executor_dep),
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+    settings = get_settings()
+
+    data_dir = str(settings.DATA_DIR)
+
+    analysis_ =  AnalysisExecuterModal(
+        analysis_id=run_id,
+        container_id=run_id,
         output_dir=data_dir,
         pipeline_script=f"{data_dir}/run.sh",
         run_id=run_id
@@ -173,53 +199,29 @@ async def  list_container_key(query:ListContainerQuery,
     with get_engine().begin() as conn:
         find_container=  container_service.list_container_key(conn,query)
         find_container = [dict(item) for item in find_container]
-        containers = await job_executor.list_running()
+        items = await format_container(job_executor, find_container)
         
-        containers_dict = {k: v for d in containers for k, v in d.items()}
-        items = []
-        for item in find_container:
-            if item["container_id"] in containers_dict:
-                item["status"] = "running"
-                item["docker_id"] = containers_dict[item["container_id"]]
-            else:
-                item["status"] = "stopped"
-            items.append(item)
     return items
 
 
-@container_controller.post("/find-container-key")
-@inject
-async def  find_container_key(query:ListContainerQuery,
-                               job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
-    with get_engine().begin() as conn:
-        find_container=  container_service.find_container_key(conn,query)
-        if not find_container:
-            return {}
-    find_container = dict(find_container)
-    containers = await job_executor.list_running()
-    
-    containers_dict = {k: v for d in containers for k, v in d.items()}
-    items = []
-    if find_container["container_id"] in containers_dict:
-        find_container["status"] = "running"
-        find_container["docker_id"] = containers_dict[find_container["container_id"]]
-    else:
-        find_container["status"] = "stopped"
-        
-    return items
 
 
 @container_controller.get("/inspect/{container_id}", tags=['container'])
 @inject
 async def get_inspect(container_id: str,
-                            run_type,
+                        run_type:Optional[str]=None,
                          job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
-    run_id = f"{run_type}-{container_id}"
+    run_id = container_id
+    if  run_type:
+        run_id = f"{run_type}-{container_id}"
     container_attr = await job_executor.get_container_attr(run_id)
     if container_attr:
         return container_attr
     else:
-        raise HTTPException(status_code=404, detail=f"Container {container_id} not found or not running")
+        raise HTTPException(status_code=404, detail=f"Container {run_id} not found or not running")
+
+
+
 
 @container_controller.get("/image-inspect/{image_name}", tags=['container'])
 @inject
@@ -230,3 +232,16 @@ async def get_image_inspect(image_name: str,
         return image_attr
     else:
         raise HTTPException(status_code=404, detail=f"Image {image_name} not found")
+    
+
+
+@container_controller.get("/list-running-container", tags=['container'])
+@inject
+async def list_running_container(
+                        force: Optional[bool] = False,
+                         job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
+    if force:
+        return await job_executor.refresh_list_running()
+    else:
+        return await job_executor.list_running()
+    

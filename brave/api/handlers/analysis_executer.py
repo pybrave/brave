@@ -51,7 +51,7 @@ def setup_handlers(
             asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
             
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"finished"))
-        else:
+        elif payload.run_type =="server":
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"stopped"))
         # if payload.run_type !="retry":
         #     if payload.run_type =="job":
@@ -66,7 +66,9 @@ def setup_handlers(
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
             "event": "analysis_complete",
+             "run_id": payload.run_id,
             "run_type":payload.run_type
+            
             })})
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STARTED)
@@ -77,6 +79,7 @@ def setup_handlers(
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
             "event": "analysis_started",
+             "run_id": payload.run_id,
             "run_type":payload.run_type
             })})
   
@@ -91,6 +94,7 @@ def setup_handlers(
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
             "event": "analysis_failed",
+             "run_id": payload.run_id,
             "run_type":payload.run_type
             })})
  
@@ -99,6 +103,7 @@ def setup_handlers(
     async def on_container_pulled(payload:AnalysisExecuterModal):
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,
+            "run_id": payload.run_id,
             "event": "container_pulled",
             "run_type":payload.run_type
         })})

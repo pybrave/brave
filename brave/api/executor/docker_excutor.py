@@ -37,26 +37,27 @@ class DockerExecutor(JobExecutor):
         self._monitor_interval = 2.0  # 秒
         self.to_remove = []
         self.setting  = get_settings()
-        asyncio.create_task(self.recover_running_containers())
+        # asyncio.create_task(self.recover_running_containers())
         asyncio.create_task(self._monitor_containers())
         asyncio.create_task(self.update_images_status())
         self.running_conntainer =  []
-        asyncio.create_task(asyncio.to_thread(self._list_running))
+        asyncio.create_task(asyncio.to_thread(self._list_running,recover=True))
         self.executor = ThreadPoolExecutor(max_workers=5)
         
 
 
-    async def recover_running_containers(self):
+    def recover_running_containers(self,containers):
         """
         程序启动时调用：
         从数据库查询所有运行中分析，恢复对应容器监控
         """
+        containers = {container.name:container for container in containers}
+        self.containers.update(containers)
         with get_engine().begin() as conn:  
             running_jobs = find_running_analysis(conn)  # 异步获取所有运行中任务
-
+        
         for job in running_jobs:
             try:
-
                 container = self.client.containers.get(job["run_id"])
                 self.containers[job["run_id"]] = container
             except Exception as e:
@@ -358,13 +359,29 @@ class DockerExecutor(JobExecutor):
         except Exception as e:
             print(f"Error removing container {job_id}: {e}")
             pass
+    
+    def get_image_name(self,container):
+        tags = container.image.tags
+        if tags and len(tags)>0:
+            return tags[0]
+        else:
+            return "<none>:<none>"
 
-    def _list_running(self) :
+        
+    def _list_running(self,recover=False) :
         label_filter = {"label": "project=brave"}
         # 获取运行中的容器（filtered by label）
         containers = self.client.containers.list(filters=label_filter)
-        containers = [{container.name:container.id} for container in containers]
+        if recover:
+            self.recover_running_containers(containers)
+        containers = [{"image":self.get_image_name(container),"run_id":container.name,"name":container.name,"id":container.id} for container in containers]
         self.running_conntainer = containers
+        
+        return containers
+    
+    async def refresh_list_running(self) :
+        return self._list_running()
+
     
     async def list_running(self) :
         return self.running_conntainer
