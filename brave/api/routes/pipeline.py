@@ -720,17 +720,29 @@ async def install_component(installComponent:InstallComponent,force:bool=False,
         pipeline_service.import_component_relation(conn,path,force)
         container_service.import_container(conn,path,force)
     
-    install_path = f"{pipeline_dir}/{data['component_type']}/{data['component_id']}"
+    # install all components
+    store_dir  =  os.path.dirname(installComponent.path)
+    store_dir = os.path.dirname(store_dir)
+    store_dir = os.path.dirname(store_dir)
 
-    if not os.path.exists(install_path):
-        # os.makedirs(install_path)
-        shutil.copytree(path, install_path)
-        print("copytree",path, install_path)
-    else:
-        if force:   
-            shutil.rmtree(install_path)
-            shutil.copytree(path, install_path)
-            print("force copytree",path, install_path)
+
+    with open(f"{path}/pipeline_component.json","r") as f:
+        components_list = json.load(f)
+    for item in components_list:
+        component_id = item["component_id"]
+        component_type = item["component_type"]
+        source_path = f"{store_dir}/{component_type}/{component_id}"
+        install_path = f"{pipeline_dir}/{component_type}/{component_id}"
+
+        if not os.path.exists(install_path):
+            # os.makedirs(install_path)
+            shutil.copytree(source_path, install_path)
+            print("copytree",source_path, install_path)
+        else:
+            if force:   
+                shutil.rmtree(install_path)
+                shutil.copytree(source_path, install_path)
+                print("force copytree",source_path, install_path)
     
 
     
