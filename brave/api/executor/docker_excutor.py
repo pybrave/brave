@@ -441,7 +441,7 @@ class DockerExecutor(JobExecutor):
                 container_service.update_container(conn,
                                                     container_id,
                                                     {"image_id":image.id,"image_status":"exist"})
-        run_id = AnalysisId(run_id=container_id)
+        run_id = AnalysisId(run_id=f"retry-{container_id}")
         # asyncio.create_task() 
         await self.event_bus.dispatch(
             RoutersName.ANALYSIS_EXECUTER_ROUTER,

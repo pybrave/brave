@@ -8,7 +8,6 @@ class SavePipeline(BaseModel):
     relation_type: Optional[str]=None
     component_type: Optional[str]
     content: Optional[str]=None
-    namespace:Optional[str]=None
     component_name:Optional[str]=None
     description:Optional[str]=None
     tags:Optional[str]=None
@@ -35,7 +34,7 @@ class QueryPipeline(BaseModel):
     order_index: Optional[int]=None
     component_type: Optional[str]=None
     content: Optional[str]=None
-    namespace:Optional[str]=None
+    # namespace:Optional[str]=None
 
 
 class PagePipelineQuery(BaseModel):
@@ -55,7 +54,7 @@ class Pipeline(BaseModel):
     component_type: Optional[str]
     component_name: Optional[str]
     content: Optional[str]
-    namespace:Optional[str]
+    # namespace:Optional[str]
 
 class QueryModule(BaseModel):
     module_type: Optional[str]
