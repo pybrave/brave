@@ -19,6 +19,7 @@ def main(
     base_dir: str =typer.Option(None, help="Base directory"),
     work_dir: str =typer.Option(None, help="Work directory"),
     store_dir: str =typer.Option(None, help="Store directory"),
+    # analysis_dir: str =typer.Option(None, help="Analysis directory"),
     pipeline_dir: str =typer.Option(None, help="Pipeline directory"),
     literature_dir: str =typer.Option(None, help="Literature directory"),
     mysql_url: str =typer.Option(None, help="Mysql url"),
@@ -30,6 +31,7 @@ def main(
     
     # os.environ["DB_TYPE"] = db_type
     os.environ["EXECUTER_TYPE"] = executer_type
+
     if store_dir:
         os.environ["STORE_DIR"] = store_dir
     if mysql_url:

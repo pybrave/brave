@@ -21,7 +21,7 @@ def from_glob_get_file(content,dir=None):
             pattern_str = v.strip()
 
         if pattern_str.startswith("~"):
-            pattern_str = pattern_str.replace("~",str(settings.DATA_DIR))
+            pattern_str = pattern_str.replace("~",str(settings.ANALYSIS_DIR))
 
         
         file_list = glob.glob(pattern_str)

@@ -5,14 +5,21 @@ from fastapi import HTTPException
 
 async def add_project(conn,AddProject:AddProject):
     uuid_str = str(uuid.uuid4())
-    stmt = t_project.insert().values(project_id=uuid_str,project_name=AddProject.project_name,metadata_form=AddProject.metadata_form)
+    stmt = t_project.insert().values(
+        project_id=uuid_str,
+        project_name=AddProject.project_name,
+        metadata_form=AddProject.metadata_form
+        ,research=AddProject.research
+        ,description=AddProject.description)
     conn.execute(stmt)
     return uuid_str
 
-async def update_project(conn,UpdateProject:UpdateProject):
-    stmt = t_project.update().where(t_project.c.project_id==UpdateProject.project_id).values(project_name=UpdateProject.project_name,metadata_form=UpdateProject.metadata_form)
+async def update_project(conn,updateProject:UpdateProject):
+    updateProject_dict = updateProject.model_dump()
+    updateProject_dict = {k:v for k,v in updateProject.model_dump().items() if v is not None and k!="project_id"}
+    stmt = t_project.update().where(t_project.c.project_id==updateProject.project_id).values(updateProject_dict)
     conn.execute(stmt)
-    return UpdateProject.project_id
+    return updateProject.project_id
 
 async def list_project(conn):
     stmt = t_project.select()

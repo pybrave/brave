@@ -4,29 +4,48 @@ import requests
 import os
 from lxml import etree
 
+from brave.api.config.config import get_settings
+
 kegg_api = APIRouter(prefix="/kegg")
 
 
 def download_kgml(pathway_id: str) -> str:
-    """下载 KEGG KGML 文件"""
-    filename = f"{pathway_id}.kgml"
-    if not os.path.exists(filename):
+    """Download KEGG KGML file"""
+    settings = get_settings()
+    kgml_path = f"{settings.DATABASES_DIR}/kegg/{pathway_id}/{pathway_id}.kgml"
+    if not os.path.exists(kgml_path):
+        os.makedirs(os.path.dirname(kgml_path), exist_ok=True)
         url = f"http://rest.kegg.jp/get/{pathway_id}/kgml"
         resp = requests.get(url)
-        if resp.status_code != 200:
-            raise ValueError(f"无法获取 {pathway_id} 的 KGML 文件")
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(resp.text)
-    return filename
+        if resp.status_code == 200:
+            with open(kgml_path, "w", encoding="utf-8") as f:
+                f.write(resp.text)
+        else:
+            raise FileNotFoundError(f"Unable to fetch KGML file for {pathway_id}")
+        
+
+    img_path = f"{settings.DATABASES_DIR}/kegg/{pathway_id}/{pathway_id}.png"
+    if not os.path.exists(img_path):
+        tree = etree.parse(kgml_path)
+        root = tree.getroot()
+        img_url = root.attrib.get("image")
+        # download image to img_path
+        img_resp = requests.get(img_url)
+        if img_resp.status_code == 200:
+            with open(img_path, "wb") as f:
+                f.write(img_resp.content)
+        else:
+            raise FileNotFoundError(f"Unable to fetch image file for {pathway_id}")
+    return kgml_path, img_path
 
 
 @kegg_api.get("/pathway/{pathway_id}/markers")
 def get_markers(pathway_id: str):
-    up = {"C04549","5337"}
+    up = {"C04549", "5337"}
     down = {"C00024"}
-    kgml_file = download_kgml(pathway_id)
+    kgml_path, img_path = download_kgml(pathway_id)
 
-    with open(kgml_file) as f:
+    with open(kgml_path) as f:
         p = read(f)
 
     markers = []
@@ -46,12 +65,14 @@ def get_markers(pathway_id: str):
 
 @kegg_api.get("/kgml/{pathway_id}")
 def parse_kgml(pathway_id: str):
-    file_path = download_kgml(pathway_id)
+    kgml_path, img_path = download_kgml(pathway_id)
     # file_path = f"/ssd1/wy/workspace2/nextflow-fastapi/hsa04144.kgml"  # 存放KGML文件
-    tree = etree.parse(file_path)
+    tree = etree.parse(kgml_path)
     root = tree.getroot()
+    settings = get_settings()
+    img_url =  img_path.replace(str(settings.DATABASES_DIR),"/brave-api/database-dir") 
 
-    image = root.attrib.get("image")
+    image = img_url # root.attrib.get("image")
     title = root.attrib.get("title")
 
     entries = []

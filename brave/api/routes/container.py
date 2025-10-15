@@ -144,13 +144,13 @@ async def stop_container(
     ):
     settings = get_settings()
 
-    data_dir = str(settings.DATA_DIR)
+    base_dir = str(settings.BASE_DIR)
     run_id = f"retry-{container_id}"
     analysis_ =  AnalysisExecuterModal(
         analysis_id=container_id,
         container_id=container_id,
-        output_dir=data_dir,
-        pipeline_script=f"{data_dir}/run.sh",
+        output_dir=base_dir,
+        pipeline_script=f"{base_dir}/run.sh",
         run_id=run_id
     )
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)
@@ -165,13 +165,13 @@ async def run_container_by_run_id(
     ):
     settings = get_settings()
 
-    data_dir = str(settings.DATA_DIR)
+    base_dir = str(settings.BASE_DIR)
 
     analysis_ =  AnalysisExecuterModal(
         analysis_id=run_id,
         container_id=run_id,
-        output_dir=data_dir,
-        pipeline_script=f"{data_dir}/run.sh",
+        output_dir=base_dir,
+        pipeline_script=f"{base_dir}/run.sh",
         run_id=run_id
     )
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)

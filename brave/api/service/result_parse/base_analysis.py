@@ -17,7 +17,7 @@ from sqlalchemy import select
 import textwrap
 import uuid
 import importlib
-from brave.api.utils.get_db_utils import get_ids,get_group
+from brave.api.utils.get_db_utils import get_ids,get_group, get_re_group
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.service import project_service
@@ -107,6 +107,7 @@ class BaseAnalysis(ABC):
         else:
             settings = get_settings()
             base_dir = settings.BASE_DIR
+            analsyis_dir = settings.ANALYSIS_DIR
             work_dir = settings.WORK_DIR
             pieline_dir = settings.PIPELINE_DIR
             str_uuid = str(uuid.uuid4())
@@ -117,7 +118,7 @@ class BaseAnalysis(ABC):
             # wrap_analysis_pipline = request_param['wrap_analysis_pipeline']
             
 
-            project_dir = f"{base_dir}/{request_param['project']}"
+            project_dir = f"{analsyis_dir}/{request_param['project']}"
             trace_file = f"{base_dir}/monitor/{str_uuid}.trace.log"
             workflow_log_file = f"{base_dir}/monitor/{str_uuid}.workflow.log"
             # if "pipeline_id" in request_param:  
@@ -264,7 +265,8 @@ class BaseAnalysis(ABC):
             metadata_form = [item for item_list in metadata_form for item in item_list if item is not None]
 
         groups_name = {key:get_group(request_param[key]) for key in query_name_list if key in request_param }
-        
+        re_groups_name = {key:get_re_group(request_param[key]) for key in query_name_list if key in request_param }
+
         extra_dict={}
         if "upstreamFormJson" in component:
             upstream_form_json = component['upstreamFormJson']
@@ -287,7 +289,7 @@ class BaseAnalysis(ABC):
 
         settings = get_settings()
         args = {
-           
+           "re_groups_name":re_groups_name,
             "database_dict":database_dict,
             "extra_dict":extra_dict,
             "analysis_dict":db_dict,

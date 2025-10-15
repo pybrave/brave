@@ -13,7 +13,9 @@ t_project = Table(
     Column("id", Integer, primary_key=True),
     Column("project_id", String(255)),
     Column("project_name", String(255)),
-    Column("metadata_form", Text)
+    Column("metadata_form", Text),
+    Column("research", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("description", Text().with_variant(LONGTEXT(), "mysql"))
 )
 
 samples = Table(

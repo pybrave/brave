@@ -111,6 +111,7 @@ class DockerExecutor(JobExecutor):
         work_dir = str(settings.WORK_DIR)
         pipeline_dir = str(settings.PIPELINE_DIR)
         base_dir = str(settings.BASE_DIR)
+        analysis_dir = str(settings.ANALYSIS_DIR)
         script_dir = os.path.dirname(job.pipeline_script)
         connom_script_dir = os.path.dirname(script_dir)
         envionment = {}
@@ -219,6 +220,9 @@ class DockerExecutor(JobExecutor):
                     },
                     base_dir: {
                         "bind": base_dir,
+                        "mode": "rw"
+                    },analysis_dir:{
+                        "bind": analysis_dir,
                         "mode": "rw"
                     },
                     **volumes,

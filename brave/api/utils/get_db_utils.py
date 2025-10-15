@@ -16,3 +16,8 @@ def get_group(values):
             elif len(values["group"]) >1:
                 return "-".join(values["group"])
     return "-"
+
+def get_re_group(values):
+    if isinstance(values, dict):
+        return values.get("group_name","-")
+    return "-"

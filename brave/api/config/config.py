@@ -26,9 +26,14 @@ class Settings:
         print(f"✅ Using BASE_DIR: {self.BASE_DIR}")
 
 
+        default_analysis_dir= f"{base_dir}/analysis"
+        # analysis_dir = os.getenv("ANALYSIS_DIR",default_analysis_dir)
+        self.ANALYSIS_DIR = Path(default_analysis_dir).resolve()# / "data"
+        self.ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Using ANALYSIS_DIR: {self.ANALYSIS_DIR}")
+
+
         default_store_dir= f"{base_dir}/store"
-        # if not  os.path.exists(default_store_dir):    
-        #     os.makedirs(default_store_dir) 
         store_dir = os.getenv("STORE_DIR",default_store_dir)
         self.STORE_DIR = Path(store_dir).resolve()# / "data"
         self.STORE_DIR.mkdir(parents=True, exist_ok=True)
@@ -62,11 +67,11 @@ class Settings:
             sys.path.insert(0, pipeline_dir)
 
 
-        default_data_dir = f"{base_dir}"
-        data_dir = os.getenv("DATA_DIR",default_data_dir)
-        self.DATA_DIR = Path(data_dir).resolve()# / "data"
-        # self.WORK_DIR.mkdir(parents=True, exist_ok=True)
-        print(f"✅ Using DATA_DIR: {self.DATA_DIR}")
+        # default_data_dir = f"{base_dir}"
+        # data_dir = os.getenv("DATA_DIR",default_data_dir)
+        # self.DATA_DIR = Path(data_dir).resolve()# / "data"
+        # # self.WORK_DIR.mkdir(parents=True, exist_ok=True)
+        # print(f"✅ Using DATA_DIR: {self.DATA_DIR}")
         
         
 

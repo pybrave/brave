@@ -251,8 +251,9 @@ def delete_analysis(analysis_id: str):
             raise HTTPException(status_code=500, detail=f"存在分析结果不能删除!")
         output_dir = find_analysis.output_dir
         # delete_all_in_dir(output_dir)
-        shutil.rmtree(output_dir)
-        print(f"删除文件夹: {output_dir}")
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+            print(f"删除文件夹: {output_dir}")
         conn.execute(analysis.delete().where(analysis.c.analysis_id == analysis_id))
 
     return {"message":"success"}
