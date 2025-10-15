@@ -65,15 +65,34 @@ def list_local_store():
 
 @component_store_api.get("/list-stores")
 async def list_store(is_remote:bool):
-    return list_local_store()
+    if is_remote:
+        return [{
+                    "store_name":"quick-start",
+                    "store_path":"quick-start",
+                    "name":"Quick Start Store"
+                }]
+    else:
+        return list_local_store()
 
 
 
 @component_store_api.get("/list-by-type/{store_name}")
 async def list_components_by_type(store_name:str,component_type:str,is_remote:bool):
-    components = list_local_components(store_name,component_type)
-    return components
+    if is_remote:
+        return  [] #get_github_file_list("pybrave","quick-start","software",branch="main")
+    else:
+        components = list_local_components(store_name,component_type)
+        return components
 
 
 
+# https://api.github.com/repos/pybrave/quick-start/contents/software
 
+def get_github_file_list(owner,repo,dir_path,branch="master"):
+    import requests
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{dir_path}?ref={branch}"
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return []

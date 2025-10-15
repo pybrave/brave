@@ -706,7 +706,6 @@ async def find_by_components_id(component_id):
 
     
 @pipeline.post("/copy-component/{component_id}",tags=['pipeline'])
-@inject
 async def install_component(component_id):
     pipeline_dir = pipeline_service.get_pipeline_dir()
     with get_engine().begin() as conn:
