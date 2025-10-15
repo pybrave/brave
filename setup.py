@@ -25,7 +25,8 @@ setup(
         "shortuuid",
         "aiohttp",
         "Bio",
-        "nbconvert"
+        "nbconvert",
+        "lxml"
         ],
     entry_points={
         "console_scripts": [
