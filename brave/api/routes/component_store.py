@@ -16,8 +16,7 @@ def open_file(file_path):
     
     return data
 
-@component_store_api.get("/list")
-async def list_components(store_name,component_type):
+def list_local_components(store_name,component_type):
     settings = get_settings()
     store_dir = settings.STORE_DIR
 
@@ -57,21 +56,22 @@ def format_store(file_path):
         "name":name
     }
 
-
-@component_store_api.get("/list-stores")
-async def list_components_dir():
+def list_local_store():
     settings = get_settings()
     store_dir = settings.STORE_DIR
     file_list = glob.glob(f"{store_dir}/*")
     file_list = [ format_store(file) for file in file_list if os.path.isdir(file)]  
     return file_list
 
+@component_store_api.get("/list-stores")
+async def list_store(is_remote:bool):
+    return list_local_store()
+
 
 
 @component_store_api.get("/list-by-type/{store_name}")
-async def list_components_by_type(store_name:str,component_type:str):
-    components = await list_components(store_name,component_type)
-
+async def list_components_by_type(store_name:str,component_type:str,is_remote:bool):
+    components = list_local_components(store_name,component_type)
     return components
 
 
