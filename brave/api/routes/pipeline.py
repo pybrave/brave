@@ -597,9 +597,7 @@ async def save_pipeline_relation(conn,savePipelineRelation):
     # content = json.loads(find_pipeine.content)
 
 
-
-@pipeline.post("/save-pipeline",tags=['pipeline'])
-async def save_pipeline(savePipeline:SavePipeline):
+async def update_or_save_components(savePipeline:SavePipeline):
     try:
         json.loads(savePipeline.content)
     except Exception as e:
@@ -642,6 +640,10 @@ async def save_pipeline(savePipeline:SavePipeline):
                     relation_type=savePipeline.relation_type,
                     # pipeline_id=savePipeline.pipeline_id
                 ))
+    return component_id
+@pipeline.post("/save-pipeline",tags=['pipeline'])
+async def save_pipeline(savePipeline:SavePipeline):
+    component_id = await update_or_save_components(savePipeline)
      
     pipeline_service.write_component_json(component_id)
     # t0 = time.time()
@@ -702,6 +704,24 @@ async def find_by_components_id(component_id):
         stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id == component_id)
         return conn.execute(stmt).mappings().first()
 
+    
+@pipeline.post("/copy-component/{component_id}",tags=['pipeline'])
+@inject
+async def install_component(component_id):
+    pipeline_dir = pipeline_service.get_pipeline_dir()
+    with get_engine().begin() as conn:
+        find_component = pipeline_service.find_component_by_id(conn,component_id)
+        component = dict(find_component)
+
+        component['component_name'] = f"{component['component_name']}_copy"
+        component['component_id'] = None
+        new_components =  SavePipeline(**component)
+        component_id = await update_or_save_components(new_components)
+
+    pipeline_service.copy_component_json(find_component,component_id)
+    
+    return {"message":"success"}
+    
     
 
 @pipeline.post("/install-components",tags=['pipeline'])

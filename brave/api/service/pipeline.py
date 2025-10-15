@@ -2,6 +2,7 @@ from collections import defaultdict
 import json
 import os
 import glob
+import uuid
 
 from dependency_injector.wiring import Provide
 from sqlalchemy.orm import aliased
@@ -710,6 +711,23 @@ def delete_component_file(component):
     if os.path.exists(pipeline_dir):
         shutil.rmtree(pipeline_dir)
 
+def copy_component_json(component, component_id):
+    pipeline_dir = get_pipeline_dir()
+    source_component_id = component["component_id"]
+    component_type = component["component_type"]
+    source_component_dir = f"{pipeline_dir}/{component_type}/{source_component_id}/main.*"
+    target_component_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+    source_component_file_list = glob.glob(source_component_dir)
+    if not os.path.exists(target_component_dir):
+        os.makedirs(target_component_dir)
+        
+    for source_file in source_component_file_list:
+        filename = os.path.basename(source_file)
+        target_file = f"{target_component_dir}/{filename}"
+        shutil.copyfile(source_file,target_file)
+
+
+
 def write_component_json(component_id):
     with get_engine().begin() as conn:
         component_list = get_components(conn,component_id)
@@ -782,6 +800,8 @@ def import_component(conn,path,force=False):
                 conn.execute(update_stmt)
         else:
             conn.execute(insert(t_pipeline_components).values(item))   
+
+
 
 
 # Find components by a list of component IDs

@@ -17,10 +17,11 @@ def open_file(file_path):
     return data
 
 @component_store_api.get("/list")
-async def list_components():
+async def list_components(store_name,component_type):
     settings = get_settings()
     store_dir = settings.STORE_DIR
-    file_list = glob.glob(f"{store_dir}/*/*/*/install.json")
+
+    file_list = glob.glob(f"{store_dir}/{store_name}/{component_type}/*/install.json")
     file_list = [open_file(file) for file in file_list]
     component_ids= [ item["component_id"] for item in file_list]
     with get_engine().begin() as conn: 
@@ -32,29 +33,47 @@ async def list_components():
             item["installed"] = True
         else:
             item["installed"] = False
-    file_dict = defaultdict(list)
     
     for item in file_list:
-        if "script" in item["file_path"]:
-            file_dict["script"].append(item)
-        elif "software" in item["file_path"]:
-            file_dict["software"].append(item)
-        elif "pipeline" in item["file_path"]:
-            file_dict["pipeline"].append(item)
-        elif "file" in item["file_path"]:
-            file_dict["file"].append(item)
         if "img" in item and item["img"] !="":
             img_dir = item["file_path"].replace(str(settings.STORE_DIR),"")
             img_dir = os.path.dirname(img_dir)
             img_name=item["img"]
             item["img"] = f"/brave-api/store-dir{img_dir}/{img_name}"
             
-    return file_dict
+    return file_list
+
+def format_store(file_path):
+    filename = os.path.basename(file_path)
+    if os.path.exists(f"{file_path}/main.json"):
+        with open(f"{file_path}/main.json", 'r', encoding='utf-8') as f:
+            name = json.load(f).get("name", filename)
+    else:
+        name = filename
+    
+    return {
+        "store_name":os.path.basename(file_path),
+        "store_path":file_path,
+        "name":name
+    }
 
 
-@component_store_api.get("/list-by-type/{component_type}")
-async def list_components_by_type(component_type:str):
-    components = await list_components()
-    if component_type not in components:
-        return []
-    return components[component_type]
+@component_store_api.get("/list-stores")
+async def list_components_dir():
+    settings = get_settings()
+    store_dir = settings.STORE_DIR
+    file_list = glob.glob(f"{store_dir}/*")
+    file_list = [ format_store(file) for file in file_list if os.path.isdir(file)]  
+    return file_list
+
+
+
+@component_store_api.get("/list-by-type/{store_name}")
+async def list_components_by_type(store_name:str,component_type:str):
+    components = await list_components(store_name,component_type)
+
+    return components
+
+
+
+
