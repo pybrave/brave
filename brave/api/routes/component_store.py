@@ -128,7 +128,8 @@ def list_remote_components(owner,store_name,component_type,remote_force,branch):
     installed_dict = { item["component_id"]:item for item in component_installed}
     for item in components:
         component_id = item["component_id"]
-        item["file_path"] = f"https://api.github.com/repos/{owner}/{store_name}/contents/{component_type}/{component_id}?ref={branch}"
+        item["file_path"] = f"https://api.github.com/repos/{owner}/{store_name}/contents/{component_type}/{component_id}"
+        item["branch"] = branch
         item["address"] ="github"
         item["component_name"]  = item.get("name",component_id)
         if item["component_id"] in installed_dict:
@@ -136,8 +137,10 @@ def list_remote_components(owner,store_name,component_type,remote_force,branch):
         else:
             item["installed"] = False
         if "img" in item and item["img"] !="":
-            img_name=item["img"]
-            # item["img"] = f"https://raw.githubusercontent.com/pybrave/quick-start/master/software/{component_type}/{item['component_id']}/{img_name}"
+            # img_name=item["img"]
+            pass
+        else:
+            item["img"] = f"https://raw.githubusercontent.com/{owner}/{store_name}/refs/heads/{branch}/{component_type}/{component_id}/main.png"
     return components
 
 # https://api.github.com/repos/pybrave/quick-start/contents/software
@@ -154,6 +157,7 @@ def get_github_file_list(owner,repo,dir_path,branch="master"):
 
 
 def get_github_file_content(owner, repo, path, branch="main", token=None):
+    meta_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}"
     """
     Fetch the content of a file from a GitHub repository (handles large files automatically).
     
@@ -170,7 +174,7 @@ def get_github_file_content(owner, repo, path, branch="main", token=None):
     # https://api.github.com/repos/pybrave/quick-start/contents/main.json?ref=main
     # https://api.github.com/repos/pybrave/quick-start/contents/main.json?ref=master
     # Step 1️⃣ Get file metadata (to retrieve SHA and size)
-    meta_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}"
+    
     meta_res = requests.get(meta_url, headers=headers)
     meta_res.raise_for_status()
     meta_data = meta_res.json()
@@ -193,3 +197,5 @@ def get_github_file_content(owner, repo, path, branch="main", token=None):
         return content
 
     raise ValueError("Unable to decode file content")
+
+

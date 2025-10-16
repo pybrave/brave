@@ -801,6 +801,20 @@ def import_component(conn,path,force=False):
         else:
             conn.execute(insert(t_pipeline_components).values(item))   
 
+def import_component_json(conn,find_pipeline,force=False):
+
+    # with open(f"{path}/pipeline_component.json","r") as f:
+    #     find_pipeline = json.load(f)
+    for item in find_pipeline:
+        find_pipeline_component = find_pipeline_by_id(conn,item['component_id'])
+        if find_pipeline_component:
+            if force:
+                update_stmt = update(t_pipeline_components).where(t_pipeline_components.c.component_id == item['component_id']).values(item)
+                conn.execute(update_stmt)
+        else:
+            conn.execute(insert(t_pipeline_components).values(item))   
+
+
 
 
 

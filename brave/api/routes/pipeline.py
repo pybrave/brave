@@ -8,6 +8,8 @@ import glob
 from brave.api.config.config import get_settings
 from brave.api.enum.component_script import ScriptName
 from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
+from brave.api.service import component_store_service
+
 from collections import defaultdict
 from brave.api.models.core import t_pipeline_components,t_pipeline_components_relation
 import uuid
@@ -720,7 +722,39 @@ async def install_component(component_id):
     pipeline_service.copy_component_json(find_component,component_id)
     
     return {"message":"success"}
+
+
+def install_github_component(installComponent:InstallComponent,force:bool):
+    pipeline_dir = pipeline_service.get_pipeline_dir()
+    component_path = f"{installComponent.path}/install.json?ref={installComponent.branch}"
+
+    install_info =component_store_service.get_github_file_content_by_url(component_path,token=installComponent.token)
+    install_info = json.loads(install_info)
+    if "component_id" not in install_info:
+        raise HTTPException(status_code=500, detail=f"{component_path} is not valid component store!")
+    if "component_type" not in install_info:
+        raise HTTPException(status_code=500, detail=f"{component_path} is not valid component store!")
+    component_id = install_info["component_id"]
+    component_type = install_info["component_type"]
     
+    target_path = f"{pipeline_dir}/{component_type}/{component_id}"
+    source_url = f"{installComponent.path}?ref={installComponent.branch}"
+    if not os.path.exists(target_path):
+        component_store_service.download_github_folder(source_url,target_path,installComponent.token)
+        print("download_github_folder",source_url,target_path)
+    else:
+        if force:
+            shutil.rmtree(target_path)
+            component_store_service.download_github_folder(source_url,target_path,installComponent.token)
+            print("force download_github_folder",source_url,target_path)
+    
+    
+    with get_engine().begin() as conn:
+        pipeline_service.import_component(conn,target_path,force)
+        pipeline_service.import_component_relation(conn,target_path,force)
+        container_service.import_container(conn,target_path,force)
+        # pipeline_service.import_component(conn,path,force)
+
 def install_local_component(installComponent:InstallComponent,force:bool):
     pipeline_dir = pipeline_service.get_pipeline_dir()
     with open(installComponent.path,"r") as f:
@@ -763,7 +797,7 @@ async def install_component(installComponent:InstallComponent,force:bool=False,
     job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
 ):
     if installComponent.address=="github":
-        pass
+        install_github_component(installComponent,force)
     elif installComponent.address=="local":
         install_local_component(installComponent,force)
     else:
