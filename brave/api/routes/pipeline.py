@@ -746,7 +746,9 @@ async def install_github_component(installComponent:InstallComponent,force:bool)
     else:
         if force:
             shutil.rmtree(target_path)
-            component_store_service.download_github_folder(source_url,target_path,installComponent.token)
+            # component_store_service.download_github_folder(source_url,target_path,installComponent.token)
+            await asyncio.to_thread(component_store_service.download_github_folder,source_url,target_path,installComponent.token)
+      
             print("force download_github_folder",source_url,target_path)
     
     

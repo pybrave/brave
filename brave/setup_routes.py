@@ -42,6 +42,7 @@ def setup_routes(app: FastAPI,manager:AppManager):
         dir_mapping_list = dir_mapping.split(":")
         prefix = dir_mapping_list[0]
         target = dir_mapping_list[1]
+        print(f"Mounting {target} to {prefix}")
         app.mount(prefix, StaticFiles(directory=target), name="dir_mapping")
 
     frontend_path = os.path.join(os.path.dirname(__file__), "frontend")

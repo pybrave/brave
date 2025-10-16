@@ -89,7 +89,8 @@ async def list_components_by_type(componentStore:ComponentStore):
                                             componentStore.store_name,
                                             componentStore.component_type,
                                             componentStore.remote_force,
-                                            componentStore.branch)
+                                            componentStore.branch,
+                                            componentStore.token)
     elif componentStore.address =="local":
         components = list_local_components(componentStore.store_name,componentStore.component_type)
     else:
@@ -97,7 +98,7 @@ async def list_components_by_type(componentStore:ComponentStore):
     return components
 
 
-def list_remote_components(owner,store_name,component_type,remote_force,branch):
+def list_remote_components(owner,store_name,component_type,remote_force,branch,token):
     # data = get_github_file_content("pybrave","quick-start","main.json",branch="master")
     
     ## cache data
@@ -113,7 +114,7 @@ def list_remote_components(owner,store_name,component_type,remote_force,branch):
         with open(remote_cache, 'w', encoding='utf-8') as f:
             f.write(data)
     
-    data = get_github_file_content(owner,store_name,"main.json",branch)
+    data = get_github_file_content(owner,store_name,"main.json",branch,token=token)
 
 
     data = json.loads(data)

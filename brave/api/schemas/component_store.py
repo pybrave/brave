@@ -8,3 +8,4 @@ class ComponentStore(BaseModel):
     owner:Optional[str] = "pybrave"
     remote_force:Optional[bool] = False
     branch:Optional[str] = "master"
+    token:Optional[str] = None
