@@ -83,3 +83,4 @@ class SavePipelineComponentsEdges(BaseModel):
 
 class InstallComponent(BaseModel):
     path: str
+    address: str 

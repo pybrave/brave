@@ -4,7 +4,7 @@ from pydantic import BaseModel
 class ComponentStore(BaseModel):
     store_name:Optional[str] = None
     component_type:str
-    is_remote:bool = False
+    address:str
     owner:Optional[str] = "pybrave"
     remote_force:Optional[bool] = False
     branch:Optional[str] = "master"

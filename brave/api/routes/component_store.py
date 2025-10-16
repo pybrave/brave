@@ -37,8 +37,7 @@ def list_local_components(store_name,component_type):
             item["installed"] = True
         else:
             item["installed"] = False
-    
-    for item in file_list:
+        item["address"] ="local"
         if "img" in item and item["img"] !="":
             img_dir = item["file_path"].replace(str(settings.STORE_DIR),"")
             img_dir = os.path.dirname(img_dir)
@@ -58,7 +57,8 @@ def format_store(file_path):
     return {
         "store_name":os.path.basename(file_path),
         "store_path":file_path,
-        "name":name
+        "name":name,
+        "address":"local"
     }
 
 def list_local_store():
@@ -69,12 +69,13 @@ def list_local_store():
     return file_list
 
 @component_store_api.get("/list-stores")
-async def list_store(is_remote:bool):
-    if is_remote:
+async def list_store(address:str):
+    if address=="github":
         return [{
                     "store_name":"quick-start",
                     "store_path":"quick-start",
-                    "name":"Quick Start Store"
+                    "name":"Quick Start Store",
+                    "address":"github"
                 }]
     else:
         return list_local_store()
@@ -83,14 +84,16 @@ async def list_store(is_remote:bool):
 
 @component_store_api.post("/list-components")
 async def list_components_by_type(componentStore:ComponentStore):
-    if componentStore.is_remote:
+    if componentStore.address =="github":
         components = list_remote_components(componentStore.owner,
                                             componentStore.store_name,
                                             componentStore.component_type,
                                             componentStore.remote_force,
                                             componentStore.branch)
-    else:
+    elif componentStore.address =="local":
         components = list_local_components(componentStore.store_name,componentStore.component_type)
+    else:
+        raise ValueError("address must be 'local' or 'github'")
     return components
 
 
@@ -100,7 +103,7 @@ def list_remote_components(owner,store_name,component_type,remote_force,branch):
     ## cache data
     settings = get_settings()
     store_dir = settings.STORE_DIR
-    remote_cache = f"{store_dir}/remote/{owner}_{store_name}.json"
+    remote_cache = f"{store_dir}/remote/github/{owner}_{store_name}.json"
     if os.path.exists(remote_cache) and not remote_force:
         with open(remote_cache, 'r', encoding='utf-8') as f:
             data = f.read()
@@ -126,6 +129,8 @@ def list_remote_components(owner,store_name,component_type,remote_force,branch):
     for item in components:
         component_id = item["component_id"]
         item["file_path"] = f"https://api.github.com/repos/{owner}/{store_name}/contents/{component_type}/{component_id}?ref={branch}"
+        item["address"] ="github"
+        item["component_name"]  = item.get("name",component_id)
         if item["component_id"] in installed_dict:
             item["installed"] = True
         else:
