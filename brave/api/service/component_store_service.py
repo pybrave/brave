@@ -19,7 +19,9 @@ def download_github_folder(api_url, target_dir, token=None):
     # Step 1️⃣ Fetch the folder or file info
     response = requests.get(api_url, headers=headers)
     if response.status_code != 200:
-        raise Exception(f"Failed to fetch {api_url}: {response.status_code} {response.text}")
+        # raise Exception(f"Failed to fetch {api_url}: {response.status_code} {response.text}")
+        print(f"⚠️ Warning: Failed to fetch {api_url}: {response.status_code} {response.text}")
+        return
 
     items = response.json()
 

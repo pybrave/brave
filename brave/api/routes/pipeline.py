@@ -666,25 +666,35 @@ async def publish_component(publishComponent:PublishComponent):
         find_component = pipeline_service.find_component_by_id(conn,publishComponent.component_id)
         if not find_component:
             raise HTTPException(status_code=500, detail=f"Cannot find component for {publishComponent.component_id}!")
-        component_type = find_component['component_type']
-        component_id = find_component['component_id']
+        # component_type = find_component['component_type']
+        # component_id = find_component['component_id']
         pipeline_dir = pipeline_service.get_pipeline_dir()
         
-        component_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+        component_dir = f"{pipeline_dir}/{component_type}/{component_id}/pipeline_component.json"
         if not os.path.exists(component_dir):
             raise HTTPException(status_code=500, detail=f"Component directory {component_dir} does not exist!")
-        target_dir = f"{store_path}/{component_type}/{component_id}"
-        if os.path.exists(target_dir):
-            if publishComponent.force:
-                shutil.rmtree(target_dir)
-                shutil.copytree(component_dir,target_dir)
-                print(f"force publish {component_dir} to {target_dir}")
+
+        with open(component_dir,"r") as f:
+            component_json = json.load(f)
+        for component_item in component_json:
+            component_type = component_item["component_type"]
+            component_id = component_item["component_id"]
+            source_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+            target_dir = f"{store_path}/{component_type}/{component_id}"
+            if not os.path.exists(source_dir):
+                print(f"source dir {source_dir} not exists, skip it!")
+                continue
+            if os.path.exists(target_dir):
+                if publishComponent.force:
+                    shutil.rmtree(target_dir)
+                    shutil.copytree(source_dir,target_dir)
+                    print(f"force publish {source_dir} to {target_dir}")
+                else:
+                    raise HTTPException(status_code=500, detail=f"Store {target_dir} already exists! If you want to overwrite it, please set force to true.")
             else:
-                raise HTTPException(status_code=500, detail=f"Store {target_dir} already exists! If you want to overwrite it, please set force to true.")
-        else:
-            os.makedirs(os.path.dirname(target_dir),exist_ok=True)
-            shutil.copytree(component_dir,target_dir)
-            print(f"publish {component_dir} to {target_dir}")
+                os.makedirs(os.path.dirname(target_dir),exist_ok=True)
+                shutil.copytree(source_dir,target_dir)
+                print(f"publish {source_dir} to {target_dir}")
 
         install_json = {
             "components":{}
@@ -755,7 +765,7 @@ async def find_by_components_id(component_id):
 
     
 @pipeline.post("/copy-component/{component_id}",tags=['pipeline'])
-async def install_component(component_id):
+async def copy_component(component_id):
     pipeline_dir = pipeline_service.get_pipeline_dir()
     with get_engine().begin() as conn:
         find_component = pipeline_service.find_component_by_id(conn,component_id)
@@ -773,36 +783,41 @@ async def install_component(component_id):
 
 async def install_github_component(installComponent:InstallComponent,force:bool):
     pipeline_dir = pipeline_service.get_pipeline_dir()
-    component_path = f"{installComponent.path}/install.json?ref={installComponent.branch}"
+    component_path = f"{installComponent.path}/pipeline_component.json?ref={installComponent.branch}"
+    components_info =component_store_service.get_github_file_content_by_url(component_path,token=installComponent.token)
+    components_info = json.loads(components_info)
+    path_list = installComponent.path.split("/")
+    install_component_id = path_list[-1]
+    install_component_type = path_list[-2]
+    source_prefix = installComponent.path.replace(f"/{install_component_type}/{install_component_id}","")
 
-    install_info =component_store_service.get_github_file_content_by_url(component_path,token=installComponent.token)
-    install_info = json.loads(install_info)
-    if "component_id" not in install_info:
-        raise HTTPException(status_code=500, detail=f"{component_path} is not valid component store!")
-    if "component_type" not in install_info:
-        raise HTTPException(status_code=500, detail=f"{component_path} is not valid component store!")
-    component_id = install_info["component_id"]
-    component_type = install_info["component_type"]
-    
-    target_path = f"{pipeline_dir}/{component_type}/{component_id}"
-    source_url = f"{installComponent.path}?ref={installComponent.branch}"
-    if not os.path.exists(target_path):
-        await asyncio.to_thread(component_store_service.download_github_folder,source_url,target_path,installComponent.token)
-      
-        print("download_github_folder",source_url,target_path)
-    else:
-        if force:
-            shutil.rmtree(target_path)
-            # component_store_service.download_github_folder(source_url,target_path,installComponent.token)
+    for install_info in components_info:
+        if "component_id" not in install_info:
+            raise HTTPException(status_code=500, detail=f"{component_path} is not valid component store!")
+        if "component_type" not in install_info:
+            raise HTTPException(status_code=500, detail=f"{component_path} is not valid component store!")
+        component_id = install_info["component_id"]
+        component_type = install_info["component_type"]
+        
+        target_path = f"{pipeline_dir}/{component_type}/{component_id}"
+        source_url = f"{source_prefix}/{component_type}/{component_id}?ref={installComponent.branch}"
+        if not os.path.exists(target_path):
             await asyncio.to_thread(component_store_service.download_github_folder,source_url,target_path,installComponent.token)
-      
-            print("force download_github_folder",source_url,target_path)
+        
+            print("download_github_folder",source_url,target_path)
+        else:
+            if force:
+                shutil.rmtree(target_path)
+                # component_store_service.download_github_folder(source_url,target_path,installComponent.token)
+                await asyncio.to_thread(component_store_service.download_github_folder,source_url,target_path,installComponent.token)
+        
+                print("force download_github_folder",source_url,target_path)
     
-    
+    install_target_path = f"{pipeline_dir}/{install_component_type}/{install_component_id}"
     with get_engine().begin() as conn:
-        pipeline_service.import_component(conn,target_path,force)
-        pipeline_service.import_component_relation(conn,target_path,force)
-        container_service.import_container(conn,target_path,force)
+        pipeline_service.import_component(conn,install_target_path,force)
+        pipeline_service.import_component_relation(conn,install_target_path,force)
+        container_service.import_container(conn,install_target_path,force)
         # pipeline_service.import_component(conn,path,force)
 
 def install_local_component(installComponent:InstallComponent,force:bool):
