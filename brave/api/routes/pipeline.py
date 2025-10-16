@@ -666,8 +666,8 @@ async def publish_component(publishComponent:PublishComponent):
         find_component = pipeline_service.find_component_by_id(conn,publishComponent.component_id)
         if not find_component:
             raise HTTPException(status_code=500, detail=f"Cannot find component for {publishComponent.component_id}!")
-        # component_type = find_component['component_type']
-        # component_id = find_component['component_id']
+        component_type = find_component['component_type']
+        component_id = find_component['component_id']
         pipeline_dir = pipeline_service.get_pipeline_dir()
         
         component_dir = f"{pipeline_dir}/{component_type}/{component_id}/pipeline_component.json"
