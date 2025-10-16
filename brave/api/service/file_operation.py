@@ -55,9 +55,9 @@ def pdf_page_to_base64(pdf_path, page_number=0, zoom=2):
 def format_img_path(path):
     # print(f"Processing {path} in thread: {threading.current_thread().name}")
     settings = get_settings()
-    base_dir = settings.BASE_DIR
+    base_dir = settings.ANALYSIS_DIR
     file_name = path.replace(str(base_dir),"")
-    img_data = f"/brave-api/dir{file_name}"
+    img_data = f"/brave-api/analysis-dir{file_name}"
     if path.endswith("pdf"):
         # pdf_file = "example.pdf"
         b64 = pdf_page_to_base64(path, page_number=0, zoom=2)
@@ -68,7 +68,7 @@ def format_img_path(path):
         "data":img_data,
         "type":"img",
         "filename":os.path.basename(path),
-        "url":f"/brave-api/dir{file_name}"
+        "url":f"/brave-api/analysis-dir{file_name}"
     }
 
 def format_table_output(path):
@@ -124,14 +124,14 @@ def format_table_output(path):
       
 
     settings = get_settings()
-    base_dir = settings.BASE_DIR
+    base_dir = settings.ANALYSIS_DIR
     file_name = path.replace(str(base_dir),"")
     return  {
         "data":data ,
         "order":order,
         "type":data_type,
         "filename":os.path.basename(path),
-        "url":f"/brave-api/dir{file_name}"
+        "url":f"/brave-api/analysis-dir{file_name}"
     }
 # def format_table_output(path):
 #     with open(path,"r") as f:

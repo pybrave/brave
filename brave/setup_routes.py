@@ -36,6 +36,13 @@ import websockets
 
 def setup_routes(app: FastAPI,manager:AppManager):
   
+    
+    if "DIR_MAPPING" in os.environ:
+        dir_mapping = os.environ["DIR_MAPPING"]
+        dir_mapping_list = dir_mapping.split(":")
+        prefix = dir_mapping_list[0]
+        target = dir_mapping_list[1]
+        app.mount(prefix, StaticFiles(directory=target), name="dir_mapping")
 
     frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "build","assets")), name="assets")
@@ -43,6 +50,8 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.mount("/brave-api/img", StaticFiles(directory=os.path.join(frontend_path, "img")), name="img")
     settings = get_settings()
     app.mount("/brave-api/dir", StaticFiles(directory=settings.BASE_DIR, follow_symlink=True), name="base_dir")
+    app.mount("/brave-api/analysis-dir", StaticFiles(directory=settings.ANALYSIS_DIR, follow_symlink=True), name="analysis_dir")
+
     app.mount("/brave-api/work-dir", StaticFiles(directory=settings.WORK_DIR), name="work_dir")
 
     app.mount("/brave-api/literature/dir", StaticFiles(directory=os.path.join(settings.LITERATURE_DIR)), name="literature_dir")
