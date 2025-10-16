@@ -5,9 +5,14 @@ import glob
 import json
 from collections import defaultdict
 from brave.api.config.db import get_engine
+from brave.api.schemas.component_store import ComponentStore
 import brave.api.service.pipeline as pipeline_service
+import requests
+import base64
 
 component_store_api = APIRouter(prefix="/component-store",tags=["component_store"])
+
+remote_stores = defaultdict(dict)
 
 def open_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -60,7 +65,7 @@ def list_local_store():
     settings = get_settings()
     store_dir = settings.STORE_DIR
     file_list = glob.glob(f"{store_dir}/*")
-    file_list = [ format_store(file) for file in file_list if os.path.isdir(file)]  
+    file_list = [ format_store(file) for file in file_list if os.path.isdir(file) and "remote" not in  file  ] 
     return file_list
 
 @component_store_api.get("/list-stores")
@@ -76,15 +81,59 @@ async def list_store(is_remote:bool):
 
 
 
-@component_store_api.get("/list-by-type/{store_name}")
-async def list_components_by_type(store_name:str,component_type:str,is_remote:bool):
-    if is_remote:
-        return  [] #get_github_file_list("pybrave","quick-start","software",branch="main")
+@component_store_api.post("/list-components")
+async def list_components_by_type(componentStore:ComponentStore):
+    if componentStore.is_remote:
+        components = list_remote_components(componentStore.owner,
+                                            componentStore.store_name,
+                                            componentStore.component_type,
+                                            componentStore.remote_force,
+                                            componentStore.branch)
     else:
-        components = list_local_components(store_name,component_type)
-        return components
+        components = list_local_components(componentStore.store_name,componentStore.component_type)
+    return components
 
 
+def list_remote_components(owner,store_name,component_type,remote_force,branch):
+    # data = get_github_file_content("pybrave","quick-start","main.json",branch="master")
+    
+    ## cache data
+    settings = get_settings()
+    store_dir = settings.STORE_DIR
+    remote_cache = f"{store_dir}/remote/{owner}_{store_name}.json"
+    if os.path.exists(remote_cache) and not remote_force:
+        with open(remote_cache, 'r', encoding='utf-8') as f:
+            data = f.read()
+    else:
+        data = get_github_file_content(owner,store_name,"main.json",branch)
+        os.makedirs(os.path.dirname(remote_cache), exist_ok=True)
+        with open(remote_cache, 'w', encoding='utf-8') as f:
+            f.write(data)
+    
+    data = get_github_file_content(owner,store_name,"main.json",branch)
+
+
+    data = json.loads(data)
+    if "components" not in data:
+        return []
+    if component_type not in data["components"]:
+        return []
+    components = data["components"][component_type]
+    component_ids= [ item["component_id"] for item in components]
+    with get_engine().begin() as conn: 
+        component_installed =  pipeline_service.find_by_component_ids(conn,component_ids)
+    installed_dict = { item["component_id"]:item for item in component_installed}
+    for item in components:
+        component_id = item["component_id"]
+        item["file_path"] = f"https://api.github.com/repos/{owner}/{store_name}/contents/{component_type}/{component_id}?ref={branch}"
+        if item["component_id"] in installed_dict:
+            item["installed"] = True
+        else:
+            item["installed"] = False
+        if "img" in item and item["img"] !="":
+            img_name=item["img"]
+            # item["img"] = f"https://raw.githubusercontent.com/pybrave/quick-start/master/software/{component_type}/{item['component_id']}/{img_name}"
+    return components
 
 # https://api.github.com/repos/pybrave/quick-start/contents/software
 
@@ -96,3 +145,46 @@ def get_github_file_list(owner,repo,dir_path,branch="master"):
         return response.json()
     else:
         return []
+
+
+
+def get_github_file_content(owner, repo, path, branch="main", token=None):
+    """
+    Fetch the content of a file from a GitHub repository (handles large files automatically).
+    
+    :param owner: Repository owner, e.g. 'pybrave'
+    :param repo: Repository name, e.g. 'quick-start'
+    :param path: File path inside the repo, e.g. 'README.md'
+    :param branch: Branch name, default is 'main'
+    :param token: GitHub Personal Access Token (optional)
+    :return: The decoded file content as a string
+    """
+    headers = {}
+    if token:
+        headers["Authorization"] = f"token {token}"
+    # https://api.github.com/repos/pybrave/quick-start/contents/main.json?ref=main
+    # https://api.github.com/repos/pybrave/quick-start/contents/main.json?ref=master
+    # Step 1️⃣ Get file metadata (to retrieve SHA and size)
+    meta_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}"
+    meta_res = requests.get(meta_url, headers=headers)
+    meta_res.raise_for_status()
+    meta_data = meta_res.json()
+
+    # Step 2️⃣ If the content is already returned (small files ≤ 1 MB)
+    if "content" in meta_data and meta_data.get("encoding") == "base64":
+        content = base64.b64decode(meta_data["content"]).decode("utf-8", errors="replace")
+        return content
+
+    # Step 3️⃣ For large files, use Git Data API to fetch blob by SHA
+    sha = meta_data["sha"]
+    blob_url = f"https://api.github.com/repos/{owner}/{repo}/git/blobs/{sha}"
+    blob_res = requests.get(blob_url, headers=headers)
+    blob_res.raise_for_status()
+    blob_data = blob_res.json()
+
+    # Step 4️⃣ Decode Base64 content
+    if blob_data.get("encoding") == "base64":
+        content = base64.b64decode(blob_data["content"]).decode("utf-8", errors="replace")
+        return content
+
+    raise ValueError("Unable to decode file content")
