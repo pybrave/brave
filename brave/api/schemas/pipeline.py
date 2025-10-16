@@ -42,6 +42,7 @@ class PagePipelineQuery(BaseModel):
     page_size: Optional[int]=10
     component_type: Optional[str]=None
     keywords: Optional[str]=None
+    category: Optional[str]=None
     # component_id: Optional[str]=None
 
 
@@ -86,3 +87,9 @@ class InstallComponent(BaseModel):
     address: str 
     token: Optional[str]=None
     branch: Optional[str]="master"
+
+
+class PublishComponent(BaseModel):
+    component_id: str
+    store_path:Optional[str]=None
+    force: Optional[bool]=False

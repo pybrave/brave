@@ -16,7 +16,7 @@ import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import or_, select, and_, join, func,insert,update
 import re
-from brave.api.schemas.pipeline import InstallComponent, PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
+from brave.api.schemas.pipeline import InstallComponent, PagePipelineQuery, PublishComponent, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
 import brave.api.service.pipeline  as pipeline_service
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
@@ -656,7 +656,36 @@ async def save_pipeline(savePipeline:SavePipeline):
 
     return {"message":"success"}
 
+@pipeline.post("/publish-component",tags=['pipeline'])
+async def publish_component(publishComponent:PublishComponent):
+    with get_engine().begin() as conn:
+        find_component = pipeline_service.find_component_by_id(conn,publishComponent.component_id)
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"Cannot find component for {publishComponent.component_id}!")
+        component_type = find_component['component_type']
+        component_id = find_component['component_id']
+        pipeline_dir = pipeline_service.get_pipeline_dir()
+        setting = get_settings()
+        store_path = f"{setting.STORE_DIR}/default"
+        if publishComponent.store_path:
+            store_path = publishComponent.store_path
+        component_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+        if not os.path.exists(component_dir):
+            raise HTTPException(status_code=500, detail=f"Component directory {component_dir} does not exist!")
+        target_dir = f"{store_path}/{component_type}/{component_id}"
+        if os.path.exists(target_dir):
+            if publishComponent.force:
+                shutil.rmtree(target_dir)
+                shutil.copytree(component_dir,target_dir)
+                print(f"force publish {component_dir} to {target_dir}")
+            else:
+                raise HTTPException(status_code=500, detail=f"Store {target_dir} already exists! If you want to overwrite it, please set force to true.")
+        else:
+            os.makedirs(os.path.dirname(target_dir),exist_ok=True)
+            shutil.copytree(component_dir,target_dir)
+            print(f"publish {component_dir} to {target_dir}")
 
+    return {"message":"success"}
 
 @pipeline.delete("/delete-pipeline-relation/{relation_id}")
 async def delete_pipeline_relation(relation_id: str):
@@ -909,3 +938,9 @@ async def upload_image(component_id,file: UploadFile = File(...)):
 
     url = f"/brave-api/pipeline-dir{url_suffix}?v={ts_str}"
     return {"filename": filename, "url":url}
+
+@pipeline.get("/component/get-all-category")
+async def get_all_category():
+    with get_engine().begin() as conn:
+        return pipeline_service.get_all_category(conn)
+    

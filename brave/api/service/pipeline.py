@@ -346,6 +346,8 @@ def page_pipeline(conn,query:PagePipelineQuery):
     conditions = []
     if query.component_type is not None:
         conditions.append(t_pipeline_components.c.component_type == query.component_type)
+    if query.category is not None and query.category !="all":
+        conditions.append(t_pipeline_components.c.category == query.category)
 
     if query.keywords:
         keyword_pattern = f"%{query.keywords}%"
@@ -486,6 +488,7 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
         t_pipeline_components.c.position,
         t_pipeline_components.c.edges,
         t_pipeline_components.c.tags,
+        t_pipeline_components.c.category,
         t_pipeline_components.c.description,
         cast(null(), String(255)).label("relation_type"),
         cast(null(), String(255)).label("parent_component_id"),
@@ -513,6 +516,7 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
         tp1.c.component_name,
         tp1.c.position,
         tp1.c.tags,
+        tp1.c.category,
         tp1.c.edges,
         tp1.c.description,
         rel.c.relation_type,
@@ -762,6 +766,7 @@ def write_component_json(component_id):
         json.dump({
             "component_type":component_type,
             "component_id":component_id,
+            "category":current_component["category"] if current_component["category"] else "default",
             "component_name":current_component["component_name"],
             "img":os.path.basename(current_component["img"]) if current_component["img"] else "",
         },f)
@@ -823,3 +828,10 @@ def find_by_component_ids(conn,component_ids):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id.in_(component_ids))
     find_pipeline = conn.execute(stmt).mappings().all()
     return find_pipeline
+
+
+def get_all_category(conn):
+    stmt = select(t_pipeline_components.c.category).distinct().where(t_pipeline_components.c.category != None)
+    categories = conn.execute(stmt).scalars().all()
+    return categories
+    
