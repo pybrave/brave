@@ -724,7 +724,7 @@ async def install_component(component_id):
     return {"message":"success"}
 
 
-def install_github_component(installComponent:InstallComponent,force:bool):
+async def install_github_component(installComponent:InstallComponent,force:bool):
     pipeline_dir = pipeline_service.get_pipeline_dir()
     component_path = f"{installComponent.path}/install.json?ref={installComponent.branch}"
 
@@ -740,7 +740,8 @@ def install_github_component(installComponent:InstallComponent,force:bool):
     target_path = f"{pipeline_dir}/{component_type}/{component_id}"
     source_url = f"{installComponent.path}?ref={installComponent.branch}"
     if not os.path.exists(target_path):
-        component_store_service.download_github_folder(source_url,target_path,installComponent.token)
+        await asyncio.to_thread(component_store_service.download_github_folder,source_url,target_path,installComponent.token)
+      
         print("download_github_folder",source_url,target_path)
     else:
         if force:
@@ -797,7 +798,7 @@ async def install_component(installComponent:InstallComponent,force:bool=False,
     job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
 ):
     if installComponent.address=="github":
-        install_github_component(installComponent,force)
+        await install_github_component(installComponent,force)
     elif installComponent.address=="local":
         install_local_component(installComponent,force)
     else:

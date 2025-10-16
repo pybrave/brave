@@ -1,47 +1,114 @@
 import requests
 import os
 import base64
+
 def download_github_folder(api_url, target_dir, token=None):
     """
     Recursively download all files from a GitHub repository folder via the GitHub API.
-    
+    It first tries to decode Base64 'content' directly (if available) to reduce network calls.
+
     Args:
         api_url (str): GitHub API 'contents' endpoint for a folder.
-        target_dir (str): Local path to save downloaded files.
-        token (str, optional): GitHub personal access token (recommended for large repos or private repos).
+        target_dir (str): Local directory to save files.
+        token (str, optional): GitHub personal access token.
     """
-    headers = {}
+    headers = {'Accept': 'application/vnd.github.v3+json'}
     if token:
         headers['Authorization'] = f'token {token}'
-    
-    # Fetch the folder contents
+
+    # Step 1️⃣ Fetch the folder or file info
     response = requests.get(api_url, headers=headers)
     if response.status_code != 200:
         raise Exception(f"Failed to fetch {api_url}: {response.status_code} {response.text}")
 
     items = response.json()
-    
-    # If the response is a single file, convert to a list
+
+    # If a single file is returned, wrap it in a list
     if isinstance(items, dict):
         items = [items]
 
+    # Step 2️⃣ Iterate over each item in the folder
     for item in items:
-        item_type = item['type']
-        item_name = item['name']
+        item_type = item.get('type')
+        item_name = item.get('name')
         item_path = os.path.join(target_dir, item_name)
 
         if item_type == 'file':
-            # Download file
-            print(f"Downloading: {item['path']}")
-            file_data = requests.get(item['download_url'], headers=headers)
+            print(f"📄 Downloading file: {item['path']}")
             os.makedirs(target_dir, exist_ok=True)
+
+            # Try to decode Base64 content directly (GitHub may include it for small files)
+            content = None
+            if 'content' in item and item.get('encoding') == 'base64':
+                try:
+                    content = base64.b64decode(item['content'])
+                except Exception as e:
+                    print(f"⚠️ Failed to decode base64 for {item_name}: {e}")
+
+            # If not present, fetch the content explicitly from API
+            if content is None:
+                file_res = requests.get(item['url'], headers=headers)
+                file_res.raise_for_status()
+                file_data = file_res.json()
+                if 'content' in file_data and file_data.get('encoding') == 'base64':
+                    content = base64.b64decode(file_data['content'])
+                else:
+                    # Fall back to download_url if no base64 content
+                    raw_res = requests.get(item['download_url'], headers=headers)
+                    raw_res.raise_for_status()
+                    content = raw_res.content
+
+            # Save file locally
             with open(item_path, 'wb') as f:
-                f.write(file_data.content)
-        
+                f.write(content)
+
         elif item_type == 'dir':
-            # Recursively download subfolder
-            print(f"Entering directory: {item['path']}")
+            print(f"📁 Entering directory: {item['path']}")
             download_github_folder(item['url'], item_path, token)
+
+        else:
+            print(f"⚠️ Unknown item type: {item_type} ({item['path']})")
+# def download_github_folder(api_url, target_dir, token=None):
+#     """
+#     Recursively download all files from a GitHub repository folder via the GitHub API.
+    
+#     Args:
+#         api_url (str): GitHub API 'contents' endpoint for a folder.
+#         target_dir (str): Local path to save downloaded files.
+#         token (str, optional): GitHub personal access token (recommended for large repos or private repos).
+#     """
+#     headers = {}
+#     if token:
+#         headers['Authorization'] = f'token {token}'
+    
+#     # Fetch the folder contents
+#     response = requests.get(api_url, headers=headers)
+#     if response.status_code != 200:
+#         raise Exception(f"Failed to fetch {api_url}: {response.status_code} {response.text}")
+
+#     items = response.json()
+    
+#     # If the response is a single file, convert to a list
+#     if isinstance(items, dict):
+#         items = [items]
+
+#     for item in items:
+#         item_type = item['type']
+#         item_name = item['name']
+#         item_path = os.path.join(target_dir, item_name)
+
+#         if item_type == 'file':
+#             # Download file
+#             print(f"Downloading: {item['path']}")
+#             file_data = requests.get(item['download_url'], headers=headers)
+#             os.makedirs(target_dir, exist_ok=True)
+#             with open(item_path, 'wb') as f:
+#                 f.write(file_data.content)
+        
+#         elif item_type == 'dir':
+#             # Recursively download subfolder
+#             print(f"Entering directory: {item['path']}")
+#             download_github_folder(item['url'], item_path, token)
 
 
 
