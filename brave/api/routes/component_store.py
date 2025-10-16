@@ -109,12 +109,12 @@ def list_remote_components(owner,store_name,component_type,remote_force,branch,t
         with open(remote_cache, 'r', encoding='utf-8') as f:
             data = f.read()
     else:
-        data = get_github_file_content(owner,store_name,"main.json",branch)
+        data = get_github_file_content(owner,store_name,"main.json",branch,token=token)
         os.makedirs(os.path.dirname(remote_cache), exist_ok=True)
         with open(remote_cache, 'w', encoding='utf-8') as f:
             f.write(data)
     
-    data = get_github_file_content(owner,store_name,"main.json",branch,token=token)
+    # data = get_github_file_content(owner,store_name,"main.json",branch,token=token)
 
 
     data = json.loads(data)
