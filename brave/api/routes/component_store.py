@@ -50,7 +50,10 @@ def format_store(file_path):
     filename = os.path.basename(file_path)
     if os.path.exists(f"{file_path}/main.json"):
         with open(f"{file_path}/main.json", 'r', encoding='utf-8') as f:
-            name = json.load(f).get("name", filename)
+            try:
+                name = json.load(f).get("name", filename)
+            except:
+                name = filename
     else:
         name = filename
     

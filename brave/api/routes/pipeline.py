@@ -781,7 +781,8 @@ async def copy_component(component_id):
     return {"message":"success"}
 
 
-async def install_github_component(installComponent:InstallComponent,force:bool):
+async def install_github_component(installComponent:InstallComponent):
+    force = installComponent.force
     pipeline_dir = pipeline_service.get_pipeline_dir()
     component_path = f"{installComponent.path}/pipeline_component.json?ref={installComponent.branch}"
     components_info =component_store_service.get_github_file_content_by_url(component_path,token=installComponent.token)
@@ -820,7 +821,8 @@ async def install_github_component(installComponent:InstallComponent,force:bool)
         container_service.import_container(conn,install_target_path,force)
         # pipeline_service.import_component(conn,path,force)
 
-def install_local_component(installComponent:InstallComponent,force:bool):
+def install_local_component(installComponent:InstallComponent):
+    force = installComponent.force
     pipeline_dir = pipeline_service.get_pipeline_dir()
     with open(installComponent.path,"r") as f:
         data = json.load(f)
@@ -858,13 +860,13 @@ def install_local_component(installComponent:InstallComponent,force:bool):
 
 @pipeline.post("/install-components",tags=['pipeline'])
 @inject
-async def install_component(installComponent:InstallComponent,force:bool=False,
+async def install_component(installComponent:InstallComponent,
     job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
 ):
     if installComponent.address=="github":
-        await install_github_component(installComponent,force)
+        await install_github_component(installComponent)
     elif installComponent.address=="local":
-        install_local_component(installComponent,force)
+        install_local_component(installComponent)
     else:
         raise HTTPException(status_code=500, detail=f"Not support {installComponent.address} yet!")
     asyncio.create_task(job_executor.update_images_status())
