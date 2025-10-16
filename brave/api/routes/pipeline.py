@@ -658,6 +658,10 @@ async def save_pipeline(savePipeline:SavePipeline):
 
 @pipeline.post("/publish-component",tags=['pipeline'])
 async def publish_component(publishComponent:PublishComponent):
+    setting = get_settings()
+    store_path = f"{setting.STORE_DIR}/default"
+    if publishComponent.store_path:
+        store_path = publishComponent.store_path
     with get_engine().begin() as conn:
         find_component = pipeline_service.find_component_by_id(conn,publishComponent.component_id)
         if not find_component:
@@ -665,10 +669,7 @@ async def publish_component(publishComponent:PublishComponent):
         component_type = find_component['component_type']
         component_id = find_component['component_id']
         pipeline_dir = pipeline_service.get_pipeline_dir()
-        setting = get_settings()
-        store_path = f"{setting.STORE_DIR}/default"
-        if publishComponent.store_path:
-            store_path = publishComponent.store_path
+        
         component_dir = f"{pipeline_dir}/{component_type}/{component_id}"
         if not os.path.exists(component_dir):
             raise HTTPException(status_code=500, detail=f"Component directory {component_dir} does not exist!")
@@ -684,6 +685,23 @@ async def publish_component(publishComponent:PublishComponent):
             os.makedirs(os.path.dirname(target_dir),exist_ok=True)
             shutil.copytree(component_dir,target_dir)
             print(f"publish {component_dir} to {target_dir}")
+
+        install_json = {
+            "components":{}
+        }
+        install_file = f"{store_path}/main.json"
+        if  os.path.exists(install_file):
+            with open(install_file,"r") as f:
+                install_json = json.load(f)
+        if component_type not in install_json["components"]:
+            install_json["components"][component_type] = []
+        install_json["components"][component_type].append({ 
+                "name": find_component['component_name'],
+                "component_id": component_id,
+				"category":  find_component["category"]  if find_component["category"]  else "default",
+        })
+        with open(install_file,"w") as f:
+            json.dump(install_json,f)
 
     return {"message":"success"}
 
