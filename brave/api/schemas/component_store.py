@@ -5,7 +5,7 @@ class ComponentStore(BaseModel):
     store_name:Optional[str] = None
     component_type:str
     address:str
-    owner:Optional[str] = "pybrave"
+    store_path:Optional[str] = "pybrave"
     remote_force:Optional[bool] = False
     branch:Optional[str] = "master"
     token:Optional[str] = None

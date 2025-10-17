@@ -666,13 +666,14 @@ async def publish_component(publishComponent:PublishComponent):
         find_component = pipeline_service.find_component_by_id(conn,publishComponent.component_id)
         if not find_component:
             raise HTTPException(status_code=500, detail=f"Cannot find component for {publishComponent.component_id}!")
-        component_type = find_component['component_type']
-        component_id = find_component['component_id']
+        publish_component_type = find_component['component_type']
+        publish_component_id = find_component['component_id']
         pipeline_dir = pipeline_service.get_pipeline_dir()
         
-        component_dir = f"{pipeline_dir}/{component_type}/{component_id}/pipeline_component.json"
+        component_dir = f"{pipeline_dir}/{publish_component_type}/{publish_component_id}/pipeline_component.json"
         if not os.path.exists(component_dir):
-            raise HTTPException(status_code=500, detail=f"Component directory {component_dir} does not exist!")
+            pipeline_service.write_component_json(publish_component_id)
+            # raise HTTPException(status_code=500, detail=f"Component directory {component_dir} does not exist!")
 
         with open(component_dir,"r") as f:
             component_json = json.load(f)
@@ -703,11 +704,11 @@ async def publish_component(publishComponent:PublishComponent):
         if  os.path.exists(install_file):
             with open(install_file,"r") as f:
                 install_json = json.load(f)
-        if component_type not in install_json["components"]:
-            install_json["components"][component_type] = []
-        install_json["components"][component_type].append({ 
+        if publish_component_type not in install_json["components"]:
+            install_json["components"][publish_component_type] = []
+        install_json["components"][publish_component_type].append({ 
                 "name": find_component['component_name'],
-                "component_id": component_id,
+                "component_id": publish_component_id,
 				"category":  find_component["category"]  if find_component["category"]  else "default",
         })
         with open(install_file,"w") as f:

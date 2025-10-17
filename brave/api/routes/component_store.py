@@ -76,7 +76,7 @@ async def list_store(address:str):
     if address=="github":
         return [{
                     "store_name":"quick-start",
-                    "store_path":"quick-start",
+                    "store_path":"pybrave",
                     "name":"Quick Start Store",
                     "address":"github"
                 }]
@@ -88,7 +88,7 @@ async def list_store(address:str):
 @component_store_api.post("/list-components")
 async def list_components_by_type(componentStore:ComponentStore):
     if componentStore.address =="github":
-        components = list_remote_components(componentStore.owner,
+        components = list_remote_components(componentStore.store_path,
                                             componentStore.store_name,
                                             componentStore.component_type,
                                             componentStore.remote_force,
