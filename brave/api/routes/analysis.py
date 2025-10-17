@@ -478,7 +478,7 @@ async def run_analysis_v2(
         if analysis_ is None:
             raise HTTPException(status_code=404, detail="Analysis not found")
         # await analysis_service.run_analysis(conn,analysis_,run_type,evenet_bus)
-        analysis_executer_modal = await analysis_service.run_analysis(conn,analysis_,"job")
+        analysis_executer_modal = await analysis_service.run_analysis(conn,analysis_,run_type)
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
 
     #     # process_id = analysis_['process_id']
