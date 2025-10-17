@@ -399,7 +399,8 @@ async def save_script_analysis(
     # type:Optional[str]="nextflow",
     save:Optional[bool]=False,
     is_submit:Optional[bool]=False,
-    app_container:AppContainer = Depends(Provide[AppContainer])
+    app_container:AppContainer = Depends(Provide[AppContainer]),
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus])
     ): # request_param: Dict[str, Any]
     
 
@@ -435,10 +436,15 @@ async def save_script_analysis(
             analysis_controller = app_container.nextflow_analysis()
 
         parse_analysis_result = analysis_controller.get_parames(conn,request_param,component_obj)
-
         if not save:
             return parse_analysis_result
-        return await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_submit) 
+        
+        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj) 
+        if is_submit:
+            analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
+            await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
+
+        return parse_analysis_result
   
 
 
@@ -471,38 +477,42 @@ async def run_analysis_v2(
         analysis_ = result.mappings().first()
         if analysis_ is None:
             raise HTTPException(status_code=404, detail="Analysis not found")
-        # process_id = analysis_['process_id']
-        component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
-        component_type = component['component_type']
-        if run_type=="job" and component_type=="script":
-            output_dir = f"{analysis_['output_dir']}/output"
-            # if os.path.exists(output_dir):
-            delete_all_in_dir(output_dir)
-        
-        if not component["container_id"]:
-            raise HTTPException(status_code=500, detail=f"please config container id") 
+        # await analysis_service.run_analysis(conn,analysis_,run_type,evenet_bus)
+        analysis_executer_modal = await analysis_service.run_analysis(conn,analysis_,"job")
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
 
-        # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
-        analysis_ = dict(analysis_)
-        analysis_["run_id"] = f"{run_type}-{analysis_id}"
+    #     # process_id = analysis_['process_id']
+    #     component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
+    #     component_type = component['component_type']
+    #     if run_type=="job" and component_type=="script":
+    #         output_dir = f"{analysis_['output_dir']}/output"
+    #         # if os.path.exists(output_dir):
+    #         delete_all_in_dir(output_dir)
         
-        if run_type == "job":
-            analysis_["container_id"] =component["container_id"]
-        else:
-            # if component_type=="script":
-            analysis_["container_id"] =component["container_id"]
-            # else: 
-            #     if not component["sub_container_id"]:
-            #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
-            #     analysis_["container_id"] = component["sub_container_id"]
+    #     if not component["container_id"]:
+    #         raise HTTPException(status_code=500, detail=f"please config container id") 
 
-        # analysis_["image"] = find_container["image"]
-        analysis_ = AnalysisExecuterModal(**analysis_)
-        # analysis_.image = find_container["image"]
-        await analysis_service.finished_analysis(analysis_id,run_type,"running")
-        # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
-        conn.execute(stmt)
-    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
+    #     # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
+    #     analysis_ = dict(analysis_)
+    #     analysis_["run_id"] = f"{run_type}-{analysis_id}"
+        
+    #     if run_type == "job":
+    #         analysis_["container_id"] =component["container_id"]
+    #     else:
+    #         # if component_type=="script":
+    #         analysis_["container_id"] =component["container_id"]
+    #         # else: 
+    #         #     if not component["sub_container_id"]:
+    #         #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
+    #         #     analysis_["container_id"] = component["sub_container_id"]
+
+    #     # analysis_["image"] = find_container["image"]
+    #     analysis_ = AnalysisExecuterModal(**analysis_)
+    #     # analysis_.image = find_container["image"]
+    #     await analysis_service.finished_analysis(analysis_id,run_type,"running")
+    #     # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
+    #     # conn.execute(stmt)
+    # await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
     
     
     # job_id = await executor.submit_job(LocalJobSpec(
@@ -610,11 +620,24 @@ async def visualization_results(analysis_id):
     file_result['is_report'] = find_analysis["is_report"]
     file_result['analysis_id'] = find_analysis["analysis_id"]
 
+    # file_result['analysis_id'] = find_analysis["analysis_id"]
+
     file_result['component_name'] = find_component["component_name"]
+    
     file_result['component_id'] = find_component["component_id"]
 
     file_result['component_type'] = find_component["component_type"]
     file_result['command_log_path'] = find_analysis["command_log_path"]
+
+    file_result['request_param'] =  json.loads(find_analysis["request_param"])
+    
+    component_content = json.loads(find_component["content"])
+    if "formJson" in component_content:
+        form_json = component_content["formJson"]
+        file_result['form_json'] =  [item  for item in form_json if not  item.get("db") and  item.get("name")!="group_field"]
+    else:
+        file_result['form_json'] = []
+
 
 
     return file_result

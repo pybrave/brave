@@ -55,7 +55,7 @@ class BaseAnalysis(ABC):
 
 
 
-    async def save_analysis(self,conn,request_param,parse_analysis_result,component,is_submit):
+    async def save_analysis(self,conn,request_param,parse_analysis_result,component):
         # parse_analysis_result,component = self.get_parames(request_param)
 
 
@@ -192,8 +192,8 @@ class BaseAnalysis(ABC):
                 json.dump(parse_analysis_result,f)
             stmt = t_analysis.insert().values(new_analysis)
             conn.execute(stmt)
-        if is_submit:
-            await self.submit_analysis(new_analysis)
+        # if is_submit:
+            # await self.submit_analysis(new_analysis)
         return new_analysis
 
     
@@ -309,8 +309,8 @@ class BaseAnalysis(ABC):
         stmt = t_analysis.update().values({"job_status":"running"}).where(t_analysis.c.analysis_id==analysis.analysis_id)
         conn.execute(stmt)
 
-    async def submit_analysis(self,analysis):
-        analysis = AnalysisExecuterModal(**analysis)
-        await self.event_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis)
+    # async def submit_analysis(self,analysis):
+    #     analysis = AnalysisExecuterModal(**analysis)
+    #     await self.event_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis)
         
 

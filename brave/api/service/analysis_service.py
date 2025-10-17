@@ -1,10 +1,12 @@
 from operator import and_, or_
 from brave.api.config.db import get_engine
+from brave.api.core.event import AnalysisExecutorEvent
+from brave.api.core.routers_name import RoutersName
 from brave.api.models.core import analysis as t_analysis, t_pipeline_components,t_project
 from sqlalchemy import select,update
 from fastapi import HTTPException
 import json
-from brave.api.schemas.analysis import QueryAnalysis
+from brave.api.schemas.analysis import AnalysisExecuterModal, QueryAnalysis
 import  brave.api.service.pipeline as pipeline_service
 import importlib
 import hashlib
@@ -12,6 +14,8 @@ import os
 from brave.api.enum.component_script import ScriptName
 from brave.api.models.core import t_container
 from sqlalchemy.orm import aliased
+from brave.api.utils.file_utils import delete_all_in_dir
+from brave.api.core.evenet_bus import EventBus
 
 def get_parse_analysis_result_params(conn,analysis_id):
     stmt = select(t_analysis).where(t_analysis.c.analysis_id == analysis_id)
@@ -157,26 +161,29 @@ def find_analysis_by_id(conn,analysis_id):
     result = conn.execute(stmt).mappings().first()
     return result
 
-
 async def finished_analysis(analysis_id,run_type,status):
     with get_engine().begin() as conn:  
-        if run_type == "job":
-            stmt = (
-                update(t_analysis)
-                .where(t_analysis.c.analysis_id == analysis_id)
-                .values(job_status = status)
-            )
-        elif run_type == "server":
-            stmt = (
-                update(t_analysis)
-                .where(t_analysis.c.analysis_id == analysis_id)
-                .values(server_status = status)
-            )
-        else:
-            raise ValueError(f"Invalid run_type: {run_type}")
-        
-        conn.execute(stmt)
-        conn.commit()
+        finished_analysis_(conn,analysis_id,run_type,status)
+
+def finished_analysis_(conn,analysis_id,run_type,status):
+    
+    if run_type == "job":
+        stmt = (
+            update(t_analysis)
+            .where(t_analysis.c.analysis_id == analysis_id)
+            .values(job_status = status)
+        )
+    elif run_type == "server":
+        stmt = (
+            update(t_analysis)
+            .where(t_analysis.c.analysis_id == analysis_id)
+            .values(server_status = status)
+        )
+    else:
+        raise ValueError(f"Invalid run_type: {run_type}")
+    
+    conn.execute(stmt)
+    conn.commit()
     print(f"Analysis {analysis_id} {status}")
 
 async def update_ports(analysis_id,ports):
@@ -258,3 +265,39 @@ def update_extra_project(conn,analysis_id,project):
         .values(extra_project_ids = json.dumps(project))
     )
     conn.execute(stmt)
+
+
+async def run_analysis(conn,analysis_,run_type):
+    analysis_id = analysis_['analysis_id']
+    component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
+    component_type = component['component_type']
+    if run_type=="job" and component_type=="script":
+        output_dir = f"{analysis_['output_dir']}/output"
+        # if os.path.exists(output_dir):
+        delete_all_in_dir(output_dir)
+
+    if not component["container_id"]:
+        raise HTTPException(status_code=500, detail=f"please config container id") 
+
+    # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
+    analysis_ = dict(analysis_)
+    analysis_["run_id"] = f"{run_type}-{analysis_id}"
+
+    if run_type == "job":
+        analysis_["container_id"] =component["container_id"]
+    else:
+        # if component_type=="script":
+        analysis_["container_id"] =component["container_id"]
+        # else: 
+        #     if not component["sub_container_id"]:
+        #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
+        #     analysis_["container_id"] = component["sub_container_id"]
+
+    # analysis_["image"] = find_container["image"]
+    analysis_ = AnalysisExecuterModal(**analysis_)
+    # analysis_.image = find_container["image"]
+    finished_analysis_(conn,analysis_id,run_type,"running")
+    return analysis_
+    # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
+    # conn.execute(stmt)
+    
