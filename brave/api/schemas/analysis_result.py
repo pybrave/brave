@@ -12,6 +12,7 @@ class AnalysisResultQuery(BaseModel):
     # queryAnalysis:Optional[bool]=True
     analysis_type:Optional[str]=None
     ids:Optional[list]=None
+    build_collected:Optional[bool]=True
 
 class AnalysisResultParseModal(BaseModel):
     sample_id: Optional[str]
@@ -60,7 +61,8 @@ class ImportData(BaseModel):
     component_id:str
     project: str
     content: str
-    sample_name: str
+    sample_name: Optional[str]=None
+    file_type: str
     sample_source: str
     file_name: Optional[str]=None
     # content_type:Optional[str]="json"

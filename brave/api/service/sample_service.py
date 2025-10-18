@@ -20,3 +20,8 @@ def find_by_sample_name_list(conn,sample_name_list):
     result = conn.execute(stmt).mappings().all()
     return result
 
+
+def find_by_project(conn,project):
+    stmt = samples.select().where(samples.c.project==project)
+    result = conn.execute(stmt).mappings().all()
+    return result

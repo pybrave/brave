@@ -168,6 +168,8 @@ t_pipeline_components = Table(
     Column("container_id", String(255)),
     Column("sub_container_id", String(255)),
     Column("tags", String(255)), 
+    Column("file_type", String(255)), 
+    Column("script_type", String(255)), 
     Column("category", String(255), default="default"), 
     # Column("namespace", String(255)),
     Column("content", Text),

@@ -1,6 +1,6 @@
 
 
-def parse_data(analysis_dict,database_dict,extra_dict,groups_name,re_groups_name,groups,settings,metadata_form):
+def parse_data(analysis_dict,database_dict,extra_dict,groups_name,re_groups_name,file_columns,groups,settings,metadata_form):
     sample_list = [{
                         "sample_name":item['sample_name'],
                         "sample_source":item['sample_source'],
@@ -16,6 +16,7 @@ def parse_data(analysis_dict,database_dict,extra_dict,groups_name,re_groups_name
         **analysis_dict,
         **database_dict,
         "groups_name":groups_name,
+        "file_columns":file_columns,
         "re_groups_name":re_groups_name,
         "groups":groups,
         "pipeline_dir":str(settings.PIPELINE_DIR),

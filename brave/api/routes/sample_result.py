@@ -258,6 +258,10 @@ async def list_analysis_result(analysisResultQuery:AnalysisResultQuery):
         item["label"] = item["sample_name"]
         item["value"] = item["id"]
         grouped[item["component_id"]].append(item)
+    for item in analysisResultQuery.component_ids:
+        if item not in grouped:
+            grouped[item] = []
+
     return grouped
 
 
@@ -361,15 +365,18 @@ async def import_data(importDataList:List[ImportData]):
         for importData in importDataList:
             if not importData.file_name:
                 importData.file_name = importData.sample_name
-                
-            find_sample = sample_service.find_by_sample_name_and_project(conn,importData.sample_name,importData.project)
-            sample_id = None
-            if  find_sample:
-                sample_id = find_sample.sample_id    
-            else:
-                sample_id = str(uuid.uuid4())
-                sample_service.add_sample(conn,{"sample_name":importData.sample_name,"sample_id":sample_id,"project":importData.project}) 
             
+            if importData.file_type !="collected":
+                find_sample = sample_service.find_by_sample_name_and_project(conn,importData.sample_name,importData.project)
+                sample_id = None
+                if  find_sample:
+                    sample_id = find_sample.sample_id    
+                else:
+                    sample_id = str(uuid.uuid4())
+                    sample_service.add_sample(conn,{"sample_name":importData.sample_name,"sample_id":sample_id,"project":importData.project}) 
+            else:
+                sample_id = ""
+                
 
             stmt = analysis_result.select().where(and_(
                 analysis_result.c.sample_id==sample_id,

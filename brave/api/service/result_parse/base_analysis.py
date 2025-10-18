@@ -17,7 +17,8 @@ from sqlalchemy import select
 import textwrap
 import uuid
 import importlib
-from brave.api.utils.get_db_utils import get_ids,get_group, get_re_group
+from brave.api.utils.get_db_utils import get_ids,get_group, get_re_group,get_columns
+
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.service import project_service
@@ -266,6 +267,7 @@ class BaseAnalysis(ABC):
 
         groups_name = {key:get_group(request_param[key]) for key in query_name_list if key in request_param }
         re_groups_name = {key:get_re_group(request_param[key]) for key in query_name_list if key in request_param }
+        file_columns = {key:get_columns(request_param[key]) for key in query_name_list if key in request_param }
 
         extra_dict={}
         if "upstreamFormJson" in component:
@@ -295,6 +297,7 @@ class BaseAnalysis(ABC):
             "analysis_dict":db_dict,
             "groups_name":groups_name,
             "groups":query_name_list,
+            "file_columns":file_columns,
             "settings":settings,
             "metadata_form":metadata_form
         }

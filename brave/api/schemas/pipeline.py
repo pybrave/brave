@@ -16,6 +16,8 @@ class SavePipeline(BaseModel):
     container_id:Optional[str]=None
     order_index:Optional[int]=None
     sub_container_id:Optional[str]=None
+    file_type:Optional[str]=None
+    script_type:Optional[str]=None
     tags:Optional[str]=None
 
 class SavePipelineRelation(BaseModel):

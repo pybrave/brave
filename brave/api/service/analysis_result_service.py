@@ -3,9 +3,11 @@ from fastapi import HTTPException
 from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components,t_project
 from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
 from sqlalchemy import and_, desc, select,case
+from brave.api.service import sample_service
 import json
 import uuid
 from collections import defaultdict
+import pandas as pd
 
 def get_analysis_result_metadata(item):
     if item["metadata"]:
@@ -42,6 +44,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             samples.c.metadata,
             analysis.c.analysis_name,
             t_pipeline_components.c.component_name.label("component_name"),
+            t_pipeline_components.c.file_type.label("file_type"),
             # t_pipeline_components.c.label.label("component_label"),
             # t_pipeline_components.c.name.label("analysis_method"),
             t_project.c.project_name.label("project_name")
@@ -106,15 +109,45 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     rows = result.mappings().all()
     result_dict = [dict(item) for item in rows ]
     # result_dict = [AnalysisResult(**row) for row in rows]
-    # result_dict = []
+    file_type_list = [item for item in result_dict if item.get("file_type") and item.get("file_type")=="collected"]
+    samples_dict = {}
+    if len(file_type_list)>0:
+        samples_list = sample_service.find_by_project(conn,analysisResultQuery.project)
+        samples_dict = { sample["sample_name"]:sample for sample in samples_list}
+
     for item in result_dict:
-        if item['content_type']=="json" and not isinstance(item['content'], dict):
+        if item['content_type']=="json" and not isinstance(item['content'], dict) and item['file_type']!="collected":
             item['content'] = json.loads(item['content'])
+        elif analysisResultQuery.build_collected:
+            content = item['content']
+            df_content = pd.read_csv(content,sep="\t")
+            df_colnames = df_content.columns
+            df_colnames = [build_collected_analysis_result(column,item, samples_dict) for column in df_colnames]
+            item['colnames'] = df_colnames
+
+            
             
         #     result.append(row)
         # # rows = result.mappings().all()
         # pass
     return result_dict
+
+
+def build_collected_analysis_result(column,analsyis_result,samples_dict):
+
+    sample = samples_dict.get(column)
+    if sample:
+        sample = dict(sample)
+        del sample["id"]
+        sample["sample_source"] = analsyis_result.get("sample_source")
+        sample = get_analysis_result_metadata(sample)
+        return {"id":analsyis_result["id"],
+            "analysis_result_id":analsyis_result["analysis_result_id"],
+            "colnames_name":column,**sample}
+    
+    return {"id":analsyis_result["id"],
+            "analysis_result_id":analsyis_result["analysis_result_id"],
+            "colnames_name":column}
 
 def model_dump_one(item):
     if item.get("content_type")=="json" and  isinstance(item.get("content"), dict):
@@ -134,7 +167,7 @@ def find_analyais_result_by_ids( conn,value):
     ids = value
     if not isinstance(value,list):
         ids = [value]
-    analysis_result = find_analyais_result(conn,AnalysisResultQuery(ids=ids))
+    analysis_result = find_analyais_result(conn,AnalysisResultQuery(ids=ids,build_collected=False))
     analysis_result = [model_dump_one(item) for item in analysis_result]
     if len(analysis_result)!=len(ids):
         raise HTTPException(status_code=500, detail="数据存在问题!")

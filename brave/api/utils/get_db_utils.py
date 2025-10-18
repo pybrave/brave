@@ -1,6 +1,8 @@
 def get_ids(values):
     if isinstance(values, dict):
-        if "sample" in values:
+        if "file" in values:
+            return [values['file']]
+        elif "sample" in values:
             return values['sample']
         elif "value" in values and  "label" in values:
             return values['value']
@@ -20,4 +22,10 @@ def get_group(values):
 def get_re_group(values):
     if isinstance(values, dict):
         return values.get("group_name","-")
+    return "-"
+
+def get_columns(values):
+    if isinstance(values, dict):
+        if "file" in  values:
+            return values["sample"]
     return "-"
