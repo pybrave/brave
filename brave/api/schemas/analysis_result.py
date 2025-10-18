@@ -13,6 +13,7 @@ class AnalysisResultQuery(BaseModel):
     analysis_type:Optional[str]=None
     ids:Optional[list]=None
     build_collected:Optional[bool]=True
+    rows:Optional[int]=None
 
 class AnalysisResultParseModal(BaseModel):
     sample_id: Optional[str]

@@ -34,6 +34,8 @@ from brave.app_manager import AppManager
 from brave.app_container import AppContainer
 from brave.setup_routes import setup_routes
 from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.middleware.gzip import GZipMiddleware
+
 
 container = AppContainer()
 # container.config.executer_type.from_env("EXECUTER_TYPE","local")    
@@ -115,6 +117,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # app.add_middleware(GZipMiddleware, minimum_size=1000)
+
     # 异常处理函数
     async def value_error_handler(request: Request, exc: Exception):
         return JSONResponse(

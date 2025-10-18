@@ -124,6 +124,10 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             df_colnames = df_content.columns
             df_colnames = [build_collected_analysis_result(column,item, samples_dict) for column in df_colnames]
             item['colnames'] = df_colnames
+            if analysisResultQuery.rows:
+                if analysisResultQuery.rows !=-1:
+                    df_content = df_content.head(analysisResultQuery.rows)
+                item['rows'] = json.loads(df_content.to_json(orient="values"))
 
             
             
