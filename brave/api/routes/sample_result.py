@@ -218,6 +218,17 @@ def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
         result_dict = analysis_result_service.find_analyais_result(conn,analysisResultQuery)
     return result_dict
 
+@sample_result.get("/analysis-result/table/{analysis_result_id}",)
+def get_analysis_result_table(analysis_result_id,row_num=-1):
+    with get_engine().begin() as conn:
+        result_one = analysis_result_service.find_by_analysis_result_id(conn,analysis_result_id)
+        content = analysis_result_service.get_table_content(result_one["content"],row_num)
+    return content
+
+
+
+
+
 def get_analysis_result_metadata(item):
     if item["metadata"]:
         metadata = json.loads(item["metadata"])

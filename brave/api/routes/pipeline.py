@@ -194,6 +194,16 @@ def get_pipeline_item(item):
         "pipeline_type":item.pipeline_type,
         **content
     }
+
+def format_content(item):
+    item = dict(item)
+    item = {
+        **{k:v for k,v in item.items() if k != "content"},
+        **json.loads(item["content"])
+    }
+    return item
+    # pass
+
 @pipeline.get("/get-component-parent/{component_id}",tags=['pipeline'])
 async def get_component_parent(component_id,component_type):
     
@@ -255,7 +265,7 @@ async def get_component_parent(component_id,component_type):
         }
         del child_item["content"]
 
-    parent_item_list = [dict(item) for item in data if item['component_type'] != component_type]
+    parent_item_list = [format_content(item) for item in data if item['component_type'] != component_type]
     # resul_dict= {}
     # resul_dict['script'] = dict(child_item)
     child_item['parent'] = parent_item_list

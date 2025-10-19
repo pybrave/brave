@@ -115,7 +115,9 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         samples_list = sample_service.find_by_project(conn,analysisResultQuery.project)
         samples_dict = { sample["sample_name"]:sample for sample in samples_list}
 
-    for item in result_dict:
+    for index in range(len(result_dict)):
+        item = result_dict[index]
+        df_content = pd.DataFrame()
         if item['content_type']=="json" and not isinstance(item['content'], dict) and item['file_type']!="collected":
             item['content'] = json.loads(item['content'])
         elif analysisResultQuery.build_collected:
@@ -123,11 +125,12 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             df_content = pd.read_csv(content,sep="\t")
             df_colnames = df_content.columns
             df_colnames = [build_collected_analysis_result(column,item, samples_dict) for column in df_colnames]
-            item['colnames'] = df_colnames
-            if analysisResultQuery.rows:
-                if analysisResultQuery.rows !=-1:
-                    df_content = df_content.head(analysisResultQuery.rows)
-                item['rows'] = json.loads(df_content.to_json(orient="values"))
+            item['columns'] = df_colnames
+
+        if analysisResultQuery.build_collected_rows and analysisResultQuery.rows:
+            if analysisResultQuery.rows !=-1:
+                df_content = df_content.head(analysisResultQuery.rows)
+            item['rows'] = json.loads(df_content.to_json(orient="values"))
 
             
             
@@ -135,6 +138,12 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         # # rows = result.mappings().all()
         # pass
     return result_dict
+
+def get_table_content(path,row_num):
+    df_content = pd.read_csv(path,sep="\t")
+    if row_num !=-1:
+        df_content = df_content.head(int(row_num))
+    return json.loads(df_content.to_json(orient="values"))
 
 
 def build_collected_analysis_result(column,analsyis_result,samples_dict):
@@ -147,11 +156,11 @@ def build_collected_analysis_result(column,analsyis_result,samples_dict):
         sample = get_analysis_result_metadata(sample)
         return {"id":analsyis_result["id"],
             "analysis_result_id":analsyis_result["analysis_result_id"],
-            "colnames_name":column,**sample}
+            "columns_name":column,**sample}
     
     return {"id":analsyis_result["id"],
             "analysis_result_id":analsyis_result["analysis_result_id"],
-            "colnames_name":column}
+            "columns_name":column}
 
 def model_dump_one(item):
     if item.get("content_type")=="json" and  isinstance(item.get("content"), dict):
