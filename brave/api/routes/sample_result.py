@@ -431,15 +431,23 @@ async def parse_import_data(parseImportData:ParseImportData):
     #     item['file_name'] = item['analysis_key']
     return result
 
-@sample_result.post("/analysis-result/update-analsyis-result",tags=['analsyis_result'])
-def update_analsyis_result(updateAnalysisResult:UpdateAnalysisResult):
+@sample_result.post("/analysis-result/update-analsyis-result/{analysis_result_id}",tags=['analsyis_result'])
+async def update_analsyis_result(analysis_result_id, updateAnalysisResult:UpdateAnalysisResult):
     with get_engine().begin() as conn:
         stmt = analysis_result.update() 
-        stmt = stmt.where(analysis_result.c.id==updateAnalysisResult.id)
+        stmt = stmt.where(analysis_result.c.analysis_result_id == analysis_result_id)
         stmt = stmt.values(updateAnalysisResult.model_dump())
         conn.execute(stmt)
         conn.commit()
     return {"message":"success"}
+
+@sample_result.get("/analysis-result/find-by-id/{analysis_result_id}",tags=['analsyis_result'])
+async def find_by_id(analysis_result_id):
+    with get_engine().begin() as conn:
+        result = analysis_result_service.find_by_analysis_result_id(conn,analysis_result_id)
+    return result
+
+
 
 
 @sample_result.post("/sample/add-sample-metadata",tags=['sample'])

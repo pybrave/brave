@@ -71,8 +71,7 @@ class ImportData(BaseModel):
     # analysis_type:Optional[str]="import_data"
 
 class UpdateAnalysisResult(BaseModel):
-    id: int
-    analysis_key: str
+    file_name: str
 
 
 class BindSample(BaseModel):

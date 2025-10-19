@@ -119,7 +119,10 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         item = result_dict[index]
         df_content = pd.DataFrame()
         if item['content_type']=="json" and not isinstance(item['content'], dict) and item['file_type']!="collected":
-            item['content'] = json.loads(item['content'])
+            try:
+                item['content'] = json.loads(item['content'])
+            except:
+                pass
         elif analysisResultQuery.build_collected:
             content = item['content']
             df_content = pd.read_csv(content,sep="\t")
