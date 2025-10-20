@@ -27,11 +27,17 @@ class Settings:
 
 
         default_analysis_dir= f"{base_dir}/analysis"
-        # analysis_dir = os.getenv("ANALYSIS_DIR",default_analysis_dir)
-        self.ANALYSIS_DIR = Path(default_analysis_dir).resolve()# / "data"
+        analysis_dir = os.getenv("ANALYSIS_DIR",default_analysis_dir)
+        self.ANALYSIS_DIR = Path(analysis_dir).resolve()# / "data"
         self.ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using ANALYSIS_DIR: {self.ANALYSIS_DIR}")
 
+        default_data_dir = f"{base_dir}/data"
+        data_dir = os.getenv("DATA_DIR",default_data_dir)
+        self.DATA_DIR = Path(data_dir).resolve()
+        self.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Using DATA_DIR: {self.DATA_DIR}")
+        
 
         default_store_dir= f"{base_dir}/store"
         store_dir = os.getenv("STORE_DIR",default_store_dir)

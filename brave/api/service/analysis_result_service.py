@@ -1,3 +1,4 @@
+from brave.api.config.config import get_settings
 from brave.api.config.db import get_engine
 from fastapi import HTTPException
 from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components,t_project
@@ -115,6 +116,8 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         samples_list = sample_service.find_by_project(conn,analysisResultQuery.project)
         samples_dict = { sample["sample_name"]:sample for sample in samples_list}
 
+    settings = get_settings()
+    data_dir = settings.DATA_DIR
     for index in range(len(result_dict)):
         item = result_dict[index]
         df_content = pd.DataFrame()
@@ -129,6 +132,9 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             df_colnames = df_content.columns
             df_colnames = [build_collected_analysis_result(column,item, samples_dict) for column in df_colnames]
             item['columns'] = df_colnames
+            data_suffix = item["content"].replace(str(data_dir),"")
+            item["url"] = f"/brave-api/data-dir{data_suffix}"
+            
 
         if analysisResultQuery.build_collected_rows and analysisResultQuery.rows:
             if analysisResultQuery.rows !=-1:
@@ -142,11 +148,19 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         # pass
     return result_dict
 
-def get_table_content(path,row_num):
-    df_content = pd.read_csv(path,sep="\t")
-    if row_num !=-1:
-        df_content = df_content.head(int(row_num))
-    return json.loads(df_content.to_json(orient="values"))
+def get_table_content(path,row_num=None):
+    df_content_0 = pd.read_csv(path,sep="\t")
+    if row_num and row_num !=-1:
+        df_content = df_content_0.head(int(row_num))
+    tables = json.loads(df_content.to_json(orient="values"))
+    columns = df_content.columns.tolist()
+    tables.insert(0, columns)
+
+    return  {
+        "nrow":len(df_content_0),
+        "ncol":len(columns),
+        "tables":tables
+    }
 
 
 def build_collected_analysis_result(column,analsyis_result,samples_dict):

@@ -180,6 +180,8 @@ class BaseAnalysis(ABC):
             new_analysis['params_path'] = params_path
             new_analysis['command_path'] = command_path
             new_analysis['analysis_id'] = str_uuid
+            request_param["analysis_id"] = str_uuid
+            new_analysis["request_param"] = json.dumps(request_param)
             new_analysis['trace_file'] = trace_file
             new_analysis['workflow_log_file'] = workflow_log_file
             new_analysis['executor_log_file'] = executor_log
@@ -311,6 +313,7 @@ class BaseAnalysis(ABC):
     def change_status(self,conn,analysis):
         stmt = t_analysis.update().values({"job_status":"running"}).where(t_analysis.c.analysis_id==analysis.analysis_id)
         conn.execute(stmt)
+
 
     # async def submit_analysis(self,analysis):
     #     analysis = AnalysisExecuterModal(**analysis)

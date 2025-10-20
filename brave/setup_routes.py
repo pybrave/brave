@@ -52,6 +52,7 @@ def setup_routes(app: FastAPI,manager:AppManager):
     settings = get_settings()
     app.mount("/brave-api/dir", StaticFiles(directory=settings.BASE_DIR, follow_symlink=True), name="base_dir")
     app.mount("/brave-api/analysis-dir", StaticFiles(directory=settings.ANALYSIS_DIR, follow_symlink=True), name="analysis_dir")
+    app.mount("/brave-api/data-dir", StaticFiles(directory=settings.DATA_DIR, follow_symlink=True), name="data_dir")
 
     app.mount("/brave-api/work-dir", StaticFiles(directory=settings.WORK_DIR), name="work_dir")
 

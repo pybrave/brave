@@ -839,3 +839,20 @@ def get_all_category(conn):
     categories = conn.execute(stmt).scalars().all()
     return categories
     
+def get_example(conn,component_id):
+    component = find_component_by_id(conn,component_id)
+    if not component:
+        raise HTTPException(status_code=500, detail=f"组件{component_id}没有找到!")
+    component_type = component["component_type"]
+    if(component_type != "file"):
+        raise HTTPException(status_code=500, detail=f"组件{component_id}不是file类型!")
+    pipeline_dir = get_pipeline_dir()
+    component_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+    if not os.path.exists(component_dir):
+        raise HTTPException(status_code=500, detail=f"组件{component_id}文件目录没有找到!")
+    example_file = f"{component_dir}/example.tsv"
+    if not os.path.exists(component_dir):
+        raise HTTPException(status_code=500, detail=f"组件{example_file}示例文件没有找到!")
+    example_suffix  = example_file.replace(str(pipeline_dir),"")
+    example_url = f"/brave-api/pipeline-dir{example_suffix}" 
+    return example_file,example_url,component

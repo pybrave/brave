@@ -1,4 +1,5 @@
 from typing import Optional
+from fastapi import File, Form, UploadFile
 from pydantic import BaseModel
 
 class AnalysisResultQuery(BaseModel):
@@ -72,8 +73,19 @@ class ImportData(BaseModel):
 
 class UpdateAnalysisResult(BaseModel):
     file_name: str
+    sample_source: Optional[str]=None
 
 
 class BindSample(BaseModel):
     analysis_result_id: str
     sample_id: str
+
+# class ImportExampleData(BaseModel):
+#     project: str
+#     file_type: str
+
+# class UploadAnalysisResult(BaseModel):
+#     component_id:str   = Form(...)
+#     project:str   = Form(...)
+#     file: UploadFile = File(...)
+#     file_type:str  = Form(...)

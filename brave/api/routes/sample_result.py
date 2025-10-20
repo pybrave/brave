@@ -1,7 +1,9 @@
 from functools import reduce
 from random import sample
+import shutil
 import uuid
-from fastapi import APIRouter,Depends
+from fastapi import APIRouter,Depends, File, Form, UploadFile
+import pandas as pd
 from sqlalchemy.orm import Session
 import threading
 
@@ -10,6 +12,7 @@ import threading
 from typing import List
 from starlette.status import HTTP_204_NO_CONTENT
 from sqlalchemy import func, select
+from brave.api.config.config import get_settings
 from brave.api.models.orm import SampleAnalysisResult
 import glob
 import importlib
@@ -385,19 +388,21 @@ async def import_data(importDataList:List[ImportData]):
                 else:
                     sample_id = str(uuid.uuid4())
                     sample_service.add_sample(conn,{"sample_name":importData.sample_name,"sample_id":sample_id,"project":importData.project}) 
+                
+                stmt = analysis_result.select().where(and_(
+                    analysis_result.c.sample_id==sample_id,
+                    analysis_result.c.component_id==importData.component_id,
+                    analysis_result.c.project==importData.project,
+                    analysis_result.c.sample_source==importData.sample_source
+                ))
+                result = conn.execute(stmt).fetchall()
+                if result:
+                    raise HTTPException(status_code=500, detail=f"分析结果{importData.sample_name}已存在!")
             else:
                 sample_id = ""
                 
 
-            stmt = analysis_result.select().where(and_(
-                analysis_result.c.sample_id==sample_id,
-                analysis_result.c.component_id==importData.component_id,
-                analysis_result.c.project==importData.project,
-                analysis_result.c.sample_source==importData.sample_source
-            ))
-            result = conn.execute(stmt).fetchall()
-            if result:
-                raise HTTPException(status_code=500, detail=f"分析结果{importData.sample_name}已存在!")
+            
 
             analysis_result_id = str(uuid.uuid4())
             stmt = analysis_result.insert().values(
@@ -526,3 +531,134 @@ async def bind_sample_to_analysis_result(bindSample:BindSample):
             raise HTTPException(status_code=500, detail=f"分析结果{bindSample.analysis_result_id}不存在!")
         analysis_result_service.update_sample_id(conn,bindSample.analysis_result_id,bindSample.sample_id)
     return {"message":"success"}
+
+def get_unique_filename(upload_dir: str, filename: str) -> str:
+    """
+    如果文件已存在，则自动在文件名后加 (1)、(2)... 直到唯一
+    """
+    name, ext = os.path.splitext(filename)
+    counter = 1
+    new_filename = filename
+
+    while os.path.exists(os.path.join(upload_dir, new_filename)):
+        new_filename = f"{name}({counter}){ext}"
+        counter += 1
+
+    return new_filename
+
+
+@sample_result.post("/analysis-result/upload",tags=['analysis_result'])
+async def upload(
+    component_id: str = Form(...),
+    project: str = Form(...),
+    file: UploadFile = File(...)):
+    with get_engine().begin() as conn:
+        component = pipeline_service.find_component_by_id(conn,component_id)
+    file_type = component.get("file_type","collected")
+    settings = get_settings()
+    UPLOAD_DIR =  f"{settings.DATA_DIR}/{project}"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    unique_name  = get_unique_filename(UPLOAD_DIR, file.filename)
+    file_path = os.path.join(UPLOAD_DIR,unique_name)
+
+
+     # 检查文件类型
+    allowed_exts = [".xlsx", ".xls", ".csv", ".tsv"]
+    name, ext = os.path.splitext(file.filename)
+    ext = ext.lower()
+
+    if ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail=f"不支持的文件类型: {ext}")
+
+
+    if ext == ".tsv":
+        # 直接保存 TSV 文件
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        print(">>>> TSV 文件已保存:", file_path)
+        return {
+            "file_path": file_path,
+        }
+    else:
+        temp_path = os.path.join(UPLOAD_DIR, f"temp_{unique_name}")
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        print(">>>> 原始文件已保存:", temp_path)
+
+        # 转换为 TSV 格式
+        tsv_filename = os.path.splitext(unique_name)[0] + ".tsv"
+        file_path = os.path.join(UPLOAD_DIR, tsv_filename)
+
+        try:
+            if ext in [".xlsx", ".xls"]:
+                df = pd.read_excel(temp_path)
+            elif ext == ".csv":
+                df = pd.read_csv(temp_path)
+   
+
+            df.to_csv(file_path, sep="\t", index=False)
+            print(f">>>> 已转换为 TSV: {file_path}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"文件转换失败: {str(e)}")
+        # finally:
+        #     # 可选：删除原始文件，只保留 TSV
+        #     if ext != ".tsv" and os.path.exists(temp_path):
+        #         os.remove(temp_path)
+
+    # with open(file_path, "wb") as buffer:
+    #     shutil.copyfileobj(file.file, buffer)
+    #     print(">>>>file saved to ",file_path)
+    import_data_list =[
+        ImportData(
+            component_id= component_id,
+            project= project,
+            content= file_path,
+            file_type= file_type,
+            file_name= unique_name,
+            sample_source= "source",
+        )
+    ]
+    await import_data(import_data_list)
+    # component_id:str
+    # project: str
+    # content: str
+    # sample_name: Optional[str]=None
+    # file_type: str
+    # sample_source: str
+    # file_name: Optional[str]=None
+
+    return {
+        "file_path": file_path,
+    }
+
+@sample_result.get("/analysis-result/download-example/{component_id}",tags=['analysis_result'])
+async def download_example(component_id):
+    with get_engine().begin() as conn:
+        example_file,example_url,component = pipeline_service.get_example(conn,component_id)
+    return {
+        "example_file": example_file,
+        "example_url": example_url
+    }
+
+@sample_result.post("/analysis-result/add-example/{component_id}",tags=['analysis_result'])
+async def download_example(component_id,project):
+    with get_engine().begin() as conn:
+        example_file,example_url,component = pipeline_service.get_example(conn,component_id)
+
+    import_data_list =[
+        ImportData(
+            component_id= component_id,
+            project= project,
+            content= example_file,
+            file_type= component.file_type,
+            file_name= "example",
+            sample_source= "source",
+        )
+    ]
+    await import_data(import_data_list)
+    return {
+        "example_file": example_file,
+        "example_url": example_url
+    }

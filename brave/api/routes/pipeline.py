@@ -211,7 +211,6 @@ async def get_component_parent(component_id,component_type):
     base = select(
         t_pipeline_components.c.component_id,
         t_pipeline_components.c.component_type,
-        t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
         t_pipeline_components.c.component_name,
         t_pipeline_components.c.tags,
@@ -235,13 +234,12 @@ async def get_component_parent(component_id,component_type):
     stmt_parenet = select(
         tp1.c.component_id,
         tp1.c.component_type,
-        tp1.c.install_key,
         tp1.c.content,
         tp1.c.component_name,
         tp1.c.tags,
+        cast(null(), String(255)).label("description"),
         tp1.c.file_type,
         tp1.c.script_type,
-        cast(null(), String(255)).label("description"),
         rel.c.relation_type,
         rel.c.parent_component_id,
         rel.c.order_index,
