@@ -144,12 +144,30 @@ def format_table_output(path):
 #         "type":"table",
 #         "url":f"/brave-api/dir{file_name}"
 #     }
+
+def format_html_output(path):
+    settings = get_settings()
+    base_dir = settings.ANALYSIS_DIR
+    file_name = path.replace(str(base_dir),"")
+    img_data = f"/brave-api/analysis-dir{file_name}"
+    return {
+        "data":img_data,
+        "type":"img",
+        "filename":os.path.basename(path),
+        "url":f"/brave-api/analysis-dir{file_name}"
+    }
 async def visualization_results(path):
 
     path = f"{path}/output"
     images = []
     for ext in ("*.png", "*.jpg", "*.jpeg","*.pdf"):
         images.extend(glob.glob(os.path.join(path, ext)))
+
+    html_list = []
+    for ext in ("*.html",):
+        html_list.extend(glob.glob(os.path.join(path, ext)))
+    html_list = [format_html_output(html) for html in html_list]
+    
     # images = [format_img_path(image) for image in images]
        # 多线程处理
     # with ThreadPoolExecutor(max_workers=8) as executor:
@@ -172,5 +190,6 @@ async def visualization_results(path):
 
     return {
         "images": images,
-        "tables": tables
+        "tables": tables,
+        "htmls":html_list
     }

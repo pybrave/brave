@@ -520,7 +520,7 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
         tp1.c.tags,
         tp1.c.category,
         tp1.c.edges,
-        tp1.c.description,
+        cast(null(), String(255)).label("description"),
         tp1.c.file_type,
         tp1.c.script_type,
         rel.c.relation_type,
