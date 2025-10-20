@@ -17,11 +17,12 @@ from sqlalchemy import select
 import textwrap
 import uuid
 import importlib
-from brave.api.utils.get_db_utils import get_ids,get_group, get_re_group,get_columns
+from brave.api.utils.get_db_utils import get_ids,get_group, get_re_group
 
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.service import project_service
+from build.lib.brave.api.service import sample_service
 
 
 class BaseAnalysis(ABC):
@@ -269,7 +270,23 @@ class BaseAnalysis(ABC):
 
         groups_name = {key:get_group(request_param[key]) for key in query_name_list if key in request_param }
         re_groups_name = {key:get_re_group(request_param[key]) for key in query_name_list if key in request_param }
-        file_columns = {key:get_columns(request_param[key]) for key in query_name_list if key in request_param }
+        samples_dict = {}
+        if "project" in request_param:
+            samples_list = sample_service.find_by_project(conn,request_param["project"])
+            samples_dict = { sample["sample_name"]:sample for sample in samples_list}
+        def get_columns(values,samples_dict,analsyis_result):
+            if isinstance(values, dict):
+                if "file" in  values:
+                    analsyis_result_dict = {item["id"]:item for item in analsyis_result}
+                    analsyis_result_dict_one = analsyis_result_dict.get(values["file"],{})
+                    # 根据column获取metadata
+                    columns = [ analysis_result_service.build_collected_analysis_result(item,analsyis_result_dict_one,samples_dict)
+                        for item in values["sample"]
+                    ]
+                    return columns
+            return "-"
+
+        file_columns = {key:get_columns(request_param[key],samples_dict,db_dict[key]) for key in query_name_list if key in request_param }
 
         extra_dict={}
         if "upstreamFormJson" in component:

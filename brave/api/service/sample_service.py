@@ -25,3 +25,8 @@ def find_by_project(conn,project):
     stmt = samples.select().where(samples.c.project==project)
     result = conn.execute(stmt).mappings().all()
     return result
+
+def find_by_project_in_list(conn,project_list):
+    stmt = samples.select().where(samples.c.project.in_(project_list))
+    result = conn.execute(stmt).mappings().all()
+    return result

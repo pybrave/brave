@@ -577,9 +577,9 @@ async def upload(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         print(">>>> TSV 文件已保存:", file_path)
-        return {
-            "file_path": file_path,
-        }
+        # return {
+        #     "file_path": file_path,
+        # }
     else:
         temp_path = os.path.join(UPLOAD_DIR, f"temp_{unique_name}")
         with open(temp_path, "wb") as buffer:

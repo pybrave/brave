@@ -24,8 +24,13 @@ def get_re_group(values):
         return values.get("group_name","-")
     return "-"
 
-def get_columns(values):
-    if isinstance(values, dict):
-        if "file" in  values:
-            return values["sample"]
-    return "-"
+# def get_columns(values,samples_dict):
+#     if isinstance(values, dict):
+#         if "file" in  values:
+#             sample_name_list = [ {
+#                  "colname_name":item,
+#                 **samples_dict.get(item,{})
+#             } for item in values["sample"]]
+            
+#             return sample_name_list
+#     return "-"

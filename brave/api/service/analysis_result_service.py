@@ -1,3 +1,4 @@
+import os
 from brave.api.config.config import get_settings
 from brave.api.config.db import get_engine
 from fastapi import HTTPException
@@ -113,7 +114,10 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     file_type_list = [item for item in result_dict if item.get("file_type") and item.get("file_type")=="collected"]
     samples_dict = {}
     if len(file_type_list)>0:
-        samples_list = sample_service.find_by_project(conn,analysisResultQuery.project)
+        if analysisResultQuery.projectList:
+            samples_list = sample_service.find_by_project_in_list(conn,analysisResultQuery.projectList)
+        else:
+            samples_list = sample_service.find_by_project(conn,analysisResultQuery.project)
         samples_dict = { sample["sample_name"]:sample for sample in samples_list}
 
     settings = get_settings()
@@ -128,6 +132,8 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
                 pass
         elif analysisResultQuery.build_collected:
             content = item['content']
+            if not os.path.exists(content):
+                continue
             df_content = pd.read_csv(content,sep="\t")
             df_colnames = df_content.columns
             df_colnames = [build_collected_analysis_result(column,item, samples_dict) for column in df_colnames]
@@ -172,11 +178,11 @@ def build_collected_analysis_result(column,analsyis_result,samples_dict):
         sample["sample_source"] = analsyis_result.get("sample_source")
         sample = get_analysis_result_metadata(sample)
         return {"id":analsyis_result["id"],
-            "analysis_result_id":analsyis_result["analysis_result_id"],
+            "analysis_result_id":analsyis_result.get("analysis_result_id"),
             "columns_name":column,**sample}
     
     return {"id":analsyis_result["id"],
-            "analysis_result_id":analsyis_result["analysis_result_id"],
+            "analysis_result_id":analsyis_result.get("analysis_result_id"),
             "columns_name":column}
 
 def model_dump_one(item):
