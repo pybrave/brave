@@ -740,6 +740,18 @@ def find_relation_by_component_id(conn, component_id):
     find_components_relation = conn.execute(stmt).mappings().all()
     return find_components_relation
 
+# for publish components relation list
+def find_relation_by_parent_component_id(conn, parent_component_id):
+    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.parent_component_id == parent_component_id)
+    find_components_relation = conn.execute(stmt).mappings().all()
+    return find_components_relation
+
+def find_relation_in_parent_component_ids(conn, parent_component_ids):
+    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.parent_component_id.in_(parent_component_ids))
+    find_components_relation = conn.execute(stmt).mappings().all()
+    return find_components_relation
+
+
 # for publish component list
 def find_component_list_in_ids(conn,component_ids):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id.in_(component_ids))
@@ -759,10 +771,34 @@ def write_component_json(component_id):
             parent_component_ids = [ item['parent_component_id'] for item in component_relation_list ]
             component_list = find_component_list_in_ids(conn,parent_component_ids)
             component_list.append(current_component)
-            
+        elif component_type =="file":
+            component_list = [current_component]
+            component_relation_list = []
+        elif component_type =="software":
+            component_relation_list = find_relation_by_parent_component_id(conn,component_id)
+            component_ids = [ item['component_id'] for item in component_relation_list ]
+            component_list = find_component_list_in_ids(conn,component_ids)
+            component_list.append(current_component)
+        elif component_type =="pipeline":
+            # find all child software component by pipeline component id
+            component_relation_list =  find_relation_by_parent_component_id(conn,component_id)
+            component_ids = [ item['component_id'] for item in component_relation_list ]
+            component_list = find_component_list_in_ids(conn,component_ids)
+          
+            # find all child file component by software component id
+            component_ids = [item["component_id"] for item in component_list]
+            file_relation_list = find_relation_in_parent_component_ids(conn, component_ids)
+            file_component_ids = [ item['component_id'] for item in file_relation_list ]
+            file_component_list = find_component_list_in_ids(conn,file_component_ids)
+            component_list = component_list + file_component_list
+            component_relation_list = component_relation_list + file_relation_list
+            component_list.append(current_component)
         else:
-            component_list = get_components(conn,component_id)
-            component_relation_list =  get_component_relation(conn,component_id)
+            raise HTTPException(status_code=500, detail=f"组件类型{component_type}不支持导出!")
+            # component_list = get_components(conn,component_id)
+            # component_relation_list =  get_component_relation(conn,component_id)
+    
+
         container_id_list = [ item['container_id'] for item in component_list if item['container_id'] is not None ]
         container_list = container_service.find_by_container_ids(conn,container_id_list)
     
