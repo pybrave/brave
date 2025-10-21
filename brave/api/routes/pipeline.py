@@ -719,19 +719,86 @@ async def publish_component(publishComponent:PublishComponent):
                 print(f"publish {source_dir} to {target_dir}")
 
         install_json = {
-            "components":{}
+            "components":{
+                "file":[],
+                "script":[],
+                "software":[],
+                "pipeline":[],
+            }
         }
         install_file = f"{store_path}/main.json"
+
         if  os.path.exists(install_file):
             with open(install_file,"r") as f:
                 install_json = json.load(f)
-        if publish_component_type not in install_json["components"]:
-            install_json["components"][publish_component_type] = []
-        install_json["components"][publish_component_type].append({ 
-                "name": find_component['component_name'],
-                "component_id": publish_component_id,
-				"category":  find_component["category"]  if find_component["category"]  else "default",
-        })
+  
+        for component_item in component_json:
+            component_type = component_item["component_type"]
+            component_id = component_item["component_id"]
+            component_category = component_item.get("category","default")
+            component_name = component_item["component_name"]
+            order_index = component_item["order_index"]
+            if not order_index:
+                order_index = 0
+
+            # is_exist = False
+            install_json_component_type = install_json["components"][component_type]
+
+            found = False
+            for existing_item in install_json_component_type:
+                if existing_item["component_id"] == component_id:
+                    # ✅ 已存在 → 更新字段
+                    existing_item.update({
+                        "name": component_name,
+                        "category": component_category,
+                        "order_index": order_index
+                    })
+                    found = True
+                    break
+
+            if not found:
+                # ✅ 不存在 → 添加新项
+                install_json_component_type.append({
+                    "name": component_name,
+                    "component_id": component_id,
+                    "category": component_category,
+                    "order_index": order_index
+                })
+            # install_component_id = [ item["component_id"] for item in install_json_component_type ]
+            # if component_id not in install_component_id:
+            #     install_json["components"][component_type].append({ 
+            #                 "name": component_name,
+            #                 "component_id": component_id,
+            #                 "category": component_category,
+            #                 "order_index":order_index
+            #         })
+            # else:
+            #     pass
+
+            # new_install_json_component_type = []
+            # for item in install_json_component_type:
+            #     if component_id == item["component_id"] :
+            #         is_exist = True
+            #         # update existing record
+            #         item = { 
+            #                 "name": component_name,
+            #                 "component_id": component_id,
+            #                 "category": component_category,
+            #                 "order_index":order_index
+            #         }
+
+            #     new_install_json_component_type.append(item)
+
+            # if not is_exist:
+                # new_install_json_component_type.append({ 
+                #             "name": component_name,
+                #             "component_id": component_id,
+                #             "category": component_category,
+                #             "order_index":order_index
+                #     })
+                    
+            
+
         with open(install_file,"w") as f:
             json.dump(install_json,f)
 
