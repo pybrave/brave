@@ -91,8 +91,17 @@ def execute_parse(analysis,parse,file_format_list):
     
     with open(analysis_params_path,"r") as f:
         analysis_params = json.load(f)
-        if "sample_list" in analysis_params:
-            sample_list = analysis_params["sample_list"]
+        if "groups" in analysis_params:
+            groups = analysis_params["groups"]
+            analyis_result_list = [analysis_params[group] for group in groups]
+            sample_list = []
+            for item in analyis_result_list:
+                if type(item) == list:
+                    sample_list = sample_list + item
+                elif type(item) == dict:
+                    sample_list.append(item) 
+   
+          
             
 
 

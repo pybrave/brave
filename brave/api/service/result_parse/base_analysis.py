@@ -35,14 +35,14 @@ class BaseAnalysis(ABC):
     def _get_query_db_field(self,conn,component):
         if component['component_type']=="software":
             component_file_list = pipeline_service.find_component_by_parent_id(conn,component['component_id'],"software_input_file")
-            component_file_name_list = [json.loads(item.content)['name'] for item in component_file_list]
+            component_file_name_list = {json.loads(item.content)['name']:json.loads(item.content) for item in component_file_list}
             return component_file_name_list
         elif component['component_type'] == "script":
             if "formJson" in component:
-                return [item['name'] for item in component['formJson'] if "db" in item and  item['db']]
+                return {item['name']:item for item in component['formJson'] if "db" in item and  item['db']}
         elif component['component_type'] == "pipeline":
             input_file_list = component['inputFile']
-            return [item['name'] for item in input_file_list]
+            return {item['name']:item for item in input_file_list}
         return []
 
     @abstractmethod
@@ -212,9 +212,9 @@ class BaseAnalysis(ABC):
         # component = pipeline_service.find_pipeline_by_id(conn, component_id)
         # if component is None or not hasattr(component, "content"):
         #     raise HTTPException(status_code=404, detail=f"Component with id {component.component_id} not found or missing content.")
-        query_name_list = self._get_query_db_field(conn,component)
-
-        parse_analysis_result = self.parse_analysis(conn,request_param,component,query_name_list)
+        query_name_dict = self._get_query_db_field(conn,component)
+        # query_name_list_keys = list(query_name_list.keys())
+        parse_analysis_result = self.parse_analysis(conn,request_param,component,query_name_dict)
         return parse_analysis_result
     
         
@@ -239,7 +239,8 @@ class BaseAnalysis(ABC):
                 "path":bio_database.get("path")
             }
 
-    def parse_analysis(self,conn,request_param,component,query_name_list):
+    def parse_analysis(self,conn,request_param,component,query_name_dict):
+        query_name_list = list(query_name_dict.keys())
 
         module_info = pipeline_service.find_component_module(component, ScriptName.input_parse)
         if not module_info:
@@ -274,19 +275,58 @@ class BaseAnalysis(ABC):
         if "project" in request_param:
             samples_list = sample_service.find_by_project(conn,request_param["project"])
             samples_dict = { sample["sample_name"]:sample for sample in samples_list}
-        def get_columns(values,samples_dict,analsyis_result):
-            if isinstance(values, dict):
-                if "file" in  values:
-                    analsyis_result_dict = {item["id"]:item for item in analsyis_result}
-                    analsyis_result_dict_one = analsyis_result_dict.get(values["file"],{})
-                    # 根据column获取metadata
-                    columns = [ analysis_result_service.build_collected_analysis_result(item,analsyis_result_dict_one,samples_dict)
-                        for item in values["sample"]
-                    ]
-                    return columns
-            return "-"
+        
 
-        file_columns = {key:get_columns(request_param[key],samples_dict,db_dict[key]) for key in query_name_list if key in request_param }
+
+        # analysis_result_file ={}
+        # if "analysis_result_id" in request_param:
+        #     analysis_result = analysis_result_service.find_by_analysis_result_id(conn,request_param['analysis_result_id'])
+        #     analysis_result_file = dict(analysis_result)
+        
+        for k,v in db_dict.items():
+           
+            
+            # v["re_groups_name"] = 
+            # v["selcted_group_name"] = groups_name.get(k)
+            query_form = query_name_dict.get(k,{})
+            if query_form["type"] =="CollectedGroupSelectSampleButton":
+                analysis_result = v[0]
+                columns = request_param[k]["columns"]
+                columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
+                    for item in columns
+                ]
+                columns = [ {**item,
+                    "selcted_group_name":groups_name.get(k),
+                    "re_groups_name":re_groups_name.get(k)}for item in columns ]
+                analysis_result["columns"] = columns
+                db_dict[k] = analysis_result
+            else:
+                db_dict[k] = [ {**item,
+                    "selcted_group_name":groups_name.get(k),
+                    "re_groups_name":re_groups_name.get(k)}for item in v ]
+
+
+        # def get_columns(values,samples_dict,analsyis_result):
+        #     if isinstance(values, dict):
+        #         if "file" in  values:
+        #             analsyis_result_dict = {item["id"]:item for item in analsyis_result}
+        #             analsyis_result_dict_one = analsyis_result_dict.get(values["file"],{})
+        #             # 根据column获取metadata
+        #             columns = [ analysis_result_service.build_collected_analysis_result(item,analsyis_result_dict_one,samples_dict)
+        #                 for item in values["columns"]
+        #             ]
+        #             return columns
+        #         elif "columns" in values:
+        #             columns = [ analysis_result_service.build_collected_analysis_result(item,{},samples_dict)
+        #                 for item in values["columns"]
+        #             ]
+        #             return columns
+                
+        #     return "-"
+
+        # file_columns = {key:get_columns(request_param[key],samples_dict,db_dict[key]) for key in query_name_list if key in request_param }
+
+      
 
         extra_dict={}
         if "upstreamFormJson" in component:
@@ -316,7 +356,7 @@ class BaseAnalysis(ABC):
             "analysis_dict":db_dict,
             "groups_name":groups_name,
             "groups":query_name_list,
-            "file_columns":file_columns,
+            # "file_columns":file_columns,
             "settings":settings,
             "metadata_form":metadata_form
         }

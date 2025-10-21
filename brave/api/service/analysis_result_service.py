@@ -177,11 +177,11 @@ def build_collected_analysis_result(column,analsyis_result,samples_dict):
         del sample["id"]
         sample["sample_source"] = analsyis_result.get("sample_source")
         sample = get_analysis_result_metadata(sample)
-        return {"id":analsyis_result["id"],
+        return {"id":analsyis_result.get("id"),
             "analysis_result_id":analsyis_result.get("analysis_result_id"),
             "columns_name":column,**sample}
     
-    return {"id":analsyis_result["id"],
+    return {"id":analsyis_result.get("id"),
             "analysis_result_id":analsyis_result.get("analysis_result_id"),
             "columns_name":column}
 
