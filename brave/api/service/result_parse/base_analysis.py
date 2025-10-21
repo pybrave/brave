@@ -21,8 +21,7 @@ from brave.api.utils.get_db_utils import get_ids,get_group, get_re_group
 
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
-from brave.api.service import project_service
-from build.lib.brave.api.service import sample_service
+from brave.api.service import project_service, sample_service
 
 
 class BaseAnalysis(ABC):
