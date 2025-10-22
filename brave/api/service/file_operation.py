@@ -115,6 +115,11 @@ def format_table_output(path):
         with open(path,"r") as f:
             data = f.read()
         data_type="json"
+    elif path.endswith(".feature.list"):
+        with open(path,"r") as f:
+            data = f.read()
+        data_type="feature_list"
+        order=9
     elif path.endswith("info"):
         with open(path,"r") as f:
             data = f.read()
@@ -181,7 +186,7 @@ async def visualization_results(path):
     images = await asyncio.gather(*tasks)
     # images = []
     tables = []
-    for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx","*.info","*.vis"):
+    for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list"):
         tables.extend(glob.glob(os.path.join(path, ext)))
     tables = [format_table_output(table) for table in tables]
     tables = sorted(tables, key=lambda x: x.get("order", 0), reverse=True)
