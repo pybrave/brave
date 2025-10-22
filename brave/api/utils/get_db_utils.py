@@ -23,7 +23,10 @@ def get_re_group(values):
     if isinstance(values, dict):
         return values.get("group_name","-")
     return "-"
-
+def get_colors(values):
+    if isinstance(values, dict):
+        return values.get("color","-")
+    return "-"
 # def get_columns(values,samples_dict):
 #     if isinstance(values, dict):
 #         if "file" in  values:

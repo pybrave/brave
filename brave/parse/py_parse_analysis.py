@@ -2,6 +2,7 @@
 
 def parse_data(analysis_dict,
                database_dict,
+               colors,
                extra_dict,groups_name,re_groups_name,groups,settings,metadata_form):
     # sample_list = [{
     #                     "sample_name":item["sample_name"],
@@ -17,6 +18,7 @@ def parse_data(analysis_dict,
         **extra_dict,
         **analysis_dict,
         **database_dict,
+        "colors":colors,
         "groups_name":groups_name,
         "re_groups_name":re_groups_name,
         "groups":groups,

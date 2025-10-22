@@ -6,6 +6,7 @@ class AddProject(BaseModel):
     metadata_form: str
     research: Optional[str]=None
     description: Optional[str]=None
+    parameter: Optional[str]=None
 
 class UpdateProject(BaseModel):
     project_id: str
@@ -13,3 +14,4 @@ class UpdateProject(BaseModel):
     metadata_form: Optional[str]=None
     research: Optional[str]=None
     description: Optional[str]=None
+    parameter: Optional[str]=None

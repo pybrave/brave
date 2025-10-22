@@ -605,6 +605,10 @@ async def get_cache_params(analysis_result_parse_service:AnalysisResultParse = D
     return analysis_result_parse_service.cached_params()
 
 
+def format_form_json_item(item):
+    if item.get("db") and item.get("db")==True:
+        item["type"] = "SimplpeGroupSelect"
+    return item
 
 @analysis_api.get("/analysis/visualization-results/{analysis_id}")
 async def visualization_results(analysis_id):
@@ -634,7 +638,9 @@ async def visualization_results(analysis_id):
     component_content = json.loads(find_component["content"])
     if "formJson" in component_content:
         form_json = component_content["formJson"]
-        file_result['form_json'] =  [item  for item in form_json if not  item.get("db") and  item.get("name")!="group_field"]
+        
+        # if not  item.get("db")
+        file_result['form_json'] =  [format_form_json_item(item)  for item in form_json  if item.get("quickShow")!=False and  item.get("name")!="group_field"]
     else:
         file_result['form_json'] = []
 
@@ -730,3 +736,13 @@ async def edit_params(project:UpdateProject,analysis_id):
         # find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
         analysis_service.update_extra_project(conn,analysis_id,project.project)
     return "success"
+
+
+# @analysis_api.post("/analysis/update-pipeline-dir/{analysis_id}")
+# async def update_pipeline_dir(analysis_id):
+#     pipline_dir = pipeline_service.get_pipeline_dir()
+#     pipline_dir = str(pipline_dir)
+#     with get_engine().begin() as conn:
+#         analsyis = analysis_service.find_analysis_by_id(conn,analysis_id)
+#         analysis_service.update_pipeline_dir(conn,analsyis)
+#     return "success"

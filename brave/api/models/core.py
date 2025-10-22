@@ -15,6 +15,7 @@ t_project = Table(
     Column("project_name", String(255)),
     Column("metadata_form", Text),
     Column("research", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("parameter", Text().with_variant(LONGTEXT(), "mysql")),
     Column("description", Text().with_variant(LONGTEXT(), "mysql"))
 )
 

@@ -17,7 +17,7 @@ from sqlalchemy import select
 import textwrap
 import uuid
 import importlib
-from brave.api.utils.get_db_utils import get_ids,get_group, get_re_group
+from brave.api.utils.get_db_utils import get_colors, get_ids,get_group, get_re_group
 
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
@@ -145,11 +145,7 @@ class BaseAnalysis(ABC):
             # if "scriptDir" in component_content:
             #     script_dir = component_content['scriptDir']
             component_script = pipeline_service.find_component_module(component,ScriptName.main)['path']
-            # try:
-                
 
-         
-            # pipeline_script =  f"{get_pipeline_file(pipeline_script)}"
             new_analysis['pipeline_script'] = component_script
             command = self._get_command(str_uuid,output_dir,cache_dir,params_path,work_dir,executor_log,component_script,trace_file,workflow_log_file,pieline_dir_with_namespace,component["script_type"])
 
@@ -270,6 +266,7 @@ class BaseAnalysis(ABC):
 
         groups_name = {key:get_group(request_param[key]) for key in query_name_list if key in request_param }
         re_groups_name = {key:get_re_group(request_param[key]) for key in query_name_list if key in request_param }
+        colors = {key:get_colors(request_param[key]) for key in query_name_list if key in request_param }
         samples_dict = {}
         if "project" in request_param:
             samples_list = sample_service.find_by_project(conn,request_param["project"])
@@ -336,7 +333,7 @@ class BaseAnalysis(ABC):
 
         if "formJson" in component:
             form_json = component['formJson']
-            form_json_names = [item['name'] for item in form_json]
+            form_json_names = [item['name'] for item in form_json if item["type"]!="Divider"]
             extra_dict = {key: request_param[key] for key in form_json_names if key in request_param}
 
         
@@ -350,6 +347,7 @@ class BaseAnalysis(ABC):
         settings = get_settings()
         args = {
            "re_groups_name":re_groups_name,
+           "colors":colors,
             "database_dict":database_dict,
             "extra_dict":extra_dict,
             "analysis_dict":db_dict,

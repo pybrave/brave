@@ -278,6 +278,11 @@ def update_extra_project(conn,analysis_id,project):
 
 async def run_analysis(conn,analysis_,run_type):
     analysis_id = analysis_['analysis_id']
+    pipeline_script = analysis_['pipeline_script']
+    pipeline_dir = pipeline_service.get_pipeline_dir()
+    pipeline_dir = str(pipeline_dir)
+    if not pipeline_script.startswith(pipeline_dir):
+        raise HTTPException(status_code=500, detail=f"Pipeline script {pipeline_script} is not in pipeline dir {pipeline_dir}")
     component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
     component_type = component['component_type']
     if run_type=="job" and component_type=="script":
