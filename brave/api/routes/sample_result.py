@@ -30,6 +30,7 @@ import threading
 import brave.api.service.analysis_result_service as analysis_result_service
 import brave.api.service.pipeline as pipeline_service
 import re
+from brave.api.utils import file_utils
 from brave.api.utils.from_glob_get_file import from_glob_get_file
 from brave.api.schemas.sample import AddSampleMetadata,UpdateSampleMetadata
 import brave.api.service.sample_service as sample_service
@@ -225,7 +226,7 @@ def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
 def get_analysis_result_table(analysis_result_id,row_num=-1):
     with get_engine().begin() as conn:
         result_one = analysis_result_service.find_by_analysis_result_id(conn,analysis_result_id)
-        content = analysis_result_service.get_table_content(result_one["content"],row_num)
+        content = file_utils.get_table_content(result_one["content"],row_num)
     return content
 
 

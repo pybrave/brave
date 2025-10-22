@@ -56,7 +56,7 @@ class BaseAnalysis(ABC):
 
 
 
-    async def save_analysis(self,conn,request_param,parse_analysis_result,component):
+    async def save_analysis(self,conn,request_param,parse_analysis_result,component,is_report):
         # parse_analysis_result,component = self.get_parames(request_param)
 
 
@@ -66,6 +66,7 @@ class BaseAnalysis(ABC):
             "request_param":json.dumps(request_param),
             # "analysis_method":component_script,
             "component_id":component['component_id'],
+            "is_report":is_report,
             # "is_report":request_param['is_report'] if "is_report" in request_param else False,
             "data_component_ids":request_param['data_component_ids'],
             # "parse_analysis_module":parse_analysis_module
@@ -82,6 +83,7 @@ class BaseAnalysis(ABC):
             stmt = select(t_analysis).where(t_analysis.c.analysis_id == request_param['analysis_id'])
             result = conn.execute(stmt).mappings().first()
         if result:
+            print("update analysis")
             output_dir = result.output_dir
             work_dir = result.work_dir
             if not os.path.exists(output_dir):
@@ -106,6 +108,7 @@ class BaseAnalysis(ABC):
                 **new_analysis
             }
         else:
+            print("create analysis")
             settings = get_settings()
             base_dir = settings.BASE_DIR
             analsyis_dir = settings.ANALYSIS_DIR

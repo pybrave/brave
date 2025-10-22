@@ -154,19 +154,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         # pass
     return result_dict
 
-def get_table_content(path,row_num=None):
-    df_content_0 = pd.read_csv(path,sep="\t")
-    if row_num and row_num !=-1:
-        df_content = df_content_0.head(int(row_num))
-    tables = json.loads(df_content.to_json(orient="values"))
-    columns = df_content.columns.tolist()
-    tables.insert(0, columns)
 
-    return  {
-        "nrow":len(df_content_0),
-        "ncol":len(columns),
-        "tables":tables
-    }
 
 
 def build_collected_analysis_result(column,analsyis_result,samples_dict):

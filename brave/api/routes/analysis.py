@@ -399,6 +399,7 @@ async def save_script_analysis(
     # type:Optional[str]="nextflow",
     save:Optional[bool]=False,
     is_submit:Optional[bool]=False,
+    is_report:Optional[bool]=None,
     app_container:AppContainer = Depends(Provide[AppContainer]),
     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus])
     ): # request_param: Dict[str, Any]
@@ -439,7 +440,7 @@ async def save_script_analysis(
         if not save:
             return parse_analysis_result
         
-        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj) 
+        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report) 
         if is_submit:
             analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
             await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
@@ -614,6 +615,8 @@ def format_form_json_item(item):
 async def visualization_results(analysis_id):
     with get_engine().begin() as conn:
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        if not find_analysis:
+            raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
         find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
     file_result = await file_operation_service.visualization_results(find_analysis["output_dir"])
     # file_result = {}

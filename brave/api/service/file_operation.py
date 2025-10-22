@@ -14,6 +14,8 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
+from brave.api.utils import file_utils
+
 # def pdf_page_to_base64(pdf_path, page_number=0, zoom=2):
 #     """
 #     读取 PDF 指定页并转为 base64 图片
@@ -78,8 +80,8 @@ def format_table_output(path):
     data_type="table"
     order = 0
     if path.endswith("xlsx"):
-        df =  pd.read_excel(path, nrows=50).iloc[:, :30] 
-        data = json.loads(df.to_json(orient="records")) 
+        df =  pd.read_excel(path)
+        data = file_utils.get_table_content_by_df(df)
         data_type="table"
     elif path.endswith("html") :
         # with open(path,"r") as f:
@@ -96,9 +98,10 @@ def format_table_output(path):
         data=[]
         data_type="download"
     elif path.endswith("tsv"):
-        df =  pd.read_csv(path,sep="\t", nrows=50).iloc[:, :30]
+        df =  pd.read_csv(path,sep="\t")
         # df = pd.read_csv(path,sep="\t")
-        data = json.loads(df.to_json(orient="records")) 
+        # data = json.loads(df.to_json(orient="records")) 
+        data = file_utils.get_table_content_by_df(df)
         data_type="table"
     elif path.endswith(".vis"):
         data_type = os.path.basename(path).replace(".vis","")

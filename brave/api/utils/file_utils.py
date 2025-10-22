@@ -1,5 +1,8 @@
+import json
 import shutil
 import os
+
+import pandas as pd
 
 def delete_all_in_dir(path):
     print(f"delete file: {path}")
@@ -16,3 +19,20 @@ def delete_all_in_dir(path):
                 shutil.rmtree(file_path)  # 删除文件夹及其内容
         except Exception as e:
             print(f"删除 {file_path} 失败: {e}")
+
+def get_table_content(path,row_num=None):
+    df_content_0 = pd.read_csv(path,sep="\t")
+    return get_table_content_by_df(df_content_0,row_num)
+
+def get_table_content_by_df(df_content,row_num=None):
+    if row_num and row_num !=-1:
+        df_content = df_content.head(int(row_num))
+    tables = json.loads(df_content.to_json(orient="values"))
+    columns = df_content.columns.tolist()
+    tables.insert(0, columns)
+
+    return  {
+        "nrow":len(df_content),
+        "ncol":len(columns),
+        "tables":tables
+    }
