@@ -82,7 +82,9 @@ analysis = Table(
     # Column("container_id", String(255)),
     # Column("sub_container_id", String(255)),
     Column("data_component_ids",Text),
-    Column("extra_project_ids",Text().with_variant(LONGTEXT(), "mysql"))
+    Column("extra_project_ids",Text().with_variant(LONGTEXT(), "mysql")),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
 )
 
 analysis_result = Table(

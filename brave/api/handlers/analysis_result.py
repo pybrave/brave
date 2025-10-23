@@ -39,8 +39,13 @@ def setup_handlers(
     async def on_analysis_result_update(analysis:Analysis,analysis_result:AnalysisResultParseModal):
         print(f"🚀 [on_analysis_result_update] {analysis.analysis_id}")
         data = json.dumps({
-            "msg":f"分析{analysis.analysis_id}，文件{analysis_result.file_name}更新成功!", 
+            "msg":f"{analysis.analysis_id}: {analysis_result.component_id}更新成功!", 
+            "add_num":analysis_result.add_num,
+            "update_num":analysis_result.update_num,
+            "complete_num":analysis_result.complete_num,
+            "analysis_name":analysis.analysis_name,
             "component_id":analysis_result.component_id,
+            "project":analysis.project,
             "msgType":"analysis_result"
         })
         msg = {"group": "default", "data": data}

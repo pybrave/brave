@@ -21,7 +21,7 @@ from brave.api.utils.get_db_utils import get_colors, get_ids,get_group, get_re_g
 
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
-from brave.api.service import project_service, sample_service
+from brave.api.service import namespace_service, project_service, sample_service
 
 
 class BaseAnalysis(ABC):
@@ -49,7 +49,7 @@ class BaseAnalysis(ABC):
         pass
     
     @abstractmethod
-    def write_config(self,output_dir,component_script) -> str:
+    def write_config(self,output_dir,component,more_params) -> str:
         pass
     
   
@@ -75,7 +75,16 @@ class BaseAnalysis(ABC):
         # module_dir = pipeline_id
         # if "moduleDir" in component_content:
         #     module_dir = component_content['moduleDir']
+        more_params = {}
+        used_namespace = namespace_service.get_used_namespace(conn)
+        if used_namespace and used_namespace.volumes:
+            volumes_dict = json.loads(used_namespace.volumes)
+            more_params["volumes"] = " ".join([
+                f"-v {host}:{conf['bind']}:{conf.get('mode', 'rw')}"
+                for host, conf in volumes_dict.items()
+            ])
 
+        
         output_dir=None
         work_dir=None
         result = None
@@ -100,6 +109,8 @@ class BaseAnalysis(ABC):
             if  result.job_status != "running":
                 new_analysis["job_status"] = "updated"
             # new_analysis['output_format'] = parse_analysis_result_module
+            self.write_config(output_dir,component,more_params)
+
             stmt = t_analysis.update().values(new_analysis).where(t_analysis.c.analysis_id==request_param['analysis_id'])
             conn.execute(stmt)
             find_analysis = dict(result)
@@ -165,7 +176,7 @@ class BaseAnalysis(ABC):
             # """)
     
             
-            script_config_file = self.write_config(output_dir,component_script)
+            script_config_file = self.write_config(output_dir,component,more_params)
             # script_config_file = f"{output_dir}/nextflow.config"
             # script_config =  textwrap.dedent(f"""
             # trace.overwrite = true

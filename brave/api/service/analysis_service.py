@@ -3,7 +3,7 @@ from brave.api.config.db import get_engine
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.core.routers_name import RoutersName
 from brave.api.models.core import analysis as t_analysis, t_pipeline_components,t_project
-from sqlalchemy import select,update
+from sqlalchemy import select,update,func
 from fastapi import HTTPException
 import json
 from brave.api.schemas.analysis import AnalysisExecuterModal, QueryAnalysis
@@ -88,13 +88,13 @@ def execute_parse(analysis,parse,file_format_list):
     analysis_params_path = analysis.get('params_path')
     if not analysis_params_path or not os.path.exists(analysis_params_path):
         raise HTTPException(status_code=500, detail=f"Analysis params_path {analysis_params_path} not found")
-    
+    sample_list = []
     with open(analysis_params_path,"r") as f:
         analysis_params = json.load(f)
         if "groups" in analysis_params:
             groups = analysis_params["groups"]
             analyis_result_list = [analysis_params[group] for group in groups]
-            sample_list = []
+            
             for item in analyis_result_list:
                 if type(item) == list:
                     sample_list = sample_list + item
@@ -223,6 +223,51 @@ async def update_url(analysis_id,url):
         conn.execute(stmt)
     print(f"update Analysis {analysis_id} {url}")
 
+def list_analysis_v1(conn,query:QueryAnalysis):
+    conditions = []
+    if query.analysis_id:
+        conditions.append(t_analysis.c.analysis_id == query.analysis_id)
+    if query.analysis_method:
+        conditions.append(t_analysis.c.analysis_method == query.analysis_method)
+    if query.component_id:
+        conditions.append(t_analysis.c.component_id == query.component_id)
+    if query.project:
+        conditions.append(t_analysis.c.project == query.project)
+    if query.component_ids:
+        conditions.append(t_analysis.c.component_id.in_(query.component_ids))
+    if query.is_report:
+        conditions.append(t_analysis.c.is_report)
+    # t_sub_container = aliased(t_container)
+
+    stmt = select(
+        t_analysis,
+        t_pipeline_components.c.component_name.label("component_name"),
+        t_pipeline_components.c.order_index.label("component_order_index"),
+        # t_pipeline_components.c.label.label("component_label"),
+        t_pipeline_components.c.component_type.label("component_type"),
+        t_project.c.project_name.label("project_name"),
+        t_container.c.name.label("container_name"),
+        t_container.c.image.label("container_image"),
+        t_container.c.container_id.label("container_id"),
+        t_container.c.image_status.label("image_status"),
+        t_container.c.image_id.label("image_id")
+        # t_sub_container.c.name.label("sub_container_name"),
+        # t_sub_container.c.image.label("sub_container_image")
+    )
+
+    stmt = stmt.select_from(
+        t_analysis.outerjoin(t_pipeline_components,t_analysis.c.component_id==t_pipeline_components.c.component_id)
+        .outerjoin(t_project,t_analysis.c.project==t_project.c.project_id)
+        .outerjoin(t_container,t_pipeline_components.c.container_id==t_container.c.container_id)
+        # .outerjoin(t_sub_container,t_pipeline_components.c.sub_container_id==t_sub_container.c.container_id)
+        )
+    if conditions:
+        stmt = stmt.where(and_(*conditions) if len(conditions) > 1 else conditions[0])
+
+    # stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
+    # stmt = stmt.order_by(t_analysis.c.id.desc())
+    result = conn.execute(stmt).mappings().all()
+    return result
 
 def list_analysis(conn,query:QueryAnalysis):
     conditions = []
@@ -264,7 +309,27 @@ def list_analysis(conn,query:QueryAnalysis):
         )
     if conditions:
         stmt = stmt.where(and_(*conditions) if len(conditions) > 1 else conditions[0])
-    return conn.execute(stmt).mappings().all()
+
+    stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
+    stmt = stmt.order_by(t_analysis.c.id.desc())
+    result = conn.execute(stmt).mappings().all()
+    count_stmt = select(func.count()).select_from(t_analysis).where(and_(*conditions) if len(conditions) > 1 else conditions[0])
+    total = conn.execute(count_stmt).scalar()
+
+    formatted_result = []
+    for row in result:
+        new_row = dict(row)  # 转成普通字典
+        for field in ["created_at", "updated_at"]:
+            if field in new_row and new_row[field]:
+                new_row[field] = new_row[field].strftime("%Y-%m-%d %H:%M:%S")
+        formatted_result.append(new_row)
+
+    return {
+        "items": formatted_result,
+        "total":total,
+        "page_number":query.page_number,
+        "page_size":query.page_size
+    }
 
 
 def update_extra_project(conn,analysis_id,project):

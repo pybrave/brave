@@ -32,6 +32,7 @@ from brave.api.service.result_parse import script_analysis
 from brave.api.service.result_parse import nextflow_analysis
 from brave.api.service.result_parse.nextflow_analysis    import NextflowAnalysis
 from brave.api.service.result_parse.result_parse import ResultParse
+from brave.api.utils import file_utils
 from brave.api.utils.get_db_utils import get_ids
 from brave.api.config.config import get_settings
 from brave.api.routes.pipeline import get_pipeline_file
@@ -183,7 +184,19 @@ async def parse_analysis_result(
         file_format_list = params["file_format_list"]
         file_dict = analysis_service.get_file_dict(file_format_list,params['analysis']['output_dir'])
         # file_dict = find_file_dict(file_format_list,params['analysis']['output_dir'])   
-        return {"result_dict":result_dict,"file_format_list":file_format_list,"file_dict":file_dict}
+        # [item for item in result_dict.items()]
+        # pd.DataFrame()
+        for key,value in result_dict.items():
+            df = pd.DataFrame(value)
+            result_dict[key] = file_utils.get_table_content_by_df(df)
+        analysis= params['analysis']
+        return {
+            "analysis_id":analysis["analysis_id"],
+            "command_log_path":analysis["command_log_path"],
+            "job_status":analysis["job_status"],
+            "result_dict":result_dict,
+            "file_format_list":file_format_list,
+            "file_dict":file_dict}
 
 
 @analysis_api.post(
@@ -229,7 +242,7 @@ def build_tree(data):
 )
 async def list_analysis(query:QueryAnalysis):
     with get_engine().begin() as conn:
-        analysis_list = analysis_service.list_analysis(conn,query)
+        analysis_list = analysis_service.list_analysis_v1(conn,query)
     analysis_list = [dict(item) for item in analysis_list]
     sorted_data = sorted(
         analysis_list,
@@ -248,12 +261,13 @@ def delete_analysis(analysis_id: str):
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
         find_analysis_result = analysis_result_service.find_analysis_result_by_analysis_id(conn,analysis_id)
         if find_analysis_result:
-            raise HTTPException(status_code=500, detail=f"存在分析结果不能删除!")
+            raise HTTPException(status_code=500, detail=f"Existing analysis results cannot be deleted!")
         output_dir = find_analysis.output_dir
         # delete_all_in_dir(output_dir)
         if os.path.exists(output_dir):
+            print(f"delete dir: {output_dir}")
             shutil.rmtree(output_dir)
-            print(f"删除文件夹: {output_dir}")
+            
         conn.execute(analysis.delete().where(analysis.c.analysis_id == analysis_id))
 
     return {"message":"success"}

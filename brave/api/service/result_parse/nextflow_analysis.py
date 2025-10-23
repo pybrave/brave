@@ -36,14 +36,20 @@ class NextflowAnalysis(BaseAnalysis):
 
         return command
         
-    def write_config(self,output_dir,component_script):
+    def write_config(self,output_dir,component,more_params):
         script_config_file = f"{output_dir}/nextflow.config"
         script_config =  textwrap.dedent(f"""
         trace.overwrite = true
         docker{{
             enabled = true
-            runOptions = '--user $(id -u):$(id -g)'
+            runOptions = '--user $(id -u):$(id -g) {more_params.get("volumes","")}'
+                                         
         }}
+        trace {{
+            fields = 'task_id,tag,container,process,native_id,workdir,hash,name,status,exit,realtime,%cpu,cpus,%mem,memory,rss,vmem,read_bytes,write_bytes'
+            overwrite = true
+        }}
+
         """)
         with open(script_config_file, "w") as f:
             f.write(script_config)

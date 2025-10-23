@@ -28,7 +28,10 @@ class ResultParse:
                 params = analysis_service.get_parse_analysis_result_params(conn,self.analysis_id)
                 result_list,result_dict = analysis_service.execute_parse(**params)
                 # params,result_list,result_dict = self.analysis_result_parse_service.parse_analysis_result(conn,self.analysis_id,True)
-                print("result_list",json.dumps(result_list,indent=4))
+                # print("result_list",json.dumps(result_list,indent=4))
+                need_add_analysis_result_list = []
+                need_update_analysis_result_list = []
+                complete_analysis_result_list = []
                 for item in result_list:    
                     result = self.analysis_result_parse_service.find_analysis_result_exist(conn,self.analysis_id,item['component_id'],item['file_name'],item['project'],True)
                     if not result:
@@ -37,10 +40,11 @@ class ResultParse:
                             item['sample_id'] = find_sample['sample_id']
                         if save:
                             analysis_result_service.add_analysis_result(conn,item)
-                        analsyis = dict(params['analysis'])
-                        analsyis = Analysis(**analsyis)
-                        analysis_result = AnalysisResultParseModal(**item)
-                        await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_ADD, analsyis, analysis_result)
+                        # analsyis = dict(params['analysis'])
+                        # analsyis = Analysis(**analsyis)
+                        # analysis_result = AnalysisResultParseModal(**item)
+                        need_add_analysis_result_list.append(item)
+                        # await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_ADD, analsyis, analysis_result)
                         # await self.listener_files_service.execute_listener("analysis_result_add",{
                         #     "analysis":params['analysis'],
                         #     "analysis_result":item,
@@ -57,10 +61,26 @@ class ResultParse:
                         if item['analysis_result_hash']!= result['analysis_result_hash']:
                             if save:
                                 analysis_result_service.update_analysis_result(conn,result.id,item)
-                            analsyis = dict(params['analysis'])
-                            result = dict(result)
-                            analsyis = Analysis({**analsyis,**result})
-                            analysis_result = AnalysisResultParseModal(**item)
-                            await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_UPDATE, analsyis, analysis_result)
+                            # analsyis = dict(params['analysis'])
+                            # result = dict(result)
+                            # analsyis = Analysis(**analsyis)
+                            # analysis_result = AnalysisResultParseModal(**item)
+                            need_update_analysis_result_list.append(item)
+                        else:
+                            complete_analysis_result_list.append(item)
+
+                analsyis = dict(params['analysis'])
+                analsyis = Analysis(**analsyis)
+                # Deduplication based on analysis_result.component_id
+                analysis_result_component_id = set()
+                for analysis_result in need_add_analysis_result_list+ complete_analysis_result_list+ need_update_analysis_result_list:
+                    if analysis_result["component_id"] not in analysis_result_component_id:
+                        analysis_result_component_id.add(analysis_result["component_id"])
+                        analysis_result_modal = AnalysisResultParseModal(
+                            add_num=len(need_add_analysis_result_list),
+                            update_num=len(need_update_analysis_result_list),
+                            complete_num=len(complete_analysis_result_list),
+                            component_id=analysis_result["component_id"])
+                        await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_UPDATE, analsyis, analysis_result_modal)
         
         return result_list,result_dict,params

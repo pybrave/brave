@@ -18,11 +18,13 @@ class AnalysisResultQuery(BaseModel):
     rows:Optional[int]=None
 
 class AnalysisResultParseModal(BaseModel):
-    sample_id: Optional[str]
-    project: Optional[str]
+    # sample_id: Optional[str]
+    # project: Optional[str]
     component_id: Optional[str]
-    analysis_result_hash: Optional[str]
-    file_name: Optional[str]
+    add_num: Optional[int]=0
+    update_num: Optional[int]=0
+    complete_num: Optional[int]=0
+
 
 class AnalysisResult(BaseModel):
     id: Optional[int]
@@ -65,7 +67,7 @@ class ImportData(BaseModel):
     project: str
     content: str
     sample_name: Optional[str]=None
-    file_type: str
+    file_type: Optional[str]="individual"
     sample_source: str
     file_name: Optional[str]=None
     # content_type:Optional[str]="json"

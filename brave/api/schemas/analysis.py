@@ -18,6 +18,9 @@ class QueryAnalysis(BaseModel):
     component_ids: Optional[list[str]] =None
     is_report: Optional[bool] =None
     project: Optional[str]=None
+    page_number: Optional[int]=1
+    page_size: Optional[int]=10
+    keywords: Optional[str]=None
 
 class Analysis(BaseModel):
     id: Optional[int]
