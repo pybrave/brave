@@ -55,7 +55,7 @@ jobs:
       # 6. 发布到 PyPI
       - name: Publish to PyPI
         env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_USERNAME: "__token__"          # 注意固定写 __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
           twine upload --skip-existing dist/*
