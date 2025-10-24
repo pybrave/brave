@@ -69,7 +69,9 @@ docker run  --rm -p 63306:3306 \
 docker run --rm -it -p 5000:5000  \
     --network brave-net \
     -v  /var/run/docker.sock:/var/run/docker.sock \
-    -v /opt/brave/opt/brave \
+    -v /opt/brave:/opt/brave \
+    --user $(id -u):$(id -g) \
+     --group-add $(stat -c '%g' /var/run/docker.sock) \
     wybioinfo/pybrave \
     brave --mysql-url root:123456@brave-mysql:3306/brave \
     --base-dir /opt/brave 
