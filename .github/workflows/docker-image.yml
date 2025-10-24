@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: brave
-  DOCKERHUB_REPO: wybioinfo/brave
-  ACR_REPO: registry.cn-hangzhou.aliyuncs.com/wybioinfo/brave
+  IMAGE_NAME: pybrave
+  DOCKERHUB_REPO: wybioinfo/pybrave
+  ACR_REPO: registry.cn-hangzhou.aliyuncs.com/wybioinfo/pybrave
 
 jobs:
   build:
