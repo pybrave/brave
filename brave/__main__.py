@@ -5,13 +5,29 @@ import os
 from brave.api.config.db import init_engine
 # from brave.api.config.config import get_settings
 from brave.api.config.db import meta,Base
+from importlib.metadata import version, PackageNotFoundError
 
 app = typer.Typer()
 
 
+def version_callback(value: bool):
+  if value:
+        try:
+            pkg_version = version("pybrave")  # 这里写你的包名
+        except PackageNotFoundError:
+            pkg_version = "unknow"  # 如果包未安装
+        print(f"Brave Version {pkg_version}")
+        raise typer.Exit()
 
-@app.command()
+@app.command(help="Bioinformatics Reactive Analysis and Visualization Engine.  https://pybrave.github.io/brave-doc/")
 def main(
+    version: bool = typer.Option(
+        None,
+        "--version",
+        callback=version_callback,
+        is_eager=True,
+        help="Show the Brave's version.",
+    ),
     host: str = typer.Option("0.0.0.0", help="Host to bind"), 
     port: int =  typer.Option(5000, help="Port to bind"),
     reload: bool =  typer.Option(False, help="reload"),
@@ -28,7 +44,6 @@ def main(
     executer_type: str =typer.Option("docker", help="Executer Type [local, docker]")
     
     ):
-    
     
     # os.environ["DB_TYPE"] = db_type
     os.environ["EXECUTER_TYPE"] = executer_type
