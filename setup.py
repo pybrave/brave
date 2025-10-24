@@ -26,7 +26,8 @@ setup(
         "aiohttp",
         "Bio",
         "nbconvert",
-        "lxml"
+        "lxml",
+        "cryptography"
         ],
     entry_points={
         "console_scripts": [

@@ -1,8 +1,0 @@
-api:
-  insecure: true
-  debug: true
-entryPoints:
-  web:
-    address: ":80"
-providers:
-  docker: {}
