@@ -1,0 +1,61 @@
+name: Build UI + Publish Python Package
+
+on:
+  push:
+    tags:
+      - 'v*'  # 只有打 tag 才触发，比如 v1.0.0
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. 安装 Node（使用 nvm）并构建前端
+      - name: Set up Node with NVM
+        shell: bash
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+          source $NVM_DIR/nvm.sh
+          nvm install 22.17.1
+          nvm alias default 22.17.1
+          nvm use default
+          npm install -g yarn
+
+      - name: Clone and build brave-ui
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/pybrave/brave-ui.git /tmp/brave-ui
+          cd /tmp/brave-ui
+          yarn install --frozen-lockfile
+          yarn build
+          mkdir -p $GITHUB_WORKSPACE/brave/frontend/build
+          cp -r dist/* $GITHUB_WORKSPACE/brave/frontend/build/
+
+      # 3. 设置 Python 环境
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10.13'
+
+      # 4. 安装 Python 构建工具
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel twine
+
+      # 5. 构建 Python 包
+      - name: Build Python package
+        run: |
+          python setup.py sdist bdist_wheel
+
+      # 6. 发布到 PyPI
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: "__token__"          # 注意固定写 __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          twine upload --skip-existing dist/*
