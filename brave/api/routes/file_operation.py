@@ -27,7 +27,7 @@ async def read_file(file_path):
 
         # with open(file_path, 'r') as file:
         #     return file.read()
-        return file_operation_service.format_table_output(file_path)
+        return file_operation_service.format_table_output(file_path,300)
     except Exception as e:
         return f"{file_path}文件读取失败: {e}"
 

@@ -77,8 +77,8 @@ class AppManager:
         #     self.settings.bolt_url,
         #     auth=(self.settings.user, self.settings.password)
         # )
-
-        # self.graph  = Graph("bolt://localhost:7687", auth=("neo4j", "password"))
+        if settings.USE_NEO4J:
+            self.graph  = Graph("bolt://localhost:7687", auth=("neo4j", "password"))
 
         self.file_watcher_service = FileWatcherService(
             watch_path=watch_path,

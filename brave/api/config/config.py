@@ -32,6 +32,21 @@ class Settings:
         self.ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
         print(f"✅ Using ANALYSIS_DIR: {self.ANALYSIS_DIR}")
 
+
+
+        default_code_dir= f"{base_dir}/code"
+        code_dir = os.getenv("CODE_DIR",default_code_dir)
+        self.CODE_DIR = Path(code_dir).resolve()# / "data"
+        self.CODE_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Using CODE_DIR: {self.CODE_DIR}")
+
+        default_package_dir= f"{base_dir}/package"
+        package_dir = os.getenv("PACKAGE_DIR",default_package_dir)
+        self.PACKAGE_DIR = Path(package_dir).resolve()# / "data"
+        self.PACKAGE_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Using PACKAGE_DIR: {self.PACKAGE_DIR}")
+
+
         default_data_dir = f"{base_dir}/data"
         data_dir = os.getenv("DATA_DIR",default_data_dir)
         self.DATA_DIR = Path(data_dir).resolve()
@@ -105,7 +120,8 @@ class Settings:
 
         self.EXECUTER_TYPE = os.getenv("EXECUTER_TYPE")
         print(f"✅ Using EXECUTER_TYPE: {self.EXECUTER_TYPE}")
-        
+        os.getenv("USE_NEO4J",False)
+        self.USE_NEO4J = os.getenv("USE_NEO4J","False").lower() in ("true","1","yes")
 
 
 @lru_cache()

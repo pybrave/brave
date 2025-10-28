@@ -111,6 +111,7 @@ class DockerExecutor(JobExecutor):
         work_dir = str(settings.WORK_DIR)
         pipeline_dir = str(settings.PIPELINE_DIR)
         base_dir = str(settings.BASE_DIR)
+        package_dir = str(settings.PACKAGE_DIR)
         analysis_dir = str(settings.ANALYSIS_DIR)
         script_dir = os.path.dirname(job.pipeline_script)
         connom_script_dir = os.path.dirname(script_dir)
@@ -120,6 +121,8 @@ class DockerExecutor(JobExecutor):
             envionment = envionment.replace("$USERID", str(user_id))
             envionment = envionment.replace("$GROUPID", str(group_id))
             envionment = envionment.replace("$DOCKER_GROUPID", str(sock_gid))
+            envionment = envionment.replace("$R_PACKAGE_DIR", f"{package_dir}/R")
+            envionment = envionment.replace("$PYTHON_PACKAGE_DIR", f"{package_dir}/python")
 
             envionment = envionment.replace("$SCRIPT_DIR", script_dir)
             envionment = envionment.replace("$OUTPUT_DIR", job.output_dir)
@@ -208,6 +211,10 @@ class DockerExecutor(JobExecutor):
                     },
                     script_dir:{
                         "bind": script_dir,
+                        "mode": "rw"
+                    },
+                    package_dir:{
+                        "bind": package_dir,
                         "mode": "rw"
                     },
                     work_dir: {

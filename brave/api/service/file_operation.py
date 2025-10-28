@@ -73,7 +73,7 @@ def format_img_path(path):
         "url":f"/brave-api/analysis-dir{file_name}"
     }
 
-def format_table_output(path):
+def format_table_output(path,row_num=None):
     # pd.set_option("display.max_rows", 1000)     # 最多显示 1000 行
     # pd.set_option("display.max_columns", 500)   # 最多显示 500 列
     data = ""
@@ -101,7 +101,7 @@ def format_table_output(path):
         df =  pd.read_csv(path,sep="\t")
         # df = pd.read_csv(path,sep="\t")
         # data = json.loads(df.to_json(orient="records")) 
-        data = file_utils.get_table_content_by_df(df)
+        data = file_utils.get_table_content_by_df(df,row_num)
         data_type="table"
     elif path.endswith(".vis"):
         data_type = os.path.basename(path).replace(".vis","")
@@ -111,6 +111,11 @@ def format_table_output(path):
             data = json.load(f)
         # data = json.loads(df.to_json(orient="records")) 
         # data_type="kegg_map"
+    elif path.endswith(".diff"):
+        with open(path,"r") as f:
+            data = json.load(f)
+        data_type="diff"
+        order=11
     elif path.endswith("json"):
         with open(path,"r") as f:
             data = f.read()
@@ -186,7 +191,7 @@ async def visualization_results(path):
     images = await asyncio.gather(*tasks)
     # images = []
     tables = []
-    for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list"):
+    for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list","*.diff"):
         tables.extend(glob.glob(os.path.join(path, ext)))
     tables = [format_table_output(table) for table in tables]
     tables = sorted(tables, key=lambda x: x.get("order", 0), reverse=True)
