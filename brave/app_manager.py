@@ -85,7 +85,7 @@ class AppManager:
             user, password = user_pass.split(":", 1)
 
             self.graph = Graph(address, auth=(user, password))
-            self.graph  = Graph("bolt://localhost:7687", auth=("neo4j", "password"))
+            # self.graph  = Graph("bolt://localhost:7687", auth=("neo4j", "password"))
 
         self.file_watcher_service = FileWatcherService(
             watch_path=watch_path,
