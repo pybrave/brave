@@ -14,7 +14,7 @@ ENV PATH=$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 RUN git clone --depth 1 https://github.com/pybrave/brave-ui.git /tmp/brave-ui
 WORKDIR /tmp/brave-ui
 RUN yarn install --frozen-lockfile && yarn build
-
+RUN rm -rf /usr/local/share/.cache/yarn
 WORKDIR /app
 COPY . .
 RUN mkdir -p /app/brave/frontend/build && \
@@ -23,6 +23,7 @@ RUN mkdir -p /app/brave/frontend/build && \
 
 RUN pip install --no-cache-dir . 
 RUN rm -rf /tmp/brave-ui
+
 
 CMD ["brave"]
 # docker build -t  registry.cn-hangzhou.aliyuncs.com/wybioinfo/brave .
