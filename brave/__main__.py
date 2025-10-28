@@ -39,7 +39,7 @@ def main(
     package_dir: str =typer.Option(None, help="Package directory"),
     analysis_dir: str =typer.Option(None, help="Analysis directory"),
     data_dir: str =typer.Option(None, help="Data directory"),
-    use_neo4j: bool =typer.Option(False, help="Use Neo4j"),
+    neo4j_bolt: str =typer.Option(None, help="Neo4j bolt url neo4j:password@bolt://localhost:7687"),
     pipeline_dir: str =typer.Option(None, help="Pipeline directory"),
     literature_dir: str =typer.Option(None, help="Literature directory"),
     mysql_url: str =typer.Option(None, help="Mysql url"),
@@ -50,7 +50,8 @@ def main(
     
     # os.environ["DB_TYPE"] = db_type
     os.environ["EXECUTER_TYPE"] = executer_type
-    os.environ["USE_NEO4J"] = str(use_neo4j)
+    if neo4j_bolt:
+        os.environ["NEO4J_BOLT"] = neo4j_bolt
     if code_dir:
         os.environ["CODE_DIR"] = code_dir
     if package_dir:

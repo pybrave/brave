@@ -120,8 +120,9 @@ class Settings:
 
         self.EXECUTER_TYPE = os.getenv("EXECUTER_TYPE")
         print(f"✅ Using EXECUTER_TYPE: {self.EXECUTER_TYPE}")
-        os.getenv("USE_NEO4J",False)
-        self.USE_NEO4J = os.getenv("USE_NEO4J","False").lower() in ("true","1","yes")
+        self.NEO4J_BOLT = os.getenv("NEO4J_BOLT",None)
+        if self.NEO4J_BOLT:
+            print(f"✅ Using NEO4J_BOLT: {self.NEO4J_BOLT}")
 
 
 @lru_cache()
