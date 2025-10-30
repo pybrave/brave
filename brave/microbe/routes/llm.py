@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 # DeepSeek 官方兼容 OpenAI SDK
 # openai.api_base = "https://api.deepseek.com/v1"
 # openai.api_key =  "sk-" #os.getenv("DEEPSEEK_API_KEY")
-api_key = os.getenv("DEEPSEEK_API_KEY")
+api_key = os.getenv("DEEPSEEK_API_KEY","")
 llm_api = APIRouter(prefix="/llm", tags=["llm"])
 client = openai.OpenAI(
             api_key=api_key,
