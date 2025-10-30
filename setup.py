@@ -27,7 +27,8 @@ setup(
         "Bio",
         "nbconvert",
         "lxml",
-        "cryptography"
+        "cryptography",
+        "openai"
         ],
     entry_points={
         "console_scripts": [
