@@ -5,7 +5,7 @@ from py2neo import Graph, Node, Relationship
 
 from brave.api.config.db import get_engine
 from brave.microbe.schemas.entity import GraphQuery, PageEntity, RelationshipRequest,GraphQueryV2
-from brave.microbe.service import association_service, graph_service
+from brave.microbe.service import association_service, graph_service, study_service
 entity_relation_api = APIRouter(prefix="/entity-relation")
 
 @entity_relation_api.get("/test")
@@ -399,6 +399,14 @@ async def find_by_paired_entity(from_entity: str, to_entity: str):
             "to_id": record["to_id"]
         })
     
+    with get_engine().begin() as conn:
+        for rel in relationships:
+            prop = rel["properties"]
+            study_id = prop.get("study")
+            if study_id:
+                study = study_service.find_study_by_id(conn,study_id)
+                rel["study"] = study
+
     return relationships
 
 def delete_relationship_by_association_id(association_id: str):
