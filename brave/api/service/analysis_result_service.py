@@ -195,10 +195,10 @@ def find_analyais_result_by_ids( conn,value):
     analysis_result = [model_dump_one(item) for item in analysis_result]
     if len(analysis_result)!=len(ids):
         raise HTTPException(status_code=500, detail="数据存在问题!")
-    if not isinstance(value,list) and len(analysis_result)==1:
-        return analysis_result[0]
-    else:
-        return analysis_result
+    # if not isinstance(value,list) and len(analysis_result)==1:
+    #     return analysis_result[0]
+    # else:
+    return analysis_result
 
 def find_analysis_result_exist(conn,component_id,file_name,project):
     stmt = analysis_result.select().where(and_(

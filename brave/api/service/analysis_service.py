@@ -40,9 +40,11 @@ def get_parse_analysis_result_params(conn,analysis_id):
     else:
      
         component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
-        component_file_content_list = [{**json.loads(item.content),"component_id":item['component_id']} for item in component_file_list]
+        component_file_content_list = [{**json.loads(item.content),
+                                        "component_name":item["component_name"],
+                                        "component_id":item['component_id']} for item in component_file_list]
         file_format_list = [
-            {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
+            {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['component_name'],"component_id":item['component_id']}
             for item in component_file_content_list if 'fileFormat' in item
         ]
         # component_file_list = []

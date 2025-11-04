@@ -611,6 +611,10 @@ def  build_software_structure(id_to_node,children_map,root_item):
 def build_pipeline_structure(id_to_node,children_map,root_item):
     # node = id_to_node[pid]
     result = {**root_item}
+    edges = []
+    if "edges" in root_item and root_item["edges"]:
+        edges = json.loads(root_item["edges"])
+    edges_target_file_set = set( edge['targetHandle'] for edge in edges )
     items = []
     for child_id in children_map.get(root_item["component_id"], []):
         child = id_to_node[child_id]
@@ -649,10 +653,20 @@ def build_pipeline_structure(id_to_node,children_map,root_item):
             db for item in items if "upstreamFormJson" in item and isinstance(item["upstreamFormJson"],list) and len(item["upstreamFormJson"]) > 0   for db in item["upstreamFormJson"]
         ]
         result["software"] = items
-        if items and len(items) > 0 and "inputFile" in items[0]:
-            result["inputFile"] = items[0]["inputFile"]
-        else:
-            result["inputFile"] = []
+        # if items and len(items) > 0 and "inputFile" in items[0]:
+        #     result["inputFile"] = items[0]["inputFile"]
+        # else:
+        #     result["inputFile"] = []
+        input_file_list = [file for item in items if "inputFile" in item for file in item["inputFile"]]
+        inputFile = []
+        for file in input_file_list:
+            if file["component_id"] not in edges_target_file_set:
+                inputFile.append(file)
+        # for software in items:
+        #     if 
+
+
+        result["inputFile"] = inputFile
     return result
 
 

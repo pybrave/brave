@@ -311,9 +311,15 @@ class BaseAnalysis(ABC):
                 analysis_result["columns"] = columns
                 db_dict[k] = analysis_result
             else:
-                db_dict[k] = [ {**item,
-                    "selcted_group_name":groups_name.get(k),
-                    "re_groups_name":re_groups_name.get(k)}for item in v ]
+                ids = db_ids_dict[k]
+                if isinstance(ids,list):
+                    db_dict[k] = [ {**item,
+                        "selcted_group_name":groups_name.get(k),
+                        "re_groups_name":re_groups_name.get(k)}for item in v ]
+                else:
+                    db_dict[k] = {**v[0],
+                        "selcted_group_name":groups_name.get(k),
+                        "re_groups_name":re_groups_name.get(k)}
 
 
         # def get_columns(values,samples_dict,analsyis_result):

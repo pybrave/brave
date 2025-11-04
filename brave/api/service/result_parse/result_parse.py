@@ -24,6 +24,7 @@ class ResultParse:
 
     async def parse(self,save:bool=True):
         async with self.analysis_locks[self.analysis_id]:
+            analysis_result_component_id = set()
             with get_engine().begin() as conn:
                 params = analysis_service.get_parse_analysis_result_params(conn,self.analysis_id)
                 result_list,result_dict = analysis_service.execute_parse(**params)
@@ -72,15 +73,22 @@ class ResultParse:
                 analsyis = dict(params['analysis'])
                 analsyis = Analysis(**analsyis)
                 # Deduplication based on analysis_result.component_id
-                analysis_result_component_id = set()
+                
                 for analysis_result in need_add_analysis_result_list+ complete_analysis_result_list+ need_update_analysis_result_list:
                     if analysis_result["component_id"] not in analysis_result_component_id:
                         analysis_result_component_id.add(analysis_result["component_id"])
-                        analysis_result_modal = AnalysisResultParseModal(
-                            add_num=len(need_add_analysis_result_list),
-                            update_num=len(need_update_analysis_result_list),
-                            complete_num=len(complete_analysis_result_list),
-                            component_id=analysis_result["component_id"])
-                        await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_UPDATE, analsyis, analysis_result_modal)
+                        # analysis_result_modal = AnalysisResultParseModal(
+                        #     add_num=len(need_add_analysis_result_list),
+                        #     update_num=len(need_update_analysis_result_list),
+                        #     complete_num=len(complete_analysis_result_list),
+                        #     component_id=analysis_result["component_id"])
+                        # await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_UPDATE, analsyis, analysis_result_modal)
+        
+            analysis_result_modal = AnalysisResultParseModal(
+                add_num=len(need_add_analysis_result_list),
+                update_num=len(need_update_analysis_result_list),
+                complete_num=len(complete_analysis_result_list),
+                component_ids=list(analysis_result_component_id) )
+            await self.event_bus.dispatch(RoutersName.ANALYSIS_RESULT_ROUTER, AnalysisResultEvent.ON_ANALYSIS_RESULT_UPDATE, analsyis, analysis_result_modal)
         
         return result_list,result_dict,params

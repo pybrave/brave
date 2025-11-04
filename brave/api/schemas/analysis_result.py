@@ -20,7 +20,7 @@ class AnalysisResultQuery(BaseModel):
 class AnalysisResultParseModal(BaseModel):
     # sample_id: Optional[str]
     # project: Optional[str]
-    component_id: Optional[str]
+    component_ids: Optional[list]=None
     add_num: Optional[int]=0
     update_num: Optional[int]=0
     complete_num: Optional[int]=0

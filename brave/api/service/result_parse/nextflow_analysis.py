@@ -2,6 +2,8 @@ import json
 import os
 import textwrap
 from typing import Any, Optional
+
+from brave.api.config.config import get_settings
 from .base_analysis import BaseAnalysis
 import  brave.api.service.pipeline as pipeline_service
 from brave.api.core.evenet_bus import EventBus
@@ -38,11 +40,12 @@ class NextflowAnalysis(BaseAnalysis):
         
     def write_config(self,output_dir,component,more_params):
         script_config_file = f"{output_dir}/nextflow.config"
+        settings = get_settings()
         script_config =  textwrap.dedent(f"""
         trace.overwrite = true
         docker{{
             enabled = true
-            runOptions = '--user $(id -u):$(id -g) {more_params.get("volumes","")}'
+            runOptions = '--user $(id -u):$(id -g) -v {settings.ANALYSIS_DIR}:{settings.ANALYSIS_DIR}:rw  {more_params.get("volumes","")} '
                                          
         }}
         trace {{
