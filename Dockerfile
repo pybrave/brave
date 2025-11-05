@@ -1,33 +1,37 @@
-FROM python:3.10.18
-SHELL ["/bin/bash", "-c"]
-ENV NVM_DIR=/root/.nvm
-ENV NODE_VERSION=22.17.1
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
-    source $NVM_DIR/nvm.sh && \
-    nvm install $NODE_VERSION && \
-    nvm alias default $NODE_VERSION && \
-    nvm use default && \
-    npm install -g yarn
+# Stage 1: Build frontend
+# ============================
+FROM node:22-bullseye-slim AS frontend
 
-ENV PATH=$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
-
-RUN git clone --depth 1 https://github.com/pybrave/brave-ui.git /tmp/brave-ui
+# 减少缓存层
 WORKDIR /tmp/brave-ui
-RUN yarn install --frozen-lockfile && yarn build
-RUN rm -rf /usr/local/share/.cache/yarn
+COPY brave-ui/package.json brave-ui/yarn.lock ./
+RUN yarn install --frozen-lockfile
+
+# 构建前端
+COPY brave-ui ./
+RUN yarn build
+
+# ============================
+# Stage 2: Python backend
+# ============================
+FROM python:3.10-slim AS backend
+
+# 安装依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
+
+# 复制后端源码
 COPY . .
-RUN mkdir -p /app/brave/frontend/build && \
-    cp -r /tmp/brave-ui/dist/* /app/brave/frontend/build/
 
+# 从前端阶段复制 build 文件
+COPY --from=frontend /tmp/brave-ui/dist /app/brave/frontend/build
 
-RUN pip install --no-cache-dir . 
-RUN rm -rf /tmp/brave-ui
+# 安装 Python 包并清理缓存
+RUN pip install --no-cache-dir .
 
-
+# 设置默认启动命令
 CMD ["brave"]
-# docker build -t  registry.cn-hangzhou.aliyuncs.com/wybioinfo/brave .
-# docker run  --rm  -it -w $PWD -v $PWD:$PWD python:3.10.18 bash
-# docker  build --build-arg http_proxy=http://127.0.0.1:7890 
-# docker run  --rm   -v  /var/run/docker.sock:/var/run/docker.sock  -it -w $PWD -v $PWD:$PWD python:3.10.18 bash
-# registry.cn-hangzhou.aliyuncs.com/wybioinfo/pybrave
