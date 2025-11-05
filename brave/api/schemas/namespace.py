@@ -6,3 +6,4 @@ class SaveNamespace(BaseModel):
     namespace_id:Optional[str]=None
     volumes:Optional[str]=None
     resources:Optional[str]=None
+    queue_size:Optional[int]=10

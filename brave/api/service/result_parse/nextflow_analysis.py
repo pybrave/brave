@@ -41,8 +41,14 @@ class NextflowAnalysis(BaseAnalysis):
     def write_config(self,output_dir,analysis_id,component,more_params):
         script_config_file = f"{output_dir}/nextflow.config"
         settings = get_settings()
+        
+        # executor.queueSize = 6
+        executor_queue_size = ""
+        if "queue_size" in more_params:
+            executor_queue_size = f"executor.queueSize = {more_params['queue_size']}"
 
         script_config =  textwrap.dedent(f"""
+        {executor_queue_size}
         trace.overwrite = true
         docker{{
             enabled = true

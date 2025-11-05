@@ -89,6 +89,10 @@ class BaseAnalysis(ABC):
                     f"{key}=\"{value}\""
                     for key, value in json.loads(used_namespace.resources).items()
                 ])
+            if used_namespace.queue_size:
+                more_params["queue_size"] = used_namespace.queue_size
+     
+        
 
         output_dir=None
         work_dir=None

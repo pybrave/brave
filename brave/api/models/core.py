@@ -230,6 +230,7 @@ t_namespace = Table(
     Column("name", String(255)),
     Column("volumes", Text().with_variant(LONGTEXT(), "mysql")),
     Column("resources", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("queue_size", Integer, default=10),
     Column("is_use",  Boolean, default=False),
 )
 
