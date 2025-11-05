@@ -1,3 +1,4 @@
+import asyncio
 from anyio import Event
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
@@ -555,14 +556,15 @@ async def stop_analysis(
         analysis_ = result.mappings().first()
         if analysis_ is None:
             raise HTTPException(status_code=404, detail="Analysis not found")
-        
+        analysis_service.finished_analysis_(conn,analysis_id,run_type,"stopping")
+
         run_id = f"{run_type}-{analysis_id}"
         analysis_ = AnalysisExecuterModal(**analysis_,run_id=run_id)
         
         # stmt = analysis.update().values({"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
         # conn.execute(stmt)
 
-        await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_)
+        asyncio.create_task(evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_))
         
     
         return {"msg":"success"}

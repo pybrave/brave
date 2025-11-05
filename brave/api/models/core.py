@@ -229,6 +229,7 @@ t_namespace = Table(
     Column("namespace_id", String(255)),
     Column("name", String(255)),
     Column("volumes", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("resources", Text().with_variant(LONGTEXT(), "mysql")),
     Column("is_use",  Boolean, default=False),
 )
 

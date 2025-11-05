@@ -55,6 +55,8 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
             payload.run_type = "server"
         elif run_id.startswith("retry-"):
             payload.run_type = "retry"
+        elif run_id.startswith("nxf-"):
+            payload.run_type = "nxf"
         else:
             raise ValueError(f"Invalid run_id format: {run_id}")
             

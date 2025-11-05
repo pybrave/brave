@@ -49,7 +49,7 @@ class BaseAnalysis(ABC):
         pass
     
     @abstractmethod
-    def write_config(self,output_dir,component,more_params) -> str:
+    def write_config(self,output_dir,analysis_id,component,more_params) -> str:
         pass
     
   
@@ -77,14 +77,19 @@ class BaseAnalysis(ABC):
         #     module_dir = component_content['moduleDir']
         more_params = {}
         used_namespace = namespace_service.get_used_namespace(conn)
-        if used_namespace and used_namespace.volumes:
-            volumes_dict = json.loads(used_namespace.volumes)
-            more_params["volumes"] = " ".join([
-                f"-v {host}:{conf['bind']}:{conf.get('mode', 'rw')}"
-                for host, conf in volumes_dict.items()
-            ])
+        if used_namespace:
+            if used_namespace.volumes:
+                volumes_dict = json.loads(used_namespace.volumes)
+                more_params["volumes"] = " ".join([
+                    f"-v {host}:{conf['bind']}:{conf.get('mode', 'rw')}"
+                    for host, conf in volumes_dict.items()
+                ])
+            if used_namespace.resources:
+                more_params["process"] = "\n\t".join([
+                    f"{key}=\"{value}\""
+                    for key, value in json.loads(used_namespace.resources).items()
+                ])
 
-        
         output_dir=None
         work_dir=None
         result = None
@@ -109,7 +114,7 @@ class BaseAnalysis(ABC):
             if  result.job_status != "running":
                 new_analysis["job_status"] = "updated"
             # new_analysis['output_format'] = parse_analysis_result_module
-            self.write_config(output_dir,component,more_params)
+            self.write_config(output_dir,result.analysis_id,component,more_params)
 
             stmt = t_analysis.update().values(new_analysis).where(t_analysis.c.analysis_id==request_param['analysis_id'])
             conn.execute(stmt)
@@ -176,7 +181,6 @@ class BaseAnalysis(ABC):
             # """)
     
             
-            script_config_file = self.write_config(output_dir,component,more_params)
             # script_config_file = f"{output_dir}/nextflow.config"
             # script_config =  textwrap.dedent(f"""
             # trace.overwrite = true
@@ -195,6 +199,9 @@ class BaseAnalysis(ABC):
             new_analysis['trace_file'] = trace_file
             new_analysis['workflow_log_file'] = workflow_log_file
             new_analysis['executor_log_file'] = executor_log
+
+            script_config_file = self.write_config(output_dir,str_uuid,component,more_params)
+
             new_analysis['script_config_file'] = script_config_file
             new_analysis['command_log_path'] = command_log_path
             # new_analysis['container_id'] = component["container_id"]

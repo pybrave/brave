@@ -37,6 +37,8 @@ class JobExecutor(ABC):
 
     async def refresh_list_running(self):
         pass
+    def find_running_containers(self,label_filter):
+        pass
 
     async def list_running(self):
         return []

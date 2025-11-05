@@ -51,6 +51,9 @@ class DockerExecutor(JobExecutor):
         程序启动时调用：
         从数据库查询所有运行中分析，恢复对应容器监控
         """
+        containers = [container for container in containers if container.labels.get("type")=="job" 
+                      or container.labels.get("type")=="server"
+                      or container.labels.get("type")=="retry"]
         containers = {container.name:container for container in containers}
         self.containers.update(containers)
         with get_engine().begin() as conn:  
@@ -362,10 +365,25 @@ class DockerExecutor(JobExecutor):
         except Exception as e:
             print(f"Error stopping container {job_id}: {e}")
             pass
-    
+    # use
+    def remove_container_list(self,container_list):
+        for container in container_list:
+            try:
+                container.remove(force=True)
+            except Exception as e:
+                print(f"Error removing container {container['id']}: {e}")
+                pass    
+
     async def remove_job(self, job_id: str) -> None:
         try:
-            self.client.containers.get(job_id).remove(force=True)
+            if job_id.startswith("job-"):
+                analysis_id = job_id.replace("job-","")
+                label_filter = {"label": f"analysis_id={analysis_id}"}
+                containers = self.find_running_containers(label_filter)
+                containers = [container for container in containers if not container.name.startswith("server-")]
+                await asyncio.to_thread(self.remove_container_list,containers)
+            else:
+                self.client.containers.get(job_id).remove(force=True)
             self._list_running()
         except Exception as e:
             print(f"Error removing container {job_id}: {e}")
@@ -377,6 +395,10 @@ class DockerExecutor(JobExecutor):
             return tags[0]
         else:
             return "<none>:<none>"
+        
+    def find_running_containers(self,label_filter) :
+        containers =  self.client.containers.list(all=True, filters=label_filter)
+        return containers
 
         
     def _list_running(self,recover=False) :

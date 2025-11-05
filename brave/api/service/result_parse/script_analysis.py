@@ -32,6 +32,6 @@ class ScriptAnalysis(BaseAnalysis):
             """)
         return command
     
-    def write_config(self,output_dir,component,more_params):
+    def write_config(self,output_dir,analysis_id,component,more_params):
         script_config_file = f"{output_dir}/main.config"
         return script_config_file

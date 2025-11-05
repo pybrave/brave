@@ -1,6 +1,7 @@
 
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.params import Body
 from brave.api.config.config import get_settings
 from brave.api.core.evenet_bus import EventBus
 from brave.api.core.event import AnalysisExecutorEvent
@@ -245,3 +246,25 @@ async def list_running_container(
     else:
         return await job_executor.list_running()
     
+
+def get_image_name(container):
+    tags = container.image.tags
+    if tags and len(tags) > 0:
+        return tags[0]
+    else:
+        return "<none>:<none>"
+
+def get_container_analysis_id(container):
+    labels = container.labels
+    if "analysis_id" in labels:
+        return labels["analysis_id"]
+    else:
+        return ""
+@container_controller.post("/find-running-container", tags=['container'])
+@inject
+async def find_running_containers(label_filter: dict = Body(...), job_executor: JobExecutor = Depends(Provide[AppContainer.job_executor_selector])):
+    label_str = ",".join(f"{k}={v}" for k, v in label_filter.items())
+    label_filter = {"label": label_str}
+    containers =  job_executor.find_running_containers(label_filter)
+    containers = [{"status": container.status,"analysis_id":get_container_analysis_id(container),"image_id": container.image.id,"image": get_image_name(container), "run_id": container.name, "name": container.name, "id": container.id} for container in containers]
+    return containers
