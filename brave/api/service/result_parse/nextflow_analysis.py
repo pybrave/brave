@@ -41,11 +41,12 @@ class NextflowAnalysis(BaseAnalysis):
     def write_config(self,output_dir,analysis_id,component,more_params):
         script_config_file = f"{output_dir}/nextflow.config"
         settings = get_settings()
+
         script_config =  textwrap.dedent(f"""
         trace.overwrite = true
         docker{{
             enabled = true
-            runOptions = '--label project=brave  --label analysis_id={analysis_id} --user $(id -u):$(id -g) -v {settings.ANALYSIS_DIR}:{settings.ANALYSIS_DIR}:rw  {more_params.get("volumes","")} '
+            runOptions = '--label project=brave  --label analysis_id={analysis_id} --user $(id -u):$(id -g) -v {settings.WORK_DIR}:{settings.WORK_DIR}:rw -v {settings.ANALYSIS_DIR}:{settings.ANALYSIS_DIR}:rw  {more_params.get("volumes","")} '
                                          
         }}
         trace {{
