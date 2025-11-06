@@ -307,7 +307,7 @@ class BaseAnalysis(ABC):
                         for item in columns
                     ]
                     columns = [ {**item,
-                        "selcted_group_name":groups_name[k].get(item),
+                        "selcted_group_name":groups_name[k].get(column_group),
                         "re_groups_name":re_groups_name[k].get(column_group)}for item in columns ]
                     analysis_result[column_group] = columns
 

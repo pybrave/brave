@@ -623,7 +623,10 @@ async def get_cache_params(analysis_result_parse_service:AnalysisResultParse = D
 
 
 def format_form_json_item(item):
-    if item.get("db") and item.get("db")==True:
+    if item.get("type") =='CollectedGroupSelectSampleButton':
+        item["type"] = "CollectedSimplpeGroupSelect"
+        
+    elif item.get("db") and item.get("db")==True:
         item["type"] = "SimplpeGroupSelect"
     return item
 
