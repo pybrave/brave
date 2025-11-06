@@ -266,19 +266,12 @@ class BaseAnalysis(ABC):
         if not module_info:
             raise HTTPException(status_code=500, detail=f"组件{component['component_id']}的输入解析模块没有找到!")
         py_module = module_info['module']
-        # module_name = f'brave.api.parse_analysis.{module_name}'
-        # if importlib.util.find_spec(module) is None:
-        #     print(f"{module_name}不存在!")
-        # else:
+    
         module = importlib.import_module(py_module)
 
         
 
-        ## 查找输入字段
-        
-        # if hasattr(module,"get_db_field"):
-        #     get_db_field = getattr(module, "get_db_field")
-        #     db_field = get_db_field()
+    
         db_ids_dict = {key: get_ids(request_param[key]) for key in query_name_list if key in request_param}
         db_dict = { key:analysis_result_service.find_analyais_result_by_ids(conn,value) for key,value in  db_ids_dict.items()}
         project_list = [item["project"] for item_list in db_dict.values() for item in item_list]
@@ -289,46 +282,47 @@ class BaseAnalysis(ABC):
             metadata_form = [json.loads(item["metadata_form"]) for item in project_list if item["metadata_form"]]
             metadata_form = [item for item_list in metadata_form for item in item_list if item is not None]
 
-        groups_name = {key:get_group(request_param[key]) for key in query_name_list if key in request_param }
-        re_groups_name = {key:get_re_group(request_param[key]) for key in query_name_list if key in request_param }
-        colors = {key:get_colors(request_param[key]) for key in query_name_list if key in request_param }
+        
         samples_dict = {}
         if "project" in request_param:
             samples_list = sample_service.find_by_project(conn,request_param["project"])
             samples_dict = { sample["sample_name"]:sample for sample in samples_list}
         
-
-
-        # analysis_result_file ={}
-        # if "analysis_result_id" in request_param:
-        #     analysis_result = analysis_result_service.find_by_analysis_result_id(conn,request_param['analysis_result_id'])
-        #     analysis_result_file = dict(analysis_result)
+        groups_name = {key:get_group(request_param[key]) for key in query_name_list if key in request_param }
+        re_groups_name = {key:get_re_group(request_param[key]) for key in query_name_list if key in request_param }
+        colors = {key:get_colors(request_param[key]) for key in query_name_list if key in request_param }
         
         for k,v in db_dict.items():
            
-            
-            # v["re_groups_name"] = 
-            # v["selcted_group_name"] = groups_name.get(k)
             query_form = query_name_dict.get(k,{})
-            if query_form["type"] =="CollectedGroupSelectSampleButton":
+            query_form_type = query_form["type"]
+            if query_form_type =="CollectedGroupSelectSampleButton" and "columns"in query_form:
                 analysis_result = v[0]
-                columns = request_param[k]["columns"]
-                columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
-                    for item in columns
-                ]
-                columns = [ {**item,
-                    "selcted_group_name":groups_name.get(k),
-                    "re_groups_name":re_groups_name.get(k)}for item in columns ]
-                analysis_result["columns"] = columns
+                columns = query_form["columns"]
+                analysis_result["form_type"] = query_form_type
+                analysis_result["groups"] = columns
+                for column_group in columns:
+                    columns = request_param[k][column_group]
+                    columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
+                        for item in columns
+                    ]
+                    columns = [ {**item,
+                        "selcted_group_name":groups_name[k].get(item),
+                        "re_groups_name":re_groups_name[k].get(column_group)}for item in columns ]
+                    analysis_result[column_group] = columns
+
                 db_dict[k] = analysis_result
             else:
                 ids = db_ids_dict[k]
+                # for single select
                 if isinstance(ids,list):
                     db_dict[k] = [ {**item,
+                        "form_type":query_form_type,
                         "selcted_group_name":groups_name.get(k),
                         "re_groups_name":re_groups_name.get(k)}for item in v ]
                 else:
                     db_dict[k] = {**v[0],
+                        "form_type":query_form_type,
                         "selcted_group_name":groups_name.get(k),
                         "re_groups_name":re_groups_name.get(k)}
 

@@ -34,21 +34,34 @@ from brave.api.utils.from_glob_get_file import from_glob_get_file
 #     else:
 #         return os.path.dirname(file)
 
-def parse(dir_path,file_format,sample_list):
-
-    form_data = from_glob_get_file(file_format, dir_path)
-    sample_list_dict = {item['sample_name']:item for item in sample_list}
-    #  analysis_key,software,content_type,content
-    result_data = [
-        {
-            "file_name": item['sample_name'],
-            "sample_source": sample_list_dict.get(item['sample_name'], {}).get('sample_source'),
-            # "sample_name": item['sample_name'], # analysis result 表中没有 sample_name 字段
-            "content_type": "json",
-            "content":json.dumps({k:v for k,v in item.items() if k != 'sample_name'   }),
-        }
-        for item in form_data   ]
-    return result_data
+def parse(dir_path,file_format,sample_list,file_type):
+    if file_type == "collected":
+        form_data = from_glob_get_file(file_format, dir_path)
+        sample_list_dict = {item['sample_name']:item for item in sample_list}
+        #  analysis_key,software,content_type,content
+        result_data = [
+            {
+                "file_name": item['sample_name'],
+                "sample_source": sample_list_dict.get(item['sample_name'], {}).get('sample_source'),
+                "content_type": "json",
+                "content":v
+            }
+             for item in form_data  for k,v in item.items() if k != 'sample_name'   ]
+        return result_data
+    else:
+        form_data = from_glob_get_file(file_format, dir_path)
+        sample_list_dict = {item['sample_name']:item for item in sample_list}
+        #  analysis_key,software,content_type,content
+        result_data = [
+            {
+                "file_name": item['sample_name'],
+                "sample_source": sample_list_dict.get(item['sample_name'], {}).get('sample_source'),
+                # "sample_name": item['sample_name'], # analysis result 表中没有 sample_name 字段
+                "content_type": "json",
+                "content":json.dumps({k:v for k,v in item.items() if k != 'sample_name'   }),
+            }
+            for item in form_data   ]
+        return result_data
 
 
     # if not replace_map:

@@ -13,6 +13,10 @@ def get_ids(values):
 def get_group(values):
     if isinstance(values, dict):
         if "group" in  values:
+            if type(values["group"]) is dict:
+                group_dict = values["group"]
+                return { k:"-".join(v) for k,v in group_dict.items()}
+
             if len(values["group"]) ==1:
                 return values["group"][0]
             elif len(values["group"]) >1:

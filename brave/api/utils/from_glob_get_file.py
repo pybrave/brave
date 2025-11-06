@@ -15,7 +15,7 @@ def from_glob_get_file(content,dir=None):
     settings = get_settings()
     form_data = {}
     for k,v in content.items():
-        if dir: 
+        if dir : 
             pattern_str = f"{dir}/{v}".strip()
         else:
             pattern_str = v.strip()
