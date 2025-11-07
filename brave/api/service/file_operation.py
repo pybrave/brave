@@ -13,6 +13,7 @@ import fitz  # PyMuPDF
 import base64
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import copy
 
 from brave.api.utils import file_utils
 
@@ -58,19 +59,31 @@ def format_img_path(path):
     # print(f"Processing {path} in thread: {threading.current_thread().name}")
     settings = get_settings()
     base_dir = settings.ANALYSIS_DIR
-    file_name = path.replace(str(base_dir),"")
-    img_data = f"/brave-api/analysis-dir{file_name}"
-    if path.endswith("pdf"):
+    path_name = path.replace(str(base_dir),"")
+    img_data = f"/brave-api/analysis-dir{path_name}"
+    filename = os.path.basename(path)
+    if  path.endswith(".download.pdf"):
+        
+        img_data = f"/brave-api/analysis-dir{path_name}".replace(".download.pdf",".png")
+        filename = filename.replace(".download.pdf","")
+        # pdf_file = "example.pdf"
+        # b64 = pdf_page_to_base64(path, page_number=0, zoom=2)
+        # img_data = f"data:image/png;base64,{b64}"
+    elif path.endswith("pdf"):
         # pdf_file = "example.pdf"
         b64 = pdf_page_to_base64(path, page_number=0, zoom=2)
         img_data = f"data:image/png;base64,{b64}"
+        filename = filename.replace(".pdf","")
+    else:
+        filename = filename.replace(".png","")
+        # b64 = base64.b64encode(open(path
     # print("data:image/png;base64," + b64[:200] + "...")  # 打印前200字符
     # img_base64 = base64.b64encode(open(path, 'rb').read()).decode('utf-8')
     return {
         "data":img_data,
         "type":"img",
-        "filename":os.path.basename(path),
-        "url":f"/brave-api/analysis-dir{file_name}"
+        "filename":filename,
+        "url":f"/brave-api/analysis-dir{path_name}"
     }
 
 def format_table_output(path,row_num=None):
@@ -181,6 +194,7 @@ async def visualization_results(path):
         html_list.extend(glob.glob(os.path.join(path, ext)))
     html_list = [format_html_output(html) for html in html_list]
     
+   
     # images = [format_img_path(image) for image in images]
        # 多线程处理
     # with ThreadPoolExecutor(max_workers=8) as executor:
@@ -189,6 +203,17 @@ async def visualization_results(path):
 
     tasks = [asyncio.to_thread(format_img_path, img) for img in images]
     images = await asyncio.gather(*tasks)
+    grouped_images = defaultdict(list)
+    for item in images:
+        grouped_images[item["filename"]].append(item)
+
+    merged_images = []
+    for data_val, group in grouped_images.items():
+        # 拷贝第一项作为基础
+        merged_item = copy.deepcopy(group[0])
+        merged_item["urls"] = [{ "format":os.path.splitext(g["url"])[1][1:],
+                                "url":g["url"]} for g in group]
+        merged_images.append(merged_item)
     # images = []
     tables = []
     for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list","*.diff"):
@@ -202,7 +227,7 @@ async def visualization_results(path):
     # textList = [format_text_output(text) for text in textList]
 
     return {
-        "images": images,
+        "images": merged_images,
         "tables": tables,
         "htmls":html_list
     }
