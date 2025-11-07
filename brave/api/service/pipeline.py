@@ -545,6 +545,8 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
     # with get_engine().begin() as conn:
     # [dict(item) for item in data]
     data = conn.execute(final_query).mappings().all()
+    unique_data = {row["relation_id"]: row for row in data}
+    data = list(unique_data.values())
     if  len(data) < 0:
         raise HTTPException(status_code=500, detail=f"{name}没有找到!")  
     id_to_node = {(item["component_id"], item["relation_type"]): get_one_data(item) for item in data}
