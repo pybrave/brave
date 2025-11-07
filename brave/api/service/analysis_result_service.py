@@ -30,7 +30,7 @@ def find_analyais_result_groupd_by_component_ids(conn,component_ids,projectList)
         #     item["metadata_form"] = json.loads(item["metadata_form"])
     grouped = defaultdict(list)
     for item in result_dict:
-        item["label"] = item["sample_name"]
+        item["label"] = item["sample_name"] or item.get("file_name","")
         item["value"] = item["id"]
         grouped[item["component_id"]].append(item)
     return grouped

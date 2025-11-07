@@ -270,7 +270,7 @@ async def list_analysis_result(analysisResultQuery:AnalysisResultQuery):
         #     item["metadata_form"] = json.loads(item["metadata_form"])
     grouped = defaultdict(list)
     for item in result_dict:
-        item["label"] = item["sample_name"]
+        item["label"] = item["sample_name"] or item.get("file_name","")
         item["value"] = item["id"]
         grouped[item["component_id"]].append(item)
     for item in analysisResultQuery.component_ids:
