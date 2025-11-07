@@ -360,6 +360,8 @@ class BaseAnalysis(ABC):
             form_json = component['formJson']
             form_json_names = [item['name'] for item in form_json if item["type"]!="Divider"]
             extra_dict = {key: request_param[key] for key in form_json_names if key in request_param}
+            inner_params =  {k:v for k,v in  request_param.items() if k.startswith("__")}
+            extra_dict.update(inner_params)
 
         
         database_dict={}
