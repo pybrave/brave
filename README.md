@@ -40,5 +40,12 @@ The default installation location is `$HOME/brave-install`, but you can specify 
 curl -s https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/install.sh  | bash -s --  --aliyun --base-dir /opt/brave
 ```
 
+## Install Componnet
+```
+cd $HOME/brave-install/store
+git clone https://github.com/pybrave/quick-start.git
+# UI: Workflow -> Intsall Components
+```
+
 
 
