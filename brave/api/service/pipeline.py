@@ -787,7 +787,7 @@ def write_component_json(component_id):
             parent_component_ids = [ item['parent_component_id'] for item in component_relation_list ]
             component_list = find_component_list_in_ids(conn,parent_component_ids)
             component_list.append(current_component)
-        elif component_type =="file":
+        elif component_type =="file" or component_type =="software" or component_type =="pipeline":
         #     component_list = [current_component]
         #     component_relation_list = []
         # elif component_type =="software" or component_type =="pipeline":
