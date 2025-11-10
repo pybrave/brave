@@ -23,58 +23,22 @@ Once a Nextflow pipeline or visualization script is developed, it can be publish
 </p>
 
 
-
-
-## Installation
+## Quick installation
 ```
-pip install pybrave
-```
-
-## Usage
-```
-brave
+curl -s https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/install.sh  | bash
 ```
 + <http://localhost:5000>
 
 
-## Docker
+Use Alibaba Cloud mirror
 ```
-docker run --rm -it -p 5000:5000  \
-     -v  /var/run/docker.sock:/var/run/docker.sock \
-    wybioinfo/pybrave
+curl -s https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/install.sh  | bash -s --  --aliyun
 ```
 
->  registry.cn-hangzhou.aliyuncs.com/wybioinfo/pybrave
+The default installation location is `$HOME/brave-install`, but you can specify the installation location using the `--base-dir` parameter.
+```
+curl -s https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/install.sh  | bash -s --  --aliyun --base-dir /opt/brave
+```
 
-## Docker + MySQL
-```
-docker network create brave-net
-```
-```
-docker run  --rm -p 63306:3306 \
-    --name brave-mysql \
-     --network brave-net \
-    -e MYSQL_ROOT_PASSWORD=123456  \
-    -e LANG=C.UTF-8 \
-    --shm-size=10G \
-    -v /opt/brave/databases:/var/lib/mysql \
-    -e MYSQL_DATABASE=brave \
-    registry.cn-hangzhou.aliyuncs.com/wybioinfo/mysql:8.0.21 
-    --default-authentication-plugin=mysql_native_password \
-    --character-set-server=utf8mb4 \
-    --lower-case-table-names=1 \
-    --collation-server=utf8mb4_0900_ai_ci 
-```
-```
-docker run --rm -it -p 5000:5000  \
-    --network brave-net \
-    -v  /var/run/docker.sock:/var/run/docker.sock \
-    -v /opt/brave:/opt/brave \
-    --user $(id -u):$(id -g) \
-     --group-add $(stat -c '%g' /var/run/docker.sock) \
-    wybioinfo/pybrave \
-    brave --mysql-url root:123456@brave-mysql:3306/brave \
-    --base-dir /opt/brave 
-```
->    --use-https 
+
 
