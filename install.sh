@@ -2,13 +2,18 @@
 set -euo pipefail
 
 #----------------------------------------------------
-# Parse arguments
+# Default configurations
 #----------------------------------------------------
 IMAGE_SOURCE="dockerhub"  # default
+BASE_DIR=$HOME/brave-install
 
+
+#----------------------------------------------------
+# Parse arguments
+#----------------------------------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dockerhub)
+    --dockerhub|--local)
       IMAGE_SOURCE="dockerhub"
       shift
       ;;
@@ -16,14 +21,17 @@ while [[ $# -gt 0 ]]; do
       IMAGE_SOURCE="aliyun"
       shift
       ;;
+    --base-dir)
+      BASE_DIR="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--aliyun|--dockerhub]"
+      echo "Usage: $0 [--aliyun|--dockerhub] [--base-dir /path/to/brave]"
       exit 1
       ;;
   esac
 done
-
 #----------------------------------------------------
 # Select images based on the source
 #----------------------------------------------------
@@ -42,7 +50,6 @@ fi
 NETWORK=brave-net
 MYSQL_CONTAINER=brave-mysql
 BRAVE_CONTAINER=brave
-BASE_DIR=$HOME/brave-install
 
 #----------------------------------------------------
 # MySQL configuration
@@ -57,6 +64,15 @@ info() { echo -e "\033[1;34m[INFO]\033[0m $*"; }
 success() { echo -e "\033[1;32m[SUCCESS]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
+
+#----------------------------------------------------
+# Start process
+#----------------------------------------------------
+info "Using image source: $IMAGE_SOURCE"
+info "Base directory: $BASE_DIR"
+
+[ ! -d "$BASE_DIR" ] &&  mkdir -p "$BASE_DIR"
+
 
 #----------------------------------------------------
 # Pull required images
@@ -141,4 +157,5 @@ docker run -d \
 #----------------------------------------------------
 success "Brave started successfully!"
 info "Access URL: http://localhost:5000"
+info "BASE_DIR: $BASE_DIR"
 info "View logs: docker logs -f $BRAVE_CONTAINER"
