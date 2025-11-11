@@ -33,8 +33,14 @@ class BaseAnalysis(ABC):
     #     pass
     def _get_query_db_field(self,conn,component):
         if component['component_type']=="software":
-            component_file_list = pipeline_service.find_component_by_parent_id(conn,component['component_id'],"software_input_file")
-            component_file_name_list = {json.loads(item.content)['name']:json.loads(item.content) for item in component_file_list}
+            component_file_name_list = {}
+            if "reInputFile" in component:
+                re_input_file = component['reInputFile']
+                component_file_name_list = {item['name']:item for item in re_input_file}
+            else:
+                component_file_list = pipeline_service.find_component_by_parent_id(conn,component['component_id'],"software_input_file")
+                component_file_name_list = {json.loads(item.content)['name']:json.loads(item.content) for item in component_file_list}
+                
             return component_file_name_list
         elif component['component_type'] == "script":
             if "formJson" in component:
@@ -354,6 +360,8 @@ class BaseAnalysis(ABC):
             upstream_form_json = component['upstreamFormJson']
             upstream_form_json_names = [item['name'] for item in upstream_form_json]
             extra_dict = {key: request_param[key] for key in upstream_form_json_names if key in request_param}
+            inner_params =  {k:v for k,v in  request_param.items() if k.startswith("__")}
+            extra_dict.update(inner_params)
 
 
         if "formJson" in component:
