@@ -626,8 +626,10 @@ def format_form_json_item(item):
     if item.get("type") =='CollectedGroupSelectSampleButton':
         item["type"] = "CollectedSimplpeGroupSelect"
         
-    elif item.get("db") and item.get("db")==True:
+    elif item.get("type") =="GroupSelectSampleButton":
         item["type"] = "SimplpeGroupSelect"
+    elif item.get("db") and item.get("db")==True:
+        item = None
     return item
 
 @analysis_api.get("/analysis/visualization-results/{analysis_id}")
@@ -666,6 +668,7 @@ async def visualization_results(analysis_id):
     else:
         file_result['form_json'] = []
 
+    file_result['form_json'] = [item for item in file_result['form_json'] if item is not None]
 
 
     return file_result
