@@ -86,6 +86,8 @@ def parse_kgml(pathway_id: str):
             name = [item.replace("cpd:","") for item in name]
         elif type_ == "ortholog":
             name = [item.replace("ko:","") for item in name]
+        elif type_ == "group":
+            continue
         g = entry.find("graphics")
         if g is None:
             continue
