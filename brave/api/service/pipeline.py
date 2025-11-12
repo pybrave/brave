@@ -482,13 +482,10 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
     base = (select(
         t_pipeline_components.c.component_id,
         t_pipeline_components.c.component_type,
-        t_pipeline_components.c.install_key,
         t_pipeline_components.c.content,
         t_pipeline_components.c.component_name,
         t_pipeline_components.c.position,
         t_pipeline_components.c.edges,
-        t_pipeline_components.c.tags,
-        t_pipeline_components.c.category,
         t_pipeline_components.c.description,
         t_pipeline_components.c.file_type,
         t_pipeline_components.c.script_type,
@@ -513,12 +510,9 @@ def get_pipeline_v2(conn,name,component_type="pipeline"):
     recursive = select(
         tp1.c.component_id,
         tp1.c.component_type,
-        tp1.c.install_key,
         tp1.c.content,
         tp1.c.component_name,
         tp1.c.position,
-        tp1.c.tags,
-        tp1.c.category,
         tp1.c.edges,
         cast(null(), String(255)).label("description"),
         tp1.c.file_type,
@@ -623,17 +617,21 @@ def build_pipeline_structure(id_to_node,children_map,root_item):
         content = child
         if child["component_type"] == "software":
             item = {**content}
+            item = {k:v for k,v in item.items() if v is not None}
             input_files = []
             output_files = []
             for sub_id in children_map.get(child_id[0], []):
                 sub = id_to_node[sub_id]
                 sub_content = sub
                 if sub["relation_type"] == "software_input_file":
+                    sub_content = {k:v for k,v in sub_content.items() if v is not None}
                     input_files.append(sub_content)
                 elif sub["relation_type"] == "software_output_file":
                     sub_out = {**sub_content, "downstreamAnalysis": []}
+                    sub_out = {k:v for k,v in sub_out.items() if v is not None}
                     for ds_id in children_map.get(sub["component_id"], []):
                         downstream = id_to_node[ds_id]
+                        downstream = {k:v for k,v in downstream.items() if v is not None}
                         sub_out["downstreamAnalysis"].append(downstream)
                     output_files.append(sub_out)
 

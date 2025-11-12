@@ -357,7 +357,7 @@ async def run_analysis(conn,analysis_,run_type):
         raise HTTPException(status_code=500, detail=f"Pipeline script {pipeline_script} is not in pipeline dir {pipeline_dir}")
     component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
     component_type = component['component_type']
-    if run_type=="job" and component_type=="script":
+    if run_type=="job" and component.get("script_type")!="nextflow":
         output_dir = f"{analysis_['output_dir']}/output"
         # if os.path.exists(output_dir):
         delete_all_in_dir(output_dir)
