@@ -659,9 +659,11 @@ def build_pipeline_structure(id_to_node,children_map,root_item):
         #     result["inputFile"] = []
         input_file_list = [file for item in items if "inputFile" in item for file in item["inputFile"]]
         inputFile = []
+        input_file_component_ids = set()
         for file in input_file_list:
-            if file["component_id"] not in edges_target_file_set:
+            if file["component_id"] not in edges_target_file_set and file["component_id"] not in input_file_component_ids:
                 inputFile.append(file)
+                input_file_component_ids.add(file["component_id"])
         # for software in items:
         #     if 
 
