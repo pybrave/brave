@@ -20,7 +20,7 @@ class ScriptAnalysis(BaseAnalysis):
         
         language = ""
         if  script_type == "python":
-            language = "python"
+            language = "python -u"
         elif script_type == "r":
             language = "Rscript"
         elif script_type == "shell":
