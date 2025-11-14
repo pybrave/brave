@@ -145,12 +145,12 @@ docker run -d \
   --name "$BRAVE_CONTAINER" \
   -p 5000:5000 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v "$BASE_DIR:/opt/brave" \
+  -v "$BASE_DIR:$BASE_DIR" \
   --user "$(id -u):$(id -g)" \
   --group-add "$(stat -c '%g' /var/run/docker.sock)" \
   "$BRAVE" \
   brave --mysql-url "root:${MYSQL_ROOT_PASSWORD}@${MYSQL_CONTAINER}:3306/${MYSQL_DATABASE}" \
-        --base-dir /opt/brave
+        --base-dir $BASE_DIR
 
 #----------------------------------------------------
 # Display final info

@@ -9,6 +9,10 @@ from importlib.metadata import version, PackageNotFoundError
 
 app = typer.Typer()
 
+def expand(path: str) -> str:
+    """自动解析环境变量，如 $HOME, ${HOME}."""
+    return os.path.expandvars(os.path.expanduser(path))
+
 
 def version_callback(value: bool):
   if value:
@@ -65,7 +69,7 @@ def main(
     if mysql_url:
         os.environ["MYSQL_URL"] = mysql_url
     if base_dir:
-        os.environ["BASE_DIR"] = base_dir
+        os.environ["BASE_DIR"] = expand(base_dir)
     if work_dir:
         os.environ["WORK_DIR"] = work_dir
     if pipeline_dir:
