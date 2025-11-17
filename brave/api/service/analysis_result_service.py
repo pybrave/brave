@@ -57,7 +57,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             ) 
         stmt = stmt.select_from(
             analysis_result.outerjoin(samples,samples.c.sample_id==analysis_result.c.sample_id)
-            .outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id)
+            .outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id, and_(analysis.c.used==True))
             .outerjoin(t_pipeline_components,t_pipeline_components.c.component_id==analysis_result.c.component_id)
             .outerjoin(t_project,t_project.c.project_id==analysis_result.c.project)
             )
@@ -71,7 +71,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     #     stmt = stmt.get_final_froms()[0].select_from(analysis_result.outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id))
     
     conditions = []
-    conditions.append(analysis.c.used==True)
+    # conditions.append(analysis.c.used==True)
     if analysisResultQuery.project is not None:
         conditions.append(analysis_result.c.project == analysisResultQuery.project)
     if analysisResultQuery.ids is not None:
