@@ -4,7 +4,7 @@ from brave.api.config.db import get_engine
 from fastapi import HTTPException
 from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components,t_project
 from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
-from sqlalchemy import and_, desc, select,case
+from sqlalchemy import and_, desc, select,case,or_
 from brave.api.service import sample_service
 import json
 import uuid
@@ -57,7 +57,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             ) 
         stmt = stmt.select_from(
             analysis_result.outerjoin(samples,samples.c.sample_id==analysis_result.c.sample_id)
-            .outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id, and_(analysis.c.used==True))
+            .outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id)
             .outerjoin(t_pipeline_components,t_pipeline_components.c.component_id==analysis_result.c.component_id)
             .outerjoin(t_project,t_project.c.project_id==analysis_result.c.project)
             )
@@ -89,8 +89,10 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     if analysisResultQuery.analsyis_id is not None:
         conditions.append(analysis_result.c.analysis_id == analysisResultQuery.analsyis_id)
 
+    #  (nextflow.used = TRUE OR nextflow.analysis_id IS NULL)
+    stmt= stmt.where(and_( *conditions, or_(analysis.c.used == True, analysis.c.analysis_id == None)))
 
-    stmt= stmt.where(and_( *conditions))
+    
     
     if analysisResultQuery.ids :
         case_order = case(
