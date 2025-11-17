@@ -78,7 +78,7 @@ analysis = Table(
 
     Column("command_log_path", String(255)),
     Column("is_report", Boolean, default=False),
-
+    Column("used", Boolean, default=True),
     # Column("container_id", String(255)),
     # Column("sub_container_id", String(255)),
     Column("data_component_ids",Text),

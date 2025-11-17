@@ -34,7 +34,8 @@ class ResultParse:
                 need_update_analysis_result_list = []
                 complete_analysis_result_list = []
                 for item in result_list:    
-                    result = self.analysis_result_parse_service.find_analysis_result_exist(conn,self.analysis_id,item['component_id'],item['file_name'],item['project'],True)
+                    result = analysis_result_service.find_analysis_result_exist_v2(conn,self.analysis_id,item['component_id'],item['file_name'],item['project'])
+                    # result = self.analysis_result_parse_service.find_analysis_result_exist(conn,self.analysis_id,item['component_id'],item['file_name'],item['project'],True)
                     if not result:
                         find_sample = self.analysis_result_parse_service.find_by_sample_name_and_project(conn,item['file_name'],item['project'])
                         if find_sample:

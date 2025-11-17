@@ -386,4 +386,37 @@ async def run_analysis(conn,analysis_,run_type):
     return analysis_
     # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
     # conn.execute(stmt)
+
+def find_analysis_by_component_id(conn ,component_id):
+    stmt = select(t_analysis.c.analysis_id,t_analysis.c.analysis_name).where(t_analysis.c.component_id == component_id)
+    result = conn.execute(stmt).mappings().all()
+    return result
+
+def update_used(conn,analysis_id):
+    analysis = find_analysis_by_id(conn,analysis_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
+    if not analysis['used']:
+        stmt = (
+            update(t_analysis)
+            .where(t_analysis.c.analysis_id == analysis_id)
+            .values(used = True)
+        )
+        conn.execute(stmt)
+    else:
+        stmt = (
+            update(t_analysis)
+            .where(t_analysis.c.analysis_id == analysis_id)
+            .values(used = False)
+        )
+        conn.execute(stmt)
     
+    # analysis_list = find_analysis_by_component_id(conn ,analysis['component_id'])
+    # analysis_ids = [item["analysis_id"] for item in analysis_list if item['analysis_id'] != analysis_id]
+    # if analysis_ids:
+    #     stmt = (
+    #         update(t_analysis)
+    #         .where(t_analysis.c.analysis_id.in_(analysis_ids))
+    #         .values(used = False)
+    #     )
+    #     conn.execute(stmt)

@@ -771,3 +771,14 @@ async def edit_params(project:UpdateProject,analysis_id):
 #         analsyis = analysis_service.find_analysis_by_id(conn,analysis_id)
 #         analysis_service.update_pipeline_dir(conn,analsyis)
 #     return "success"
+
+@analysis_api.post("/analysis/find-analysis-by-component-id/{component_id}")
+async def find_analysis_by_component_id(component_id):
+    with get_engine().begin() as conn:
+        return analysis_service.find_analysis_by_component_id(conn, component_id)  
+    
+@analysis_api.post("/analysis/update_used/{analysis_id}")
+async def update_used(analysis_id: str):
+    with get_engine().begin() as conn:
+        analysis_service.update_used(conn,analysis_id)
+    return "success"

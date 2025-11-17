@@ -9,6 +9,7 @@ class AnalysisResultQuery(BaseModel):
     component_id:Optional[str]=None
     project:Optional[str]=None
     projectList:Optional[list]=None
+    analsyis_id:Optional[str]=None
     querySample:Optional[bool]=True
     # queryAnalysis:Optional[bool]=True
     analysis_type:Optional[str]=None

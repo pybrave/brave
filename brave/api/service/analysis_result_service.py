@@ -45,6 +45,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
             # samples.c.sample_id,
             samples.c.metadata,
             analysis.c.analysis_name,
+            analysis.c.used,
             t_pipeline_components.c.component_name.label("component_name"),
             t_pipeline_components.c.file_type.label("file_type"),
             # t_pipeline_components.c.label.label("component_label"),
@@ -70,6 +71,7 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     #     stmt = stmt.get_final_froms()[0].select_from(analysis_result.outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id))
     
     conditions = []
+    conditions.append(analysis.c.used==True)
     if analysisResultQuery.project is not None:
         conditions.append(analysis_result.c.project == analysisResultQuery.project)
     if analysisResultQuery.ids is not None:
@@ -84,6 +86,8 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         conditions.append(analysis_result.c.component_id == analysisResultQuery.component_id)
     if analysisResultQuery.projectList is not None:
         conditions.append(analysis_result.c.project.in_(analysisResultQuery.projectList))
+    if analysisResultQuery.analsyis_id is not None:
+        conditions.append(analysis_result.c.analysis_id == analysisResultQuery.analsyis_id)
 
 
     stmt= stmt.where(and_( *conditions))
@@ -209,6 +213,16 @@ def find_analysis_result_exist(conn,component_id,file_name,project):
     result = conn.execute(stmt).mappings().first()
     return result 
 
+
+def find_analysis_result_exist_v2(conn, analysis_id,component_id,file_name,project):
+    stmt = analysis_result.select().where(and_(
+        analysis_result.c.analysis_id == analysis_id,
+        analysis_result.c.component_id == component_id,
+        analysis_result.c.file_name == file_name,
+        analysis_result.c.project == project
+    ))
+    result = conn.execute(stmt).mappings().first()
+    return result 
 
             
 def add_analysis_result(conn,analysis_result_dict):
