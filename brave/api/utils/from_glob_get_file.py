@@ -11,29 +11,36 @@ def glob_to_regex(glob_path: str) -> str:
     regex = escaped.replace(r'\*', r'(.+)')
     return f'r"{regex}"'
 
+def build_form_data(dir,form_data,settings,k,v):
+    if dir : 
+        pattern_str = f"{dir}/{v}".strip()
+    else:
+        pattern_str = v.strip()
+
+    if pattern_str.startswith("~"):
+        pattern_str = pattern_str.replace("~",str(settings.ANALYSIS_DIR))
+
+    
+    file_list = glob.glob(pattern_str)
+    pattern = re.compile(glob_to_regex(pattern_str)[2:-1]) 
+    result_dict = {}
+    for file in file_list:
+        match = pattern.match(file)
+        if match:
+            # match_dict = match.groupdict()
+            file_name = match.group(1)
+            result_dict[file_name] = file
+    form_data[k] = result_dict
+    
 def from_glob_get_file(content,dir=None):
     settings = get_settings()
     form_data = {}
     for k,v in content.items():
-        if dir : 
-            pattern_str = f"{dir}/{v}".strip()
+        if isinstance(v,list):
+            for item in v:
+                build_form_data(dir,form_data,settings,k,item)
         else:
-            pattern_str = v.strip()
-
-        if pattern_str.startswith("~"):
-            pattern_str = pattern_str.replace("~",str(settings.ANALYSIS_DIR))
-
-        
-        file_list = glob.glob(pattern_str)
-        pattern = re.compile(glob_to_regex(pattern_str)[2:-1]) 
-        result_dict = {}
-        for file in file_list:
-            match = pattern.match(file)
-            if match:
-                # match_dict = match.groupdict()
-                file_name = match.group(1)
-                result_dict[file_name] = file
-        form_data[k] = result_dict
+            build_form_data(dir,form_data,settings,k,v)
     # common_samples = reduce(lambda  x,y: set(x.keys()) & set(y.keys()), list(form_data.values()))
     # dicts = list(form_data.values())
     # common_samples = reduce(lambda x, y: set(x) & set(y), (d.keys() for d in dicts))
