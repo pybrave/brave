@@ -148,6 +148,27 @@ docker run --rm -d \
     neo4j
 ```
 
+```
+docker network create opensearch-net
+```
+```
+docker run  --rm  \
+  --name opensearch-node \
+  --network opensearch-net \
+  -p 9200:9200 -p 9600:9600  \
+  -e OPENSEARCH_INITIAL_ADMIN_PASSWORD=Wy.1749748955 \
+  -e "discovery.type=single-node" \
+  -e "DISABLE_SECURITY_PLUGIN=true" \
+  opensearchproject/opensearch:3
+```
+```
+docker run -d --rm \
+  --name opensearch-dashboards \
+   --network opensearch-net \
+  -p 5601:5601 \
+  -e OPENSEARCH_HOSTS="https://opensearch-node:9200" \
+  opensearchproject/opensearch-dashboards:latest
+```
 
 ## contact
 + 1749748955@qq.com
