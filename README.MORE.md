@@ -152,21 +152,21 @@ docker run --rm -d \
 docker network create opensearch-net
 ```
 ```
-docker run  --rm  \
+docker run   --rm  \
   --name opensearch-node \
   --network opensearch-net \
   -p 9200:9200 -p 9600:9600  \
-  -e OPENSEARCH_INITIAL_ADMIN_PASSWORD=Wy.1749748955 \
   -e "discovery.type=single-node" \
   -e "DISABLE_SECURITY_PLUGIN=true" \
   opensearchproject/opensearch:3
 ```
+>   -e OPENSEARCH_INITIAL_ADMIN_PASSWORD=Zs.123456789 \
 ```
 docker run -d --rm \
   --name opensearch-dashboards \
    --network opensearch-net \
   -p 5601:5601 \
-  -e OPENSEARCH_HOSTS="https://opensearch-node:9200" \
+  -e OPENSEARCH_HOSTS="http://opensearch-node:9200" \
   opensearchproject/opensearch-dashboards:latest
 ```
 

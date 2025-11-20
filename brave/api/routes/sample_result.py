@@ -385,16 +385,16 @@ async def import_data(importDataList:List[ImportData]):
                 importData.file_name = importData.sample_name
             
             if importData.file_type !="collected":
-                find_sample = sample_service.find_by_sample_name_and_project(conn,importData.sample_name,importData.project)
-                sample_id = None
-                if  find_sample:
-                    sample_id = find_sample.sample_id    
-                else:
-                    sample_id = str(uuid.uuid4())
-                    sample_service.add_sample(conn,{"sample_name":importData.sample_name,"sample_id":sample_id,"project":importData.project}) 
+                # find_sample = sample_service.find_by_sample_name_and_project(conn,importData.sample_name,importData.project)
+                # sample_id = None
+                # if  find_sample:
+                #     sample_id = find_sample.sample_id    
+                # else:
+                #     sample_id = str(uuid.uuid4())
+                #     sample_service.add_sample(conn,{"sample_name":importData.sample_name,"sample_id":sample_id,"project":importData.project}) 
                 
                 stmt = analysis_result.select().where(and_(
-                    analysis_result.c.sample_id==sample_id,
+                    analysis_result.c.file_name==importData.file_name,
                     analysis_result.c.component_id==importData.component_id,
                     analysis_result.c.project==importData.project,
                     analysis_result.c.sample_source==importData.sample_source
@@ -414,7 +414,7 @@ async def import_data(importDataList:List[ImportData]):
                 project=importData.project,
                 # analysis_method=analysis_method,
                 content=importData.content,
-                sample_id=sample_id,
+                # sample_id=sample_id,
                 analysis_result_id=analysis_result_id,
                 file_name=importData.file_name,
                 sample_source=importData.sample_source,
