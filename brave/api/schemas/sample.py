@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class ImportSample(BaseModel):
     content: Optional[str]
+    project_id: Optional[str]
 
 
 class Sample(BaseModel):

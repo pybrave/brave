@@ -14,10 +14,10 @@ import pandas as pd
 def get_analysis_result_metadata(item):
     if item["metadata"]:
         metadata = json.loads(item["metadata"])
-        prefix = ""
-        if item["sample_source"]:
-            prefix = f"{item['sample_source']}-"
-        metadata = {k:f"{prefix}{v}" for k,v in metadata.items() if v is not None}
+        # prefix = ""
+        # if item["sample_source"]:
+        #     prefix = f"{item['sample_source']}-"
+        metadata = {k:f"{v}" for k,v in metadata.items() if v is not None}
         item = {**metadata,**item}
         del item["metadata"]
     return item
@@ -169,7 +169,7 @@ def build_collected_analysis_result(column,analsyis_result,samples_dict):
     if sample:
         sample = dict(sample)
         del sample["id"]
-        sample["sample_source"] = analsyis_result.get("sample_source")
+        # sample["sample_source"] = analsyis_result.get("sample_source")
         sample = get_analysis_result_metadata(sample)
         return {"id":analsyis_result.get("id"),
             "analysis_result_id":analsyis_result.get("analysis_result_id"),

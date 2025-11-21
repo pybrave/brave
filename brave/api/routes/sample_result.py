@@ -11,7 +11,7 @@ import threading
 # from models.user import users
 from typing import List
 from starlette.status import HTTP_204_NO_CONTENT
-from sqlalchemy import func, select
+from sqlalchemy import func, select,insert
 from brave.api.config.config import get_settings
 from brave.api.models.orm import SampleAnalysisResult
 import glob
@@ -236,10 +236,10 @@ def get_analysis_result_table(analysis_result_id,row_num=-1):
 def get_analysis_result_metadata(item):
     if item["metadata"]:
         metadata = json.loads(item["metadata"])
-        prefix = ""
-        if item["sample_source"]:
-            prefix = f"{item['sample_source']}-"
-        metadata = {k:f"{prefix}{v}" for k,v in metadata.items() if v is not None}
+        # prefix = ""
+        # if item["sample_source"]:
+        #     prefix = f"{item['sample_source']}-"
+        metadata = {k:f"{v}" for k,v in metadata.items() if v is not None}
         item = {**metadata,**item}
         del item["metadata"]
     return item
@@ -397,7 +397,7 @@ async def import_data(importDataList:List[ImportData]):
                     analysis_result.c.file_name==importData.file_name,
                     analysis_result.c.component_id==importData.component_id,
                     analysis_result.c.project==importData.project,
-                    analysis_result.c.sample_source==importData.sample_source
+                    # analysis_result.c.sample_source==importData.sample_source
                 ))
                 result = conn.execute(stmt).fetchall()
                 if result:
@@ -417,7 +417,7 @@ async def import_data(importDataList:List[ImportData]):
                 # sample_id=sample_id,
                 analysis_result_id=analysis_result_id,
                 file_name=importData.file_name,
-                sample_source=importData.sample_source,
+                # sample_source=importData.sample_source,
                 # sample_name=importData.sample_name,
                 # sample_name=analysis_label,
                 content_type="json",
@@ -621,7 +621,7 @@ async def upload(
             content= file_path,
             file_type= file_type,
             file_name= unique_name,
-            sample_source= "source",
+            # sample_source= "source",
         )
     ]
     await import_data(import_data_list)
@@ -658,7 +658,7 @@ async def download_example(component_id,project):
             content= example_file,
             file_type= component.file_type,
             file_name= "example",
-            sample_source= "source",
+            # sample_source= "source",
         )
     ]
     await import_data(import_data_list)
@@ -666,3 +666,37 @@ async def download_example(component_id,project):
         "example_file": example_file,
         "example_url": example_url
     }
+
+@sample_result.post("/analysis-result/create-metadata",tags=['analysis_result'])
+async def create_metadata(project_id,component_id):
+    with get_engine().begin() as conn:
+        stmt = select(analysis_result).where(and_(
+            analysis_result.c.project==project_id,
+            analysis_result.c.component_id==component_id
+        ))
+        result = conn.execute(stmt).mappings().all()
+        for item in result:
+            if item["sample_id"]:
+                stmt = select(samples).where(samples.c.sample_id==item["sample_id"])
+                sample = conn.execute(stmt).mappings().first()
+                if not sample:
+                    # 如果样本不存在，则创建样本
+                    stmt = insert(samples).values(
+                        sample_id=item["sample_id"],
+                        project=project_id,
+                        sample_name=item["file_name"]
+                    )
+                    conn.execute(stmt)
+            else:
+                str_id = str(uuid.uuid4())
+
+                # create sample
+                stmt = insert(samples).values(
+                        sample_id=str_id,
+                        project=project_id,
+                        sample_name=item["file_name"]
+                    )
+                conn.execute(stmt)
+                # update analysis_result sample_id
+                stmt = analysis_result.update().values(sample_id=str_id).where(analysis_result.c.analysis_result_id==item["analysis_result_id"])
+                conn.execute(stmt)

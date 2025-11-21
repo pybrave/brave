@@ -69,14 +69,14 @@ class ImportData(BaseModel):
     content: str
     sample_name: Optional[str]=None
     file_type: Optional[str]="individual"
-    sample_source: str
+    # sample_source: str
     file_name: Optional[str]=None
     # content_type:Optional[str]="json"
     # analysis_type:Optional[str]="import_data"
 
 class UpdateAnalysisResult(BaseModel):
     file_name: str
-    sample_source: Optional[str]=None
+    # sample_source: Optional[str]=None
 
 
 class BindSample(BaseModel):

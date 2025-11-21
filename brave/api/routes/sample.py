@@ -1,4 +1,6 @@
+import uuid
 from fastapi import APIRouter,Depends
+from fastapi.params import Body
 from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
 from brave.api.schemas.sample import Sample,SampleGroup,SampleGroupQuery,ImportSample,Sample,ProjectCount
@@ -17,7 +19,7 @@ from brave.api.config.db import get_engine
 from io import StringIO
 from fastapi import HTTPException
 import json
-
+import math
 sample = APIRouter()
 
 
@@ -143,12 +145,24 @@ async def list_by_project(project):
         for item in sample_dict:
             if item['metadata']:
                 # item['metadata'] = 
-                result_dict.append({**json.loads(item['metadata']),**{k:v for k,v in item.items() if k!="metadata"}})
+                try:
+                    metadata = json.loads(item['metadata'])
+                    metadata = {k:v for k,v in metadata.items() if not  (isinstance(v, float) and math.isnan(v)) }
+                    result_dict.append({**metadata,**{k:v for k,v in item.items() if k!="metadata"}})
+                    pass
+                except Exception as e:
+                    # e.with_traceback()
+                    print(e)
+                    result_dict.append(item)
             else:
                 result_dict.append(item)
             # else:
             #     item['metadata'] = {}
-        return result_dict
+    sample_names = [ item['sample_name'] for item in result_dict]
+    if not is_unique(sample_names):
+        raise HTTPException(status_code=500, detail=f"data error: sample_name not unique in project {project}")
+
+    return result_dict
 
 @sample.get(
     "/list-project",
@@ -167,3 +181,74 @@ async def list_project():
         result = conn.execute(stmt).fetchall()
         # data = [dict(row._mapping) for row in result.fetchall()]
         return result
+def is_unique(lst):
+    return len(lst) == len(set(lst))
+
+def find_sample_name_by_project_id(conn,project_id):
+    stmt = select(samples.c.sample_name).where(samples.c.project==project_id)
+    result = conn.execute(stmt).mappings().all()
+    sample_name_list = [ item.sample_name for item in result]
+    return sample_name_list
+
+
+@sample.post(
+    "/batch-update-sample",
+    tags=["sample"],
+    description="batch save sample"
+)
+async def batchSave(importSample:ImportSample):
+    df = pd.read_csv(StringIO(importSample.content), sep="\t")
+    df_dict = df.to_dict(orient="records")
+    sample_list = [build_metadata(item) for item in df_dict]
+
+    sample_name_list = [ item['sample_name'] for item in df_dict]
+    if is_unique(sample_name_list) is False:
+        raise HTTPException(status_code=500, detail=f"data error: sample_name not unique in project {importSample.project_id}")
+
+    with get_engine().begin() as conn:
+        # update sample by sample_id
+        for item in sample_list:
+            stmt = samples.update().values(item).where(and_(
+                samples.c.sample_id==item['sample_id'],
+                samples.c.project==importSample.project_id
+            ))
+            result = conn.execute(stmt)
+        return {"msg":"success"}
+
+
+@sample.post(
+    "/batch-create-sample",
+    tags=["sample"],
+    description="batch create sample"
+)
+async def batchCreate(importSample:ImportSample):
+    df = pd.read_csv(StringIO(importSample.content), sep="\t")
+    df_dict = df.to_dict(orient="records")
+    sample_names = [ item['sample_name'] for item in df_dict]
+
+    sample_list = [build_metadata(item, create_new=True) for item in df_dict]
+    with get_engine().begin() as conn:
+        db_sample_names = find_sample_name_by_project_id(conn,importSample.project_id)
+        sample_names = sample_names +db_sample_names
+        if is_unique(sample_names) is False:
+            raise HTTPException(status_code=500, detail=f"data error: sample_name not unique in project {importSample.project_id}")
+        
+        # update sample by sample_id
+        for item in sample_list:
+            stmt = samples.insert().values({**item, 'project':importSample.project_id})
+            result = conn.execute(stmt)
+        return {"msg":"success"}
+
+
+
+def build_metadata(sample:dict,create_new:bool=False):
+    new_dict ={}
+    metadata = {k:v for k,v in sample.items() if k not in ['sample_id','sample_name'] and v is not None and not  (isinstance(v, float) and math.isnan(v))}
+    new_dict['metadata'] = json.dumps(metadata)
+    if create_new:
+        str_uuid = str(uuid.uuid4())
+        new_dict['sample_id'] =str_uuid
+    else:
+        new_dict['sample_id'] = sample['sample_id']
+    new_dict['sample_name'] = sample['sample_name']
+    return new_dict
