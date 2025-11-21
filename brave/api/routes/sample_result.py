@@ -700,3 +700,37 @@ async def create_metadata(project_id,component_id):
                 # update analysis_result sample_id
                 stmt = analysis_result.update().values(sample_id=str_id).where(analysis_result.c.analysis_result_id==item["analysis_result_id"])
                 conn.execute(stmt)
+    
+@sample_result.post("/analysis-result/batch-bind-sample/{component_id}",tags=['analysis_result'])
+async def batch_bind_sample(component_id, project_id):
+    with get_engine().begin() as conn:
+        stmt = select(analysis_result).where(and_(
+            analysis_result.c.component_id==component_id,
+            analysis_result.c.project==project_id,
+        ))
+        result = conn.execute(stmt).mappings().all()
+        stmt = select(samples).where(samples.c.project==project_id)
+        sample = conn.execute(stmt).mappings().all()
+
+        sample_dict = {item['sample_name']:item['sample_id'] for item in sample}
+        for item in result:
+            if item["file_name"] in sample_dict:
+                sample_id = sample_dict[item["file_name"]]
+                # update analysis_result sample_id
+                stmt = analysis_result.update().values(sample_id=sample_id).where(analysis_result.c.analysis_result_id==item["analysis_result_id"])
+                conn.execute(stmt)
+    return {"message":"success"}
+        
+
+
+
+
+@sample_result.post("/analysis-result/batch-remove/{component_id}",tags=['analysis_result'])
+async def batch_remove(component_id, project_id):
+    with get_engine().begin() as conn:
+        stmt = analysis_result.delete().where(and_(
+            analysis_result.c.component_id==component_id,
+            analysis_result.c.project==project_id,
+        ))
+        conn.execute(stmt)
+    return {"message":"success"}

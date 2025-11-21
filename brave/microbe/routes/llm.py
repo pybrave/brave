@@ -17,11 +17,45 @@ client = openai.OpenAI(
 class ChatRequest(BaseModel):
     message: str
 
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get weather of a location, the user should supply a location first.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    }
+                },
+                "required": ["location"]
+            },
+        }
+    },
+]
+
+system_prompt = """
+The user will provide some exam text. Please parse the "question" and "answer" and output them in JSON format. 
+
+EXAMPLE INPUT: 
+Which is the highest mountain in the world? Mount Everest.
+
+EXAMPLE JSON OUTPUT:
+{
+    "question": "Which is the highest mountain in the world?",
+    "answer": "Mount Everest"
+}
+"""
+
 @llm_api.post("/chat")
 async def chat(req: ChatRequest):
     try:
         response = client.chat.completions.create(
             model="deepseek-chat",
+            tools=tools,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": req.message},
@@ -48,8 +82,12 @@ async def chat_stream(req: ChatRequest):
             # 使用新版 SDK 的 stream=True
             with client.chat.completions.stream(
                 model="deepseek-chat",
+                tools=tools,
+                # response_format={
+                #     'type': 'json_object'
+                # },
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
+                    # {"role": "system", "content":system_prompt},
                     {"role": "user", "content": req.message},
                 ],
             ) as completion:

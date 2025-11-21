@@ -599,6 +599,7 @@ async def save_pipeline_relation(conn,savePipelineRelation):
     else:
         query_stmt = t_pipeline_components_relation.select().where(
             and_( t_pipeline_components_relation.c.component_id ==  savePipelineRelation.component_id,
+                 t_pipeline_components_relation.c.relation_type == savePipelineRelation.relation_type,
                  t_pipeline_components_relation.c.parent_component_id == savePipelineRelation.parent_component_id,)
         )
         exist_relation = conn.execute(query_stmt).fetchone()
