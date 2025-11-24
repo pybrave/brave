@@ -25,7 +25,12 @@ def get_group(values):
 
 def get_re_group(values):
     if isinstance(values, dict):
-        return values.get("group_name","-")
+        group_name = values.get("group_name","-")
+        if isinstance(group_name, dict):
+            group_name = {k:v for k,v in group_name.items() if v is not None  and  v!=""}
+            # if not group_name:
+            #     return "-"
+        return group_name
     return "-"
 def get_colors(values):
     if isinstance(values, dict):

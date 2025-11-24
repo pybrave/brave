@@ -30,7 +30,8 @@ def build_form_data(dir,form_data,settings,k,v):
             # match_dict = match.groupdict()
             file_name = match.group(1)
             result_dict[file_name] = file
-    form_data[k] = result_dict
+    if result_dict:
+        form_data[k] = result_dict
     
 def from_glob_get_file(content,dir=None):
     settings = get_settings()

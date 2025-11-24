@@ -94,23 +94,23 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
 
     
     
-    if analysisResultQuery.ids :
-        case_order = case(
-            {id_: index for index, id_ in enumerate(analysisResultQuery.ids)},
-            value=analysis_result.c.id,
-            else_=len(analysisResultQuery.ids)
-        )
-        stmt = stmt.order_by(case_order)
+    # if analysisResultQuery.ids :
+    #     case_order = case(
+    #         {id_: index for index, id_ in enumerate(analysisResultQuery.ids)},
+    #         value=analysis_result.c.id,
+    #         else_=len(analysisResultQuery.ids)
+    #     )
+    #     stmt = stmt.order_by(case_order)
     
-    if analysisResultQuery.component_ids:
-        case_order = case(
-            {id_: index for index, id_ in enumerate(analysisResultQuery.component_ids)},
-            value=analysis_result.c.component_id,
-            else_=len(analysisResultQuery.component_ids)
-        )
-        stmt = stmt.order_by(case_order)
+    # if analysisResultQuery.component_ids:
+    #     case_order = case(
+    #         {id_: index for index, id_ in enumerate(analysisResultQuery.component_ids)},
+    #         value=analysis_result.c.component_id,
+    #         else_=len(analysisResultQuery.component_ids)
+    #     )
+    #     stmt = stmt.order_by(case_order)
     
-    
+    stmt = stmt.order_by(desc(analysis_result.c.id))
 
     result  = conn.execute(stmt)
     # result = result.fetchall()
