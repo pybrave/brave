@@ -19,6 +19,7 @@ class SavePipeline(BaseModel):
     file_type:Optional[str]=None
     script_type:Optional[str]=None
     tags:Optional[str]=None
+    component_ids:Optional[str]=None
 
 class SavePipelineRelation(BaseModel):
     relation_id:Optional[str]=None

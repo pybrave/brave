@@ -10,6 +10,8 @@ import json
 import uuid
 from collections import defaultdict
 import pandas as pd
+import brave.api.service.pipeline as pipeline_service
+
 
 def get_analysis_result_metadata(item):
     if item["metadata"]:
@@ -23,17 +25,51 @@ def get_analysis_result_metadata(item):
     return item
 
 def find_analyais_result_groupd_by_component_ids(conn,component_ids,projectList):
-    result_dict =  find_analyais_result(conn,AnalysisResultQuery(component_ids=component_ids,projectList=projectList))
+    grouped =  find_analysis_result_grouped(conn,AnalysisResultQuery(component_ids=component_ids,projectList=projectList))
+    # result_dict = [get_analysis_result_metadata(item) for item in result_dict]
+            
+
+    # grouped = defaultdict(list)
+    # for item in result_dict:
+    #     item["label"] = item["sample_name"] or item.get("file_name","")
+    #     item["value"] = item["id"]
+    #     grouped[item["component_id"]].append(item)
+    return grouped
+
+def find_analysis_result_grouped(conn,analysisResultQuery:AnalysisResultQuery):
+    component_dict = {}
+    component_list = pipeline_service.find_by_component_ids(conn,analysisResultQuery.component_ids)
+    component_ids = set()
+    for item in  component_list:
+        if item.get("component_ids"):
+            ids = json.loads( item["component_ids"])
+            component_ids.update(ids)
+            for id in ids:
+                component_dict[id] = item["component_id"]
+        else:
+            component_ids.add(item["component_id"])
+
+    analysisResultQuery.component_ids = list(component_ids)
+    result_dict = find_analyais_result(conn,analysisResultQuery)
     result_dict = [get_analysis_result_metadata(item) for item in result_dict]
             
-        # if item["metadata_form"]:
-        #     item["metadata_form"] = json.loads(item["metadata_form"])
+
     grouped = defaultdict(list)
     for item in result_dict:
         item["label"] = item["sample_name"] or item.get("file_name","")
         item["value"] = item["id"]
-        grouped[item["component_id"]].append(item)
+        if item["component_id"] in component_dict:
+            query_component_id = component_dict[item["component_id"]]
+            grouped[query_component_id].append(item)
+        else:
+            grouped[item["component_id"]].append(item)
+        
+    for item in analysisResultQuery.component_ids:
+        if item not in grouped:
+            grouped[item] = []
+
     return grouped
+
 
 def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     stmt = analysis_result.select() 

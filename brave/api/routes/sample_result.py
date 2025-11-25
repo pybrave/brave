@@ -263,22 +263,9 @@ async def list_analysis_result(analysisResultQuery:AnalysisResultQuery):
     # response_model=List[AnalysisResult]
     )
 async def list_analysis_result(analysisResultQuery:AnalysisResultQuery):
-
     
-
-    result_dict = find_analyais_result(analysisResultQuery)
-    result_dict = [get_analysis_result_metadata(item) for item in result_dict]
-            
-        # if item["metadata_form"]:
-        #     item["metadata_form"] = json.loads(item["metadata_form"])
-    grouped = defaultdict(list)
-    for item in result_dict:
-        item["label"] = item["sample_name"] or item.get("file_name","")
-        item["value"] = item["id"]
-        grouped[item["component_id"]].append(item)
-    for item in analysisResultQuery.component_ids:
-        if item not in grouped:
-            grouped[item] = []
+    with get_engine().begin() as conn:
+        grouped =  analysis_result_service.find_analysis_result_grouped(conn,analysisResultQuery)
 
     return grouped
 

@@ -167,6 +167,7 @@ t_pipeline_components = Table(
     Column("component_type", String(255)), 
     Column("component_name", String(255)), 
     Column("description", Text().with_variant(LONGTEXT(), "mysql")), 
+    Column("component_ids",Text().with_variant(LONGTEXT(), "mysql")),
     Column("img", String(255)), 
     Column("container_id", String(255)),
     Column("sub_container_id", String(255)),
