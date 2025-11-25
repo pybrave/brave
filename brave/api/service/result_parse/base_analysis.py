@@ -31,6 +31,19 @@ class BaseAnalysis(ABC):
     # @abstractmethod
     # def _get_query_db_field(self,conn,component):
     #     pass
+    #   "3c80793f-ff1b-44d1-82bd-5b1ed82469f2":{
+    #     "type":"BaseSelect"
+    #   },
+    def get_file_form(self,file_item,component):
+
+        content = json.loads(file_item.content)
+        if file_item.component_id in component:
+            form_filed = component[file_item.component_id]
+            content = {
+                **content,
+                **form_filed
+            }
+        return content
     def _get_query_db_field(self,conn,component):
         if component['component_type']=="software":
             component_file_name_list = {}
@@ -39,7 +52,7 @@ class BaseAnalysis(ABC):
                 component_file_name_list = {item['name']:item for item in re_input_file}
             else:
                 component_file_list = pipeline_service.find_component_by_parent_id(conn,component['component_id'],"software_input_file")
-                component_file_name_list = {json.loads(item.content)['name']:json.loads(item.content) for item in component_file_list}
+                component_file_name_list = {json.loads(item.content)['name']:self.get_file_form(item,component) for item in component_file_list}
                 
             return component_file_name_list
         elif component['component_type'] == "script":

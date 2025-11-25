@@ -45,14 +45,16 @@ def from_glob_get_file(content,dir=None):
     # common_samples = reduce(lambda  x,y: set(x.keys()) & set(y.keys()), list(form_data.values()))
     # dicts = list(form_data.values())
     # common_samples = reduce(lambda x, y: set(x) & set(y), (d.keys() for d in dicts))
-    common_samples =  set.intersection(*(set(d.keys()) for d in form_data.values()))
     result = []
-    for name in  common_samples:
-        result_dict = { "sample_name":name}
-        for k,files in  form_data.items():
-            result_dict.update({
-                k:files[name]
-            })
-        result.append(result_dict)
+    if form_data:
+        common_samples =  set.intersection(*(set(d.keys()) for d in form_data.values()))
+        
+        for name in  common_samples:
+            result_dict = { "sample_name":name}
+            for k,files in  form_data.items():
+                result_dict.update({
+                    k:files[name]
+                })
+            result.append(result_dict)
 
     return result
