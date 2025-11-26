@@ -212,6 +212,7 @@ def build_collected_analysis_result(column,analsyis_result,samples_dict):
             "columns_name":column,**sample}
     
     return {"id":analsyis_result.get("id"),
+            "sample_name":column,
             "analysis_result_id":analsyis_result.get("analysis_result_id"),
             "columns_name":column}
 
