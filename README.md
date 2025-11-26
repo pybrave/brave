@@ -9,6 +9,11 @@
     <img src="https://img.shields.io/pypi/v/pybrave?color=%2334D058&label=pypi%20package" alt="Package version">
 </a>
 
+<a href="https://bioinfo.online/brave/" target="_blank">
+    <img src="https://img.shields.io/badge/brave-demo-blue" alt="Package version">
+</a>
+
+
 
 BRAVE is a visual bioinformatics workflow platform, similar to Galaxy, that enables intuitive configuration and visualized execution of both upstream and downstream data analyses.
 
