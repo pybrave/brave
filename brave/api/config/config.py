@@ -6,6 +6,7 @@ from functools import lru_cache
 from importlib.resources import files
 import sys
 from pathlib import Path
+from brave.api.utils import oss_utils
 
 # def get_pipeline_dir():
 #     pipeline_config_path = str(files("brave.pipeline").joinpath("config.json"))
@@ -123,6 +124,10 @@ class Settings:
         self.NEO4J_BOLT = os.getenv("NEO4J_BOLT",None)
         if self.NEO4J_BOLT:
             print(f"✅ Using NEO4J_BOLT: {self.NEO4J_BOLT}")
+
+        bucket = oss_utils.get_oss_bucket()
+        if bucket:
+            print(f"✅ Connected to Aliyun OSS Bucket: {bucket.bucket_name}")
 
 
 @lru_cache()

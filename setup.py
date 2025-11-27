@@ -28,7 +28,8 @@ setup(
         "nbconvert",
         "lxml",
         "cryptography",
-        "openai"
+        "openai",
+        "oss2"
         ],
     entry_points={
         "console_scripts": [

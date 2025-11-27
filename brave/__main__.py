@@ -48,12 +48,28 @@ def main(
     literature_dir: str =typer.Option(None, help="Literature directory"),
     mysql_url: str =typer.Option(None, help="Mysql url"),
     # db_type: str =typer.Option("sqlite", help="Db type[ mysql, sqlite ]"),
-    executer_type: str =typer.Option("docker", help="Executer Type [local, docker]")
-    
+    executer_type: str =typer.Option("docker", help="Executer Type [local, docker]"),
+    aliyun_oss_endpoint: str =typer.Option(None, help="Aliyun OSS Endpoint"),
+    aliyun_oss_bucket: str =typer.Option(None, help="Aliyun OSS Bucket Name"), 
+    aliyun_oss_region: str =typer.Option(None, help="Aliyun OSS Region"),
+    aliyun_access_key_id: str =typer.Option(None, help="Aliyun  Access Key ID"),
+    aliyun_access_key_secret: str =typer.Option(None, help="Aliyun  Access Key Secret")
     ):
     
     # os.environ["DB_TYPE"] = db_type
     os.environ["EXECUTER_TYPE"] = executer_type
+
+    if aliyun_oss_endpoint:
+        os.environ["ALIYUN_OSS_ENDPOINT"] = aliyun_oss_endpoint
+    if aliyun_oss_bucket:
+        os.environ["ALIYUN_OSS_BUCKET"] = aliyun_oss_bucket
+    if aliyun_oss_region:   
+        os.environ["ALIYUN_OSS_REGION"] = aliyun_oss_region
+    if aliyun_access_key_id:
+        os.environ["ALIYUN_ACCESS_KEY_ID"] = aliyun_access_key_id
+    if aliyun_access_key_secret:
+        os.environ["ALIYUN_ACCESS_KEY_SECRET"] = aliyun_access_key_secret
+
     if neo4j_bolt:
         os.environ["NEO4J_BOLT"] = neo4j_bolt
     if code_dir:

@@ -14,6 +14,7 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import copy
+from brave.api.utils import oss_utils
 
 from brave.api.utils import file_utils
 
@@ -184,6 +185,8 @@ def format_html_output(path):
         "url":f"/brave-api/analysis-dir{file_name}"
     }
 async def visualization_results(path):
+    # TEST
+    # oss_utils.list_objects()
 
     path = f"{path}/output"
     images = []
