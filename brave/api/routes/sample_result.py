@@ -20,7 +20,7 @@ import os
 import json
 from brave.api.config.db import get_db_session
 from sqlalchemy import and_,or_
-from brave.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult, ImportData, ParseImportData,UpdateAnalysisResult,BindSample
+from brave.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult, CreateAnalysisResult, ImportData, ParseImportData,UpdateAnalysisResult,BindSample
 from brave.api.models.core import samples,analysis_result
 from brave.api.config.db import get_engine
 import inspect
@@ -226,6 +226,8 @@ def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
 def get_analysis_result_table(analysis_result_id,row_num=-1):
     with get_engine().begin() as conn:
         result_one = analysis_result_service.find_by_analysis_result_id(conn,analysis_result_id)
+        if result_one.type=="folder":
+            raise HTTPException(status_code=500, detail=f"分析结果{analysis_result_id}是文件夹类型，不能预览表格!")
         content = file_utils.get_table_content(result_one["content"],row_num)
     return content
 
@@ -401,6 +403,7 @@ async def import_data(importDataList:List[ImportData]):
                 project=importData.project,
                 # analysis_method=analysis_method,
                 content=importData.content,
+                parent_id=importData.parent_id,
                 # sample_id=sample_id,
                 analysis_result_id=analysis_result_id,
                 file_name=importData.file_name,
@@ -719,5 +722,15 @@ async def batch_remove(component_id, project_id):
             analysis_result.c.component_id==component_id,
             analysis_result.c.project==project_id,
         ))
+        conn.execute(stmt)
+    return {"message":"success"}
+
+
+@sample_result.post("/analysis-result/create",tags=['analysis_result'])
+async def create_analysis_result(create_analysis_result: CreateAnalysisResult):
+    create_analysis_result_dict = create_analysis_result.dict()
+    create_analysis_result_dict["analysis_result_id"] = str(uuid.uuid4())
+    with get_engine().begin() as conn:
+        stmt = insert(analysis_result).values(**create_analysis_result_dict)
         conn.execute(stmt)
     return {"message":"success"}

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
 from brave.api.core.evenet_bus import EventBus
 from brave.api.executor.models import LocalJobSpec
+from brave.api.schemas.analysis_result import AnalysisResultQuery
 from brave.api.schemas.bio_database import QueryBiodatabase
 from brave.api.schemas.sample import Sample
 from typing import List
@@ -724,7 +725,12 @@ async def edit_params(analysis_id):
             # find_analysis["project"]
            
             project.append(find_analysis["project"])
-            analysis_result = analysis_result_service.find_analyais_result_groupd_by_component_ids(conn,data_component_ids,project)
+            analysis_result = analysis_result_service.find_analysis_result_grouped(conn,
+                                                                                   AnalysisResultQuery(
+                                                                                       component_ids=data_component_ids,
+                                                                                       component_parent_ids_map=request_param.get("component_parent_ids_map"),
+                                                                                       projectList=project))
+            # find_analyais_result_groupd_by_component_ids(conn,data_component_ids,project)
         
         component_type = find_component["component_type"]
         

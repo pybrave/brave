@@ -14,8 +14,11 @@ class AnalysisResultQuery(BaseModel):
     # queryAnalysis:Optional[bool]=True
     analysis_type:Optional[str]=None
     ids:Optional[list]=None
+    component_parent_ids_map:Optional[dict]=None
+    component_ids_map:Optional[list]=None
     build_collected:Optional[bool]=True
     build_collected_rows:Optional[bool]=False
+    parent_id:Optional[str]=None
     rows:Optional[int]=None
 
 class AnalysisResultParseModal(BaseModel):
@@ -69,6 +72,7 @@ class ImportData(BaseModel):
     content: str
     sample_name: Optional[str]=None
     file_type: Optional[str]="individual"
+    parent_id: Optional[str]=None
     # sample_source: str
     file_name: Optional[str]=None
     # content_type:Optional[str]="json"
@@ -92,3 +96,11 @@ class BindSample(BaseModel):
 #     project:str   = Form(...)
 #     file: UploadFile = File(...)
 #     file_type:str  = Form(...)
+
+
+class CreateAnalysisResult(BaseModel):
+    file_name: str
+    parent_id: Optional[str]=None
+    type: str  # 'folder','file'
+    component_id: str
+    project: str

@@ -37,6 +37,19 @@ def find_analyais_result_groupd_by_component_ids(conn,component_ids,projectList)
     return grouped
 
 def find_analysis_result_grouped(conn,analysisResultQuery:AnalysisResultQuery):
+    if analysisResultQuery.component_parent_ids_map is None:
+        analysisResultQuery.component_parent_ids_map = {}
+        
+    if  analysisResultQuery.component_ids_map is None and  analysisResultQuery.component_ids:
+        component_ids_map = []
+        for item in  analysisResultQuery.component_ids:
+            component_ids_map.append({
+                "component_id": item,
+                "parent_id": analysisResultQuery.component_parent_ids_map.get(item,None)
+            })
+        analysisResultQuery.component_ids_map = component_ids_map
+
+
     component_dict = {}
     component_list = pipeline_service.find_by_component_ids(conn,analysisResultQuery.component_ids)
     component_ids = set()
@@ -116,16 +129,28 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
         conditions.append(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method))
     if analysisResultQuery.analysis_type is not None:
         conditions.append(analysis_result.c.analysis_type == analysisResultQuery.analysis_type)
-    if analysisResultQuery.component_ids is not None:
-        conditions.append(analysis_result.c.component_id.in_(analysisResultQuery.component_ids))
+    # if analysisResultQuery.component_ids is not None:
+    #     conditions.append(analysis_result.c.component_id.in_(analysisResultQuery.component_ids))
     if analysisResultQuery.component_id is not None:
         conditions.append(analysis_result.c.component_id == analysisResultQuery.component_id)
     if analysisResultQuery.projectList is not None:
         conditions.append(analysis_result.c.project.in_(analysisResultQuery.projectList))
     if analysisResultQuery.analsyis_id is not None:
         conditions.append(analysis_result.c.analysis_id == analysisResultQuery.analsyis_id)
-
+    if analysisResultQuery.parent_id is not None:
+        conditions.append(analysis_result.c.parent_id == analysisResultQuery.parent_id)
     #  (nextflow.used = TRUE OR nextflow.analysis_id IS NULL)
+    if analysisResultQuery.component_ids_map is not None:
+        mapping_conditions = []
+        for item in analysisResultQuery.component_ids_map:
+            mapping_conditions.append(
+                and_(
+                    analysis_result.c.component_id == item["component_id"],
+                    analysis_result.c.parent_id == item["parent_id"]
+                )
+            )
+        conditions.append(or_(*mapping_conditions))
+
     stmt= stmt.where(and_( *conditions, or_(analysis.c.used == True, analysis.c.analysis_id == None)))
 
     
@@ -166,6 +191,8 @@ def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     data_dir = settings.DATA_DIR
     for index in range(len(result_dict)):
         item = result_dict[index]
+        if item["type"] =="folder":
+            continue
         df_content = pd.DataFrame()
         if item['content_type']=="json" and not isinstance(item['content'], dict) and item['file_type']!="collected":
             try:

@@ -102,6 +102,8 @@ analysis_result = Table(
     Column("file_name", String(255)),
     Column("analysis_key", String(255)),
     Column("component_id", String(255)),
+    Column("type", String(255)),  # 'folder','file'
+    Column("parent_id", String(255)),
     # Column("analysis_method", String(255)),
     Column("software", String(255)),
     Column("content",Text().with_variant(LONGTEXT(), "mysql")),
