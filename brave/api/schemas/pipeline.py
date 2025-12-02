@@ -18,6 +18,7 @@ class SavePipeline(BaseModel):
     sub_container_id:Optional[str]=None
     file_type:Optional[str]=None
     script_type:Optional[str]=None
+    tools_container_id:Optional[str]=None
     tags:Optional[str]=None
     component_ids:Optional[str]=None
 

@@ -268,3 +268,12 @@ async def find_running_containers(label_filter: dict = Body(...), job_executor: 
     containers =  job_executor.find_running_containers(label_filter)
     containers = [{"status": container.status,"analysis_id":get_container_analysis_id(container),"image_id": container.image.id,"image": get_image_name(container), "run_id": container.name, "name": container.name, "id": container.id} for container in containers]
     return containers
+
+
+@container_controller.get("/list-all", tags=['container'])
+async def list_all_containers():
+    with get_engine().begin() as conn:
+        containers = container_service.list_all_containers(conn)
+    return containers
+
+

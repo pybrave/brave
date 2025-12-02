@@ -478,8 +478,7 @@ def get_executor_logs(analysis_id,job_executor_selector:JobExecutor = Depends(Pr
 async def run_analysis_v2(
     analysis_id,
     run_type:str="job",
-    auto_parse:Optional[bool]=True,
-    # executor: JobExecutor = Depends(get_executor_dep),
+    tool_container_id:Optional[str]=None,
     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
     ):
 
@@ -495,7 +494,7 @@ async def run_analysis_v2(
         if analysis_ is None:
             raise HTTPException(status_code=404, detail="Analysis not found")
         # await analysis_service.run_analysis(conn,analysis_,run_type,evenet_bus)
-        analysis_executer_modal = await analysis_service.run_analysis(conn,analysis_,run_type)
+        analysis_executer_modal = await analysis_service.run_analysis(conn,analysis_,run_type,tool_container_id)
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
 
     #     # process_id = analysis_['process_id']
@@ -788,3 +787,40 @@ async def update_used(analysis_id: str):
     with get_engine().begin() as conn:
         analysis_service.update_used(conn,analysis_id)
     return "success"
+
+def get_image_name(container):
+    tags = container.image.tags
+    if tags and len(tags) > 0:
+        return tags[0]
+    else:
+        return "<none>:<none>"
+@analysis_api.get("/analysis/list-tools-containers/{analysis_id}")
+@inject
+async def list_tools_containers(analysis_id, job_executor: JobExecutor = Depends(Provide[AppContainer.job_executor_selector])):
+    with get_engine().begin() as conn:
+        analysis_ = analysis_service.find_analysis_by_id(conn,analysis_id)
+        component_id = analysis_["component_id"]
+        find_component = pipeline_service.find_component_by_id(conn,component_id)
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"Cannot find component for {component_id}!")
+        if not find_component.tools_container_id:
+            return []
+        tools_container_id = json.loads(find_component.tools_container_id)
+        label_str=f"analysis_id={analysis_id}"
+        label_filter = {"label": label_str}
+        containers =  job_executor.find_running_containers(label_filter)
+        runnning_containers_map  = { item.name:item for item in containers}
+        all_containers =  container_service.list_tool_containers_in(conn, tools_container_id)
+        all_containers = [dict(item) for item in all_containers]
+        for item in all_containers:
+            container_name = f"tools-{analysis_id}-{item['container_id']}"
+            if container_name in runnning_containers_map:
+                item['status'] =runnning_containers_map[container_name].status
+
+        running_containers = [{"status": container.status,"analysis_id":analysis_id,"image_id": container.image.id,"image": get_image_name(container), "run_id": container.name, "name": container.name, "id": container.id} for container in containers]
+
+        return {
+            "tools_containers":all_containers,
+            "running_containers":running_containers
+        }
+

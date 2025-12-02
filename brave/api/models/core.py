@@ -74,6 +74,7 @@ analysis = Table(
     # Column("server_id", String(255)),
     Column("job_status", String(255)),
     Column("server_status", String(255)),
+    # Column("tools_status", String(255)),
 
 
     Column("command_log_path", String(255)),
@@ -172,6 +173,8 @@ t_pipeline_components = Table(
     Column("component_ids",Text().with_variant(LONGTEXT(), "mysql")),
     Column("img", String(255)), 
     Column("container_id", String(255)),
+    Column("tools_container_id", Text),
+
     Column("sub_container_id", String(255)),
     Column("tags", String(255)), 
     Column("file_type", String(255)), 

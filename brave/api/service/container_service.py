@@ -112,3 +112,18 @@ def find_by_container_ids(conn,container_ids):
     return conn.execute(stmt).mappings().all()
 
 
+
+def list_all_containers(conn):
+    stmt = select(t_container.c.container_id,t_container.c.name)
+    return conn.execute(stmt).mappings().all()
+
+def list_tool_containers_in(conn, tools_container_id):
+    if not tools_container_id:
+        return []
+    stmt = select(t_container.c.container_id,t_container.c.name,t_container.c.image).where(
+        and_(
+            t_container.c.container_id.in_(tools_container_id)
+        )
+        
+    )
+    return conn.execute(stmt).mappings().all()

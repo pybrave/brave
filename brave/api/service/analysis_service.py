@@ -1,4 +1,4 @@
-from operator import and_, or_
+# from operator import 
 from brave.api.config.db import get_engine
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.core.routers_name import RoutersName
@@ -14,6 +14,7 @@ import os
 from brave.api.enum.component_script import ScriptName
 from brave.api.models.core import t_container
 from sqlalchemy.orm import aliased
+from sqlalchemy import or_, and_
 from brave.api.utils.file_utils import delete_all_in_dir
 from brave.api.core.evenet_bus import EventBus
 
@@ -147,13 +148,16 @@ def add_run_id(item):
     if item['job_status'] == "running":
         item['run_id'] = f"job-{item['analysis_id']}"
         item['run_type'] = "job"
-    elif item['server_status'] == "running":
+    elif item['server_status'] == "running" or item['server_status'] == "stopping":
         item['run_id'] = f"server-{item['analysis_id']}"
         item['run_type'] = "server"
     return item
 
 def find_running_analysis(conn):
-    stmt = select(t_analysis).where(or_(t_analysis.c.job_status == "running",t_analysis.c.server_status == "running"))
+    stmt = select(t_analysis).where(or_(
+        t_analysis.c.job_status == "running",
+        t_analysis.c.server_status == "running",
+        t_analysis.c.server_status == "stopping"))
     result = conn.execute(stmt).mappings().all()
     result = [add_run_id(item) for item in result]
     return result
@@ -182,7 +186,8 @@ async def finished_analysis(analysis_id,run_type,status):
         finished_analysis_(conn,analysis_id,run_type,status)
 
 def finished_analysis_(conn,analysis_id,run_type,status):
-    
+    if run_type =="tools":
+        return
     if run_type == "job":
         stmt = (
             update(t_analysis)
@@ -298,6 +303,7 @@ def list_analysis(conn,query:QueryAnalysis):
         t_pipeline_components.c.order_index.label("component_order_index"),
         # t_pipeline_components.c.label.label("component_label"),
         t_pipeline_components.c.component_type.label("component_type"),
+        t_pipeline_components.c.tools_container_id.label("tools_container_id"),
         t_project.c.project_name.label("project_name"),
         t_container.c.name.label("container_name"),
         t_container.c.image.label("container_image"),
@@ -329,6 +335,8 @@ def list_analysis(conn,query:QueryAnalysis):
         for field in ["created_at", "updated_at"]:
             if field in new_row and new_row[field]:
                 new_row[field] = new_row[field].strftime("%Y-%m-%d %H:%M:%S")
+        if new_row["tools_container_id"]:
+            new_row["tools_container_id"] = json.loads(new_row["tools_container_id"])
         formatted_result.append(new_row)
 
     return {
@@ -348,7 +356,7 @@ def update_extra_project(conn,analysis_id,project):
     conn.execute(stmt)
 
 
-async def run_analysis(conn,analysis_,run_type):
+async def run_analysis(conn,analysis_,run_type,tool_container_id):
     analysis_id = analysis_['analysis_id']
     pipeline_script = analysis_['pipeline_script']
     pipeline_dir = pipeline_service.get_pipeline_dir()
@@ -362,15 +370,20 @@ async def run_analysis(conn,analysis_,run_type):
         # if os.path.exists(output_dir):
         delete_all_in_dir(output_dir)
 
-    if not component["container_id"]:
+    if not tool_container_id and not component["container_id"]:
         raise HTTPException(status_code=500, detail=f"please config container id") 
 
     # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
     analysis_ = dict(analysis_)
     analysis_["run_id"] = f"{run_type}-{analysis_id}"
 
+
+
     if run_type == "job":
         analysis_["container_id"] =component["container_id"]
+    elif run_type == "tools":
+        analysis_["container_id"] = tool_container_id
+        analysis_["run_id"] = f"{run_type}-{analysis_id}-{tool_container_id}"
     else:
         # if component_type=="script":
         analysis_["container_id"] =component["container_id"]

@@ -76,3 +76,5 @@ class AnalysisId(BaseModel):
 class UpdateProject(BaseModel):
     project: Optional[list[str]] = None
     analysis_id: Optional[str]=None
+
+
