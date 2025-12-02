@@ -151,27 +151,28 @@ class DockerExecutor(JobExecutor):
         docker_uid = user_id
         labels ={}
         network = None
-        url_predix = f"container/{job.analysis_id}"
+        url_predix = f"container/{job.run_id}"
         if job.run_id.startswith("server-") or job.run_id.startswith("retry-") or job.run_id.startswith("tools-"):
             command = find_container["command"] or  ""
             command = command.replace("$SCRIPT_DIR",script_dir)
             command = command.replace("$URL_PREFIX",url_predix)
             # command = f"{command}  > {job.command_log_path}"
             port = {}
-            # port_str = find_container["port"]
-            # if ":" in port_str:
-            #     for item in port_str.split(","):
-            #         host_port, container_port = item.split(":")
-            #         # Docker SDK 需要字典 {container_port/tcp: host_port}
-            #         port[f"{container_port}/tcp"] = int(host_port)
-            # elif  port!="":
-            #     port =  {f"{port_str}/tcp":None}
+            port_str = find_container["port"]
+            if port_str and  port_str!="":
+                if ":" in port_str:
+                    for item in port_str.split(","):
+                        host_port, container_port = item.split(":")
+                        # Docker SDK 需要字典 {container_port/tcp: host_port}
+                        port[f"{container_port}/tcp"] = int(host_port)
+                elif  port!="":
+                    port =  {f"{port_str}/tcp":None}
 
             docker_uid = user_id if find_container["change_uid"] else None
             labels = find_container["labels"]
             if labels:
                 labels = labels.replace("$URL_PREFIX",url_predix)
-                labels = labels.replace("$CONTAINER_NAME",job.analysis_id)
+                labels = labels.replace("$CONTAINER_NAME",job.run_id)
                 labels = json.loads(labels)
             else:
                 labels={}

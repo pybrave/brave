@@ -797,6 +797,12 @@ def get_image_name(container):
 @analysis_api.get("/analysis/list-tools-containers/{analysis_id}")
 @inject
 async def list_tools_containers(analysis_id, job_executor: JobExecutor = Depends(Provide[AppContainer.job_executor_selector])):
+    label_str=f"analysis_id={analysis_id}"
+    label_filter = {"label": label_str}
+     
+    containers =  job_executor.find_running_containers(label_filter)
+    running_containers = [{"status": container.status,"analysis_id":analysis_id,"image_id": container.image.id,"image": get_image_name(container), "run_id": container.name, "name": container.name, "id": container.id} for container in containers]
+
     with get_engine().begin() as conn:
         analysis_ = analysis_service.find_analysis_by_id(conn,analysis_id)
         component_id = analysis_["component_id"]
@@ -804,11 +810,12 @@ async def list_tools_containers(analysis_id, job_executor: JobExecutor = Depends
         if not find_component:
             raise HTTPException(status_code=500, detail=f"Cannot find component for {component_id}!")
         if not find_component.tools_container_id:
-            return []
+            return{
+                "tools_containers":[],
+                "running_containers":running_containers
+            }
         tools_container_id = json.loads(find_component.tools_container_id)
-        label_str=f"analysis_id={analysis_id}"
-        label_filter = {"label": label_str}
-        containers =  job_executor.find_running_containers(label_filter)
+      
         runnning_containers_map  = { item.name:item for item in containers}
         all_containers =  container_service.list_tool_containers_in(conn, tools_container_id)
         all_containers = [dict(item) for item in all_containers]
@@ -817,7 +824,6 @@ async def list_tools_containers(analysis_id, job_executor: JobExecutor = Depends
             if container_name in runnning_containers_map:
                 item['status'] =runnning_containers_map[container_name].status
 
-        running_containers = [{"status": container.status,"analysis_id":analysis_id,"image_id": container.image.id,"image": get_image_name(container), "run_id": container.name, "name": container.name, "id": container.id} for container in containers]
 
         return {
             "tools_containers":all_containers,
