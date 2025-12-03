@@ -39,7 +39,7 @@ class Settings:
         code_dir = os.getenv("CODE_DIR",default_code_dir)
         self.CODE_DIR = Path(code_dir).resolve()# / "data"
         self.CODE_DIR.mkdir(parents=True, exist_ok=True)
-        print(f"✅ Using CODE_DIR: {self.CODE_DIR}")
+        print(f"✅ Using CODE_DIR: {self.CODE_DIR}c ")
 
         default_package_dir= f"{base_dir}/package"
         package_dir = os.getenv("PACKAGE_DIR",default_package_dir)

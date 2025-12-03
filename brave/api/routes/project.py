@@ -1,8 +1,11 @@
 import json
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from brave.api.schemas.project import AddProject,UpdateProject
 from brave.api.service import project_service
 from brave.api.config.db import get_engine
+from pathlib import Path
+from brave.api.config.config import get_settings
+import os 
 
 project_api = APIRouter(prefix="/project")
 
@@ -48,3 +51,55 @@ async def delete_project(project_id:str):
     with get_engine().begin() as conn:
         project_id = await project_service.delete_project(conn,project_id)
         return {"project_id":project_id}
+    
+
+
+
+@project_api.get("/list-project-dir/{project_id}")
+async def list_dir_v2(
+    project_id: str,
+    path: str = "",
+    keyword: str = "",
+    page: int = 1,
+    type: str = "data",
+    limit: int = 20,
+):
+    
+    settings = get_settings()
+    if type=="analysis":
+        real_path = f"{settings.ANALYSIS_DIR}/{project_id}"
+    else:
+        real_path = f"{settings.DATA_DIR}/{project_id}"
+
+    if path:
+        real_path = f"{real_path}/{path}"
+    full_path = Path(  real_path).resolve()
+    if not full_path.exists() or not full_path.is_dir() :
+        full_path_str = str(full_path)
+        if full_path_str.endswith(project_id) or full_path_str.endswith(f"{project_id}/") :
+            os.makedirs(full_path_str, exist_ok=True)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+    items = []
+    for item in full_path.iterdir():
+        if keyword.lower() in item.name.lower():
+            items.append({
+                "name": item.name,
+                "is_dir": item.is_dir(),
+                "size": item.stat().st_size if item.is_file() else None,
+                "modified": item.stat().st_mtime,
+            })
+
+    # 分页处理
+    total = len(items)
+    start = (page - 1) * limit
+    end = start + limit
+    paged_items = items[start:end]
+
+    return {
+        "items": paged_items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }

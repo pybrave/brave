@@ -36,12 +36,15 @@ def build_form_data(dir,form_data,settings,k,v):
 def from_glob_get_file(content,dir=None):
     settings = get_settings()
     form_data = {}
-    for k,v in content.items():
-        if isinstance(v,list):
-            for item in v:
-                build_form_data(dir,form_data,settings,k,item)
-        else:
-            build_form_data(dir,form_data,settings,k,v)
+    if isinstance(content, str):
+        build_form_data(dir,form_data,settings,"content",content)
+    else:
+        for k,v in content.items():
+            if isinstance(v,list):
+                for item in v:
+                    build_form_data(dir,form_data,settings,k,item)
+            else:
+                build_form_data(dir,form_data,settings,k,v)
     # common_samples = reduce(lambda  x,y: set(x.keys()) & set(y.keys()), list(form_data.values()))
     # dicts = list(form_data.values())
     # common_samples = reduce(lambda x, y: set(x) & set(y), (d.keys() for d in dicts))

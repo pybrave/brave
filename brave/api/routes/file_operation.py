@@ -153,6 +153,10 @@ def list_dir_v2(
 
 
 
+
+
+
+
 # def format_img_path(path):
 #     settings = get_settings()
 #     base_dir = settings.BASE_DIR
