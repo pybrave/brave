@@ -3,8 +3,8 @@ from brave.api.config.config import get_settings
 from brave.api.config.db import get_engine
 from fastapi import HTTPException
 from brave.api.models.core import analysis_result, samples,analysis,t_pipeline_components,t_project
-from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery
-from sqlalchemy import and_, desc, select,case,or_
+from brave.api.schemas.analysis_result import AnalysisResult,AnalysisResultQuery, PageAnalysisResultQuery
+from sqlalchemy import and_, desc, select,case,or_,func
 from brave.api.service import sample_service
 import json
 import uuid
@@ -83,6 +83,109 @@ def find_analysis_result_grouped(conn,analysisResultQuery:AnalysisResultQuery):
 
     return grouped
 
+    
+
+
+def page_analysis_result(conn,analysisResultQuery:PageAnalysisResultQuery):
+    stmt = analysis_result.select() 
+    if analysisResultQuery.querySample:
+        stmt =  select(
+            analysis_result, 
+            samples.c.sample_name,
+            # samples.c.sample_group,
+            # samples.c.sample_id,
+            samples.c.metadata,
+            analysis.c.analysis_name,
+            analysis.c.used,
+            t_pipeline_components.c.component_name.label("component_name"),
+            t_pipeline_components.c.file_type.label("file_type"),
+            # t_pipeline_components.c.label.label("component_label"),
+            # t_pipeline_components.c.name.label("analysis_method"),
+            t_project.c.project_name.label("project_name")
+            # t_project.c.project_id.label("project_id")
+            # t_project.c.metadata_form.label("metadata_form")
+
+            ) 
+        stmt = stmt.select_from(
+            analysis_result.outerjoin(samples,samples.c.sample_id==analysis_result.c.sample_id)
+            .outerjoin(analysis,analysis.c.analysis_id==analysis_result.c.analysis_id)
+            .outerjoin(t_pipeline_components,t_pipeline_components.c.component_id==analysis_result.c.component_id)
+            .outerjoin(t_project,t_project.c.project_id==analysis_result.c.project)
+            )
+   
+    conditions = []
+    # conditions.append(analysis.c.used==True)
+    if analysisResultQuery.project is not None:
+        conditions.append(analysis_result.c.project == analysisResultQuery.project)
+    if analysisResultQuery.ids is not None:
+        conditions.append(analysis_result.c.id.in_(analysisResultQuery.ids))
+    if analysisResultQuery.analysis_method is not None:
+        conditions.append(analysis_result.c.analysis_method.in_(analysisResultQuery.analysis_method))
+    if analysisResultQuery.analysis_type is not None:
+        conditions.append(analysis_result.c.analysis_type == analysisResultQuery.analysis_type)
+    if analysisResultQuery.component_id is not None:
+        conditions.append(analysis_result.c.component_id == analysisResultQuery.component_id)
+    if analysisResultQuery.projectList is not None:
+        conditions.append(analysis_result.c.project.in_(analysisResultQuery.projectList))
+    if analysisResultQuery.analsyis_id is not None:
+        conditions.append(analysis_result.c.analysis_id == analysisResultQuery.analsyis_id)
+    if analysisResultQuery.parent_id is not None:
+        conditions.append(analysis_result.c.parent_id == analysisResultQuery.parent_id)
+    else:
+        conditions.append(analysis_result.c.parent_id == None)
+    if analysisResultQuery.keywords:
+        keyword_pattern = f"%{analysisResultQuery.keywords}%"
+        conditions.append(
+            or_(
+                analysis_result.c.file_name.ilike(keyword_pattern)
+            )
+        )
+
+
+    #  (nextflow.used = TRUE OR nextflow.analysis_id IS NULL)
+    if analysisResultQuery.component_ids_map is not None:
+        mapping_conditions = []
+        for item in analysisResultQuery.component_ids_map:
+            mapping_conditions.append(
+                and_(
+                    analysis_result.c.component_id == item["component_id"],
+                    analysis_result.c.parent_id == item["parent_id"]
+                )
+            )
+        conditions.append(or_(*mapping_conditions))
+
+    stmt= stmt.where(and_( *conditions, or_(analysis.c.used == True, analysis.c.analysis_id == None)))
+
+    stmt = stmt.offset((analysisResultQuery.page_number - 1) * analysisResultQuery.page_size).limit(analysisResultQuery.page_size)
+    stmt = stmt.order_by(desc(analysis_result.c.id))
+
+    result  = conn.execute(stmt)
+    # result = result.fetchall()
+    rows = result.mappings().all()
+
+    count_stmt = select(func.count()).select_from(analysis_result).where(and_(*conditions) if len(conditions) > 1 else conditions[0])
+    total = conn.execute(count_stmt).scalar()
+
+
+    result_dict = [dict(item) for item in rows ]
+    result_dict = [get_analysis_result_metadata(item) for item in result_dict]
+    for index in range(len(result_dict)):
+            item = result_dict[index]
+            if item["type"] =="folder":
+                continue
+            if item['content_type']=="json" and not isinstance(item['content'], dict) and item['file_type']!="collected":
+                try:
+                    item['content'] = json.loads(item['content'])
+                except:
+                    pass
+    # result_dict = [AnalysisResult(**row) for row in rows]
+  
+    return {
+        "items": result_dict,
+        "total": total,
+        "page_number": analysisResultQuery.page_number,
+        "page_size": analysisResultQuery.page_size
+    }
 
 def find_analyais_result(conn,analysisResultQuery:AnalysisResultQuery):
     stmt = analysis_result.select() 

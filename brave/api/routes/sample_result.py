@@ -20,7 +20,7 @@ import os
 import json
 from brave.api.config.db import get_db_session
 from sqlalchemy import and_,or_
-from brave.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult, CreateAnalysisResult, ImportData, ParseImportData,UpdateAnalysisResult,BindSample
+from brave.api.schemas.analysis_result import AnalysisResultQuery,AnalysisResult, CreateAnalysisResult, ImportData, PageAnalysisResultQuery, ParseImportData,UpdateAnalysisResult,BindSample
 from brave.api.models.core import samples,analysis_result
 from brave.api.config.db import get_engine
 import inspect
@@ -222,7 +222,7 @@ def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
         result_dict = analysis_result_service.find_analyais_result(conn,analysisResultQuery)
     return result_dict
 
-@sample_result.get("/analysis-result/table/{analysis_result_id}",)
+@sample_result.get("/analysis-result/table/{analysis_result_id}")
 def get_analysis_result_table(analysis_result_id,row_num=-1):
     with get_engine().begin() as conn:
         result_one = analysis_result_service.find_by_analysis_result_id(conn,analysis_result_id)
@@ -258,6 +258,16 @@ async def list_analysis_result(analysisResultQuery:AnalysisResultQuery):
     # grouped = defaultdict(list)
     # for item in result_dict:
     #     grouped[item["component_id"]].append(item)
+    return result_dict
+
+
+@sample_result.post(
+    "/analysis-result/page-analysis-result",
+    # response_model=List[AnalysisResult]
+    )
+async def page_analysis_result(analysisResultQuery:PageAnalysisResultQuery):
+    with get_engine().begin() as conn:
+        result_dict = analysis_result_service.page_analysis_result(conn,analysisResultQuery)
     return result_dict
 
 @sample_result.post(

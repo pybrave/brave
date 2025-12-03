@@ -295,6 +295,14 @@ def list_analysis(conn,query:QueryAnalysis):
         conditions.append(t_analysis.c.component_id.in_(query.component_ids))
     if query.is_report:
         conditions.append(t_analysis.c.is_report)
+    if query.keywords:
+        keyword_pattern = f"%{query.keywords}%"
+        conditions.append(
+            or_(
+                t_analysis.c.analysis_name.ilike(keyword_pattern)
+            )
+        )
+
     # t_sub_container = aliased(t_container)
 
     stmt = select(
@@ -320,6 +328,7 @@ def list_analysis(conn,query:QueryAnalysis):
         .outerjoin(t_container,t_pipeline_components.c.container_id==t_container.c.container_id)
         # .outerjoin(t_sub_container,t_pipeline_components.c.sub_container_id==t_sub_container.c.container_id)
         )
+    
     if conditions:
         stmt = stmt.where(and_(*conditions) if len(conditions) > 1 else conditions[0])
 

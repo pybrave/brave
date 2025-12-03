@@ -21,6 +21,30 @@ class AnalysisResultQuery(BaseModel):
     parent_id:Optional[str]=None
     rows:Optional[int]=None
 
+
+class PageAnalysisResultQuery(BaseModel):
+    # id: Optional[int]
+    analysis_method:Optional[list]=None
+    component_ids:Optional[list]=None
+    component_id:Optional[str]=None
+    project:Optional[str]=None
+    projectList:Optional[list]=None
+    analsyis_id:Optional[str]=None
+    querySample:Optional[bool]=True
+    # queryAnalysis:Optional[bool]=True
+    analysis_type:Optional[str]=None
+    ids:Optional[list]=None
+    component_parent_ids_map:Optional[dict]=None
+    component_ids_map:Optional[list]=None
+    build_collected:Optional[bool]=True
+    build_collected_rows:Optional[bool]=False
+    parent_id:Optional[str]=None
+    rows:Optional[int]=None
+    page_number: Optional[int]=1
+    page_size: Optional[int]=10
+    keywords: Optional[str]=None
+
+
 class AnalysisResultParseModal(BaseModel):
     # sample_id: Optional[str]
     # project: Optional[str]
