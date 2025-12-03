@@ -356,7 +356,7 @@ def update_extra_project(conn,analysis_id,project):
     conn.execute(stmt)
 
 
-async def run_analysis(conn,analysis_,run_type,tool_container_id):
+async def run_analysis(conn,analysis_,run_type,tool_container_id=None):
     analysis_id = analysis_['analysis_id']
     pipeline_script = analysis_['pipeline_script']
     pipeline_dir = pipeline_service.get_pipeline_dir()
