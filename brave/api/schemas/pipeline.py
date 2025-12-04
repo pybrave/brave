@@ -29,6 +29,15 @@ class SavePipelineRelation(BaseModel):
     parent_component_id:Optional[str]=None
     # pipeline_key: Optional[str]=None
     relation_type: Optional[str]=None
+    name: Optional[str]=None
+    img: Optional[str]=None
+    tags: Optional[list]=None
+    category: Optional[str]=None
+    description: Optional[str]=None
+    order_index:Optional[int]=None
+    input_component_ids:Optional[list]=None
+    output_component_ids:Optional[list]=None
+
 
 
 class QueryPipeline(BaseModel):
@@ -49,6 +58,14 @@ class PagePipelineQuery(BaseModel):
     category: Optional[str]=None
     # component_id: Optional[str]=None
 
+
+
+class PageComponentRelationQuery(BaseModel):
+    page_number: Optional[int]=1
+    page_size: Optional[int]=10
+    relation_type: Optional[str]=None
+    keywords: Optional[str]=None
+    category: Optional[str]=None
 
 class Pipeline(BaseModel):
     id:Optional[int]

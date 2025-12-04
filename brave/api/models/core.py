@@ -3,7 +3,7 @@ from sqlalchemy import Column, DateTime, Table
 from sqlalchemy.sql.sqltypes import Integer, String,Boolean
 from brave.api.config.db import meta
 # from sqlalchemy.dialects.mysql import LONGTEXT
-from sqlalchemy import Text,Index
+from sqlalchemy import Text,Index,JSON
 from sqlalchemy.dialects.mysql import LONGTEXT
 
 
@@ -192,12 +192,19 @@ t_pipeline_components_relation = Table(
     "pipeline_components_relation",
     meta,
     Column("id", Integer, primary_key=True),
+    Column("name", String(255)),
+    Column("img", String(255)), 
+    Column("tags", JSON), 
+    Column("category", String(255), default="default"), 
+    Column("description", Text().with_variant(LONGTEXT(), "mysql")),
     Column("relation_id", String(255)),
     Column("relation_type", String(255)), 
     Column("install_key", String(255)),
     # Column("pipeline_id", String(255)),
     Column("component_id", String(255)),
     Column("parent_component_id", String(255)),
+    Column("input_component_ids",  JSON),
+    Column("output_component_ids",  JSON),
     Column("order_index", Integer),
     # Column("namespace", String(255)),
     Column("created_at", DateTime, default=datetime.now),

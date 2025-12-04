@@ -376,6 +376,53 @@ def page_pipeline(conn,query:PagePipelineQuery):
     }
 
 
+def page_component_relation(conn,query):
+    stmt =select(
+        t_pipeline_components_relation,
+        # t_pipeline_components,
+    ).select_from(
+        t_pipeline_components_relation.outerjoin(
+            t_pipeline_components,
+            t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+        )
+    )
+    
+   
+
+    conditions = []
+    if query.relation_type is not None:
+        conditions.append(t_pipeline_components_relation.c.relation_type == query.relation_type)
+
+    if query.keywords:
+        keyword_pattern = f"%{query.keywords}%"
+        conditions.append(
+            or_(
+                t_pipeline_components_relation.c.name.ilike(keyword_pattern),
+                t_pipeline_components.c.tags.ilike(keyword_pattern),
+                t_pipeline_components.c.description.ilike(keyword_pattern)
+            )
+        )
+
+    stmt = stmt.where(and_(*conditions))
+    count_stmt = select(func.count()).select_from(
+        t_pipeline_components_relation.outerjoin(
+            t_pipeline_components,
+            t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+        )
+    ).where(and_(*conditions))
+
+    stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
+    find_pipeline = conn.execute(stmt).mappings().all()
+    find_pipeline = [dict(item) for item in find_pipeline]
+    # find_pipeline = [format_pipeline_componnet_one(item) for item in find_pipeline]
+
+    total = conn.execute(count_stmt).scalar()
+    return {
+        "items": find_pipeline,
+        "total":total,
+        "page_number":query.page_number,
+        "page_size":query.page_size
+    }
 
  
 def datetime_converter(o):
@@ -933,3 +980,83 @@ def get_example(conn,component_id):
     example_suffix  = example_file.replace(str(pipeline_dir),"")
     example_url = f"/brave-api/pipeline-dir{example_suffix}" 
     return example_file,example_url,component
+
+
+def find_component_and_relation_by_parent_id(conn,parent_id,relation_type):
+    stmt = (
+        select(
+            t_pipeline_components_relation,  # 关系表所有字段
+            t_pipeline_components  # 组件表所有字段
+        )
+        .select_from(
+            t_pipeline_components_relation.outerjoin(
+                t_pipeline_components,
+                t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+            )
+        )
+        .where(t_pipeline_components_relation.c.parent_component_id == parent_id)
+    )
+
+    if relation_type is not None:
+        stmt = stmt.where(t_pipeline_components_relation.c.relation_type == relation_type)
+
+    result = conn.execute(stmt).mappings().all()
+    return result
+
+
+def find_component_and_relation_by_component_id(conn, component_id, relation_type):
+    stmt = (
+        select(
+            t_pipeline_components_relation,  # 关系表所有字段
+            t_pipeline_components  # 组件表所有字段
+        )
+        .select_from(
+            t_pipeline_components_relation.outerjoin(
+                t_pipeline_components,
+                t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+            )
+        )
+        .where(t_pipeline_components_relation.c.component_id == component_id)
+    )
+
+    if relation_type is not None:
+        stmt = stmt.where(t_pipeline_components_relation.c.relation_type == relation_type)
+
+    result = conn.execute(stmt).mappings().all()
+    return result
+
+
+
+def build_component():
+    pass
+
+def get_components_by_relation_id(conn,relation_id):
+    stmt = (
+        select(
+            t_pipeline_components_relation,  # 关系表所有字段
+            t_pipeline_components.c.script_type  # 组件表所有字段
+        )
+        .select_from(
+            t_pipeline_components_relation.outerjoin(
+                t_pipeline_components,
+                t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+            )
+        )
+        .where(t_pipeline_components_relation.c.relation_id == relation_id)
+    )
+
+    result = conn.execute(stmt).mappings().first()
+    result = dict(result)
+    input_component_ids = result['input_component_ids']
+    if input_component_ids:
+        # input_component_ids = json.loads(input_component_ids)
+        input_components = find_by_component_ids(conn, input_component_ids)
+        result['inputFile'] = [format_pipeline_componnet_one(dict(item)) for item in input_components]
+    
+    output_component_ids = result['output_component_ids']
+    if output_component_ids:
+        # output_component_ids = json.loads(output_component_ids)
+        output_components = find_by_component_ids(conn, output_component_ids)
+        result['outputFile'] = [format_pipeline_componnet_one(dict(item)) for item in output_components]
+
+    return result

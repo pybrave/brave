@@ -16,7 +16,7 @@ import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import or_, select, and_, join, func,insert,update
 import re
-from brave.api.schemas.pipeline import InstallComponent, PagePipelineQuery, PublishComponent, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
+from brave.api.schemas.pipeline import InstallComponent, PageComponentRelationQuery, PagePipelineQuery, PublishComponent, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
 import brave.api.service.pipeline  as pipeline_service
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
@@ -203,6 +203,17 @@ def format_content(item):
     }
     return item
     # pass
+# @pipeline.get("/get-component-parent/{component_id}",tags=['pipeline'])
+# async def get_component_parent(component_id,component_type):
+#     with get_engine().begin() as conn:
+#         # find script child item
+#         component_child_file= pipeline_service.find_component_and_relation_by_parent_id(conn,component_id,"script_file")
+#         # find script parent item
+#     parent_item_list = [format_content(item) for item in data if item['component_type'] != component_type]
+#     # resul_dict= {}
+#     # resul_dict['script'] = dict(child_item)
+#     child_item['parent'] = parent_item_list
+#     return child_item
 
 @pipeline.get("/get-component-parent/{component_id}",tags=['pipeline'])
 async def get_component_parent(component_id,component_type):
@@ -269,6 +280,8 @@ async def get_component_parent(component_id,component_type):
     # resul_dict= {}
     # resul_dict['script'] = dict(child_item)
     child_item['parent'] = parent_item_list
+
+    
     return child_item
 
 
@@ -589,6 +602,12 @@ async def save_pipeline_relation_controller(savePipelineRelation:SavePipelineRel
 
 async def save_pipeline_relation(conn,savePipelineRelation):
     save_pipeline_relation_dict = savePipelineRelation.dict()
+    # if save_pipeline_relation_dict["tags"]:
+    #     save_pipeline_relation_dict["tags"] = json.dumps(save_pipeline_relation_dict["tags"])
+    # if save_pipeline_relation_dict["input_component_ids"]:
+    #     save_pipeline_relation_dict["input_component_ids"] = json.dumps(save_pipeline_relation_dict["input_component_ids"])
+    # if save_pipeline_relation_dict["output_component_ids"]:
+    #     save_pipeline_relation_dict["output_component_ids"] = json.dumps(save_pipeline_relation_dict["output_component_ids"])
     # save_pipeline_relation_dict = {k:v for k,v in save_pipeline_relation_dict.items() if k!="pipeline_id"}
     if savePipelineRelation.parent_component_id:
         parent_component = pipeline_service.find_pipeline_by_id(conn,savePipelineRelation.parent_component_id)
@@ -596,22 +615,23 @@ async def save_pipeline_relation(conn,savePipelineRelation):
             component_id = parent_component["component_id"]
     if savePipelineRelation.relation_id:
         stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
+        conn.execute(stmt)
     else:
-        query_stmt = t_pipeline_components_relation.select().where(
-            and_( t_pipeline_components_relation.c.component_id ==  savePipelineRelation.component_id,
-                 t_pipeline_components_relation.c.relation_type == savePipelineRelation.relation_type,
-                 t_pipeline_components_relation.c.parent_component_id == savePipelineRelation.parent_component_id,)
-        )
-        exist_relation = conn.execute(query_stmt).fetchone()
-        if exist_relation:
-            raise HTTPException(status_code=500, detail="This relation already exists and cannot be added again!")
+        # query_stmt = t_pipeline_components_relation.select().where(
+        #     and_( t_pipeline_components_relation.c.component_id ==  savePipelineRelation.component_id,
+        #          t_pipeline_components_relation.c.relation_type == savePipelineRelation.relation_type,
+        #          t_pipeline_components_relation.c.parent_component_id == savePipelineRelation.parent_component_id,)
+        # )
+        # exist_relation = conn.execute(query_stmt).fetchone()
+        # if exist_relation:
+        #     raise HTTPException(status_code=500, detail="This relation already exists and cannot be added again!")
         save_pipeline_relation_dict['relation_id'] = str(uuid.uuid4())
         child_component_count = pipeline_service.get_child_component_count(conn,savePipelineRelation.parent_component_id,savePipelineRelation.relation_type)
         save_pipeline_relation_dict['order_index'] = child_component_count + 1
         stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
         conn.execute(stmt)
-    
-    pipeline_service.write_component_json(component_id)
+    # TODO
+    # pipeline_service.write_component_json(component_id)
 
     # stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipelineRelation.component_id)
     # find_pipeine = conn.execute(stmt).fetchone()
@@ -1070,3 +1090,18 @@ async def get_all_category():
         return pipeline_service.get_all_category(conn)
     
 
+
+@pipeline.post("/component/page-component-relation",tags=['pipeline'])
+async def page_component_relation(query:PageComponentRelationQuery ):
+    with get_engine().begin() as conn:
+        return pipeline_service.page_component_relation(conn,query)
+
+
+
+@pipeline.get("/component/get-components/{relation_id}",tags=['pipeline'])
+async def get_components_by_relation_id(relation_id):
+    with get_engine().begin() as conn:
+        return pipeline_service.get_components_by_relation_id(conn,relation_id)
+
+
+  

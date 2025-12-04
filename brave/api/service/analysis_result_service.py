@@ -40,6 +40,25 @@ def find_analysis_result_grouped(conn,analysisResultQuery:AnalysisResultQuery):
     if analysisResultQuery.component_parent_ids_map is None:
         analysisResultQuery.component_parent_ids_map = {}
         
+
+    # build component id map for combined components
+    component_dict = {}
+    component_list = pipeline_service.find_by_component_ids(conn,analysisResultQuery.component_ids)
+    component_ids = set()
+    for item in  component_list:
+        if item.get("component_ids"):
+            ids = json.loads( item["component_ids"])
+            component_ids.update(ids)
+            # add self component id to map
+            component_ids.add( item["component_id"])
+            for id in ids:
+                component_dict[id] = item["component_id"] 
+        else:
+            component_ids.add(item["component_id"])
+
+    analysisResultQuery.component_ids = list(component_ids)
+
+    # build component_ids_map for folder structure
     if  analysisResultQuery.component_ids_map is None and  analysisResultQuery.component_ids:
         component_ids_map = []
         for item in  analysisResultQuery.component_ids:
@@ -50,19 +69,7 @@ def find_analysis_result_grouped(conn,analysisResultQuery:AnalysisResultQuery):
         analysisResultQuery.component_ids_map = component_ids_map
 
 
-    component_dict = {}
-    component_list = pipeline_service.find_by_component_ids(conn,analysisResultQuery.component_ids)
-    component_ids = set()
-    for item in  component_list:
-        if item.get("component_ids"):
-            ids = json.loads( item["component_ids"])
-            component_ids.update(ids)
-            for id in ids:
-                component_dict[id] = item["component_id"]
-        else:
-            component_ids.add(item["component_id"])
 
-    analysisResultQuery.component_ids = list(component_ids)
     result_dict = find_analyais_result(conn,analysisResultQuery)
     result_dict = [get_analysis_result_metadata(item) for item in result_dict]
             
