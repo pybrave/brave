@@ -49,6 +49,7 @@ analysis = Table(
     Column("project", String(255)),
     Column("analysis_id", String(255)),
     Column("component_id", String(255)),
+    Column("relation_id", String(255)),  # relation_pipeline_components id
     Column("analysis_name", String(255)),
     Column("input_file", String(255)),
     Column("analysis_method", String(255)),

@@ -325,8 +325,9 @@ def list_pipeline(conn,queryPipeline:QueryPipeline):
 
 def format_pipeline_componnet_one(item):
     try:
-        content = json.loads(item['content'])
-        item = {**content,**{k:v for k,v in item.items() if k != 'content'}}
+        if "content" in item and item['content']:
+            content = json.loads(item['content'])
+            item = {**content,**{k:v for k,v in item.items() if k != 'content'}}
         if 'img' in item:
             if not item['img']:
                 item['img'] = f"/brave-api/img/pipeline.jpg"
@@ -360,13 +361,15 @@ def page_pipeline(conn,query:PagePipelineQuery):
         )
 
     stmt = stmt.where(and_(*conditions))
-    count_stmt = select(func.count()).select_from(t_pipeline_components).where(and_(*conditions))
 
+    count_stmt = select(func.count()).select_from(t_pipeline_components).where(and_(*conditions))
+    # desc order_index 
+    stmt = stmt.order_by(t_pipeline_components.c.id.desc())
     stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
     find_pipeline = conn.execute(stmt).mappings().all()
     find_pipeline = [dict(item) for item in find_pipeline]
     find_pipeline = [format_pipeline_componnet_one(item) for item in find_pipeline]
-
+    
     total = conn.execute(count_stmt).scalar()
     return {
         "items": find_pipeline,
@@ -392,6 +395,8 @@ def page_component_relation(conn,query):
     conditions = []
     if query.relation_type is not None:
         conditions.append(t_pipeline_components_relation.c.relation_type == query.relation_type)
+    if query.category is not None and query.category !="all":
+        conditions.append(t_pipeline_components_relation.c.category == query.category)
 
     if query.keywords:
         keyword_pattern = f"%{query.keywords}%"
@@ -414,7 +419,7 @@ def page_component_relation(conn,query):
     stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
     find_pipeline = conn.execute(stmt).mappings().all()
     find_pipeline = [dict(item) for item in find_pipeline]
-    # find_pipeline = [format_pipeline_componnet_one(item) for item in find_pipeline]
+    find_pipeline = [format_pipeline_componnet_one(item) for item in find_pipeline]
 
     total = conn.execute(count_stmt).scalar()
     return {
@@ -822,11 +827,59 @@ def find_component_list_in_ids(conn,component_ids):
     find_components = conn.execute(stmt).mappings().all()
     return find_components
 
+def find_relation_list_in_ids(conn,relation_ids):
+    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.relation_id.in_(relation_ids))
+    find_relation = conn.execute(stmt).mappings().all()
+    return find_relation
+def write_relation_json(relation_id):
+    with get_engine().begin() as conn:
+        find_relation = find_by_relation_id(conn,relation_id)
+        relation_type = find_relation["relation_type"]
+        input_component_ids = find_relation["input_component_ids"]
+        output_component_ids = find_relation["output_component_ids"]
+        component_id = find_relation["component_id"]
+        component_list = find_component_list_in_ids(conn,input_component_ids + output_component_ids + [component_id])
+        container_id_list = [ item['container_id'] for item in component_list if item['container_id'] is not None ]
+        container_list = container_service.find_by_container_ids(conn,container_id_list)
+
+
+
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{relation_type}/{relation_id}"
+    if not os.path.exists(pipeline_dir):
+        os.makedirs(pipeline_dir)
+    pipeline_component_file = f"{pipeline_dir}/component.json"
+    pipeline_component_relation_file = f"{pipeline_dir}/component_relation.json"
+    container_file = f"{pipeline_dir}/container.json"
+    with open(pipeline_component_file,"w") as f:
+        json.dump([ {k:v for k,v in item.items() if k!="id"} for item in component_list],f, default=datetime_converter)
+    with open(pipeline_component_relation_file,"w") as f:
+        json.dump({k:v for k,v in dict(find_relation).items() if k!="id"  },f, default=datetime_converter)    
+    with open(container_file,"w") as f:
+        container_list = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in container_list]
+        json.dump(container_list,f)
+    
+    # install_file = f"{pipeline_dir}/install.json"
+    # with open(install_file,"w") as f:
+    #     json.dump({
+    #         "relation_type":relation_type,
+    #         "relation_id":relation_id,
+    #         "category":find_relation["category"] if find_relation["category"] else "default",
+    #         "name":find_relation["name"],
+    #         "img":os.path.basename(find_relation["img"]) if find_relation["img"] else "",
+    #     },f)
+    
+
+    print(f"export component_file: {pipeline_component_file}!")
+    print(f"export component_relation_file: {pipeline_component_relation_file}!")
+    print(f"export container_file: {container_file}!")
+    
+
 def write_component_json(component_id):
     with get_engine().begin() as conn:
         current_component = find_component_by_id(conn,component_id)
         if not current_component:
-            raise HTTPException(status_code=500, detail=f"组件{component_id}没有找到!")
+            raise HTTPException(status_code=500, detail=f"component {component_id} can't foun!")
         current_component = dict(current_component)
         component_type = current_component["component_type"]
 
@@ -879,14 +932,14 @@ def write_component_json(component_id):
     
     pipeline_component_file = f"{pipeline_dir}/pipeline_component.json"
     pipeline_component_relation_file = f"{pipeline_dir}/pipeline_component_relation.json"
+    container_file = f"{pipeline_dir}/container.json"
+
     with open(pipeline_component_file,"w") as f:
         json.dump([ {k:v for k,v in item.items() if k!="id"} for item in component_list],f, default=datetime_converter)
     with open(pipeline_component_relation_file,"w") as f:
         json.dump([ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in component_relation_list],f, default=datetime_converter)    
-
-    container_file = f"{pipeline_dir}/container.json"
-    container_list = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in container_list]
     with open(container_file,"w") as f:
+        container_list = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at"} for item in container_list]
         json.dump(container_list,f)
     
     install_file = f"{pipeline_dir}/install.json"
@@ -900,14 +953,21 @@ def write_component_json(component_id):
         },f)
     
 
-        # component = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
     print(f"export pipeline_component_file: {pipeline_component_file}!")
     print(f"export pipeline_component_relation_file: {pipeline_component_relation_file}!")
     print(f"export container_file: {container_file}!")
 
-    pass
+    
 
-
+def import_relation_one(conn,item,force=False):
+    # pipeline_dir = get_pipeline_dir()
+    find_pipeline_component_relation = find_by_relation_id(conn,item['relation_id'])
+    if find_pipeline_component_relation:
+        if force:
+            update_stmt = update(t_pipeline_components_relation).where(t_pipeline_components_relation.c.relation_id == item['relation_id']).values(item)
+            conn.execute(update_stmt)
+    else:
+        conn.execute(insert(t_pipeline_components_relation).values(item))   
 
 def import_component_relation(conn,path,force=False):
     # pipeline_dir = get_pipeline_dir()
@@ -923,7 +983,7 @@ def import_component_relation(conn,path,force=False):
             conn.execute(insert(t_pipeline_components_relation).values(item))   
 def import_component(conn,path,force=False):
 
-    with open(f"{path}/pipeline_component.json","r") as f:
+    with open(f"{path}/component.json","r") as f:
         find_pipeline = json.load(f)
     for item in find_pipeline:
         find_pipeline_component = find_pipeline_by_id(conn,item['component_id'])
@@ -962,7 +1022,11 @@ def get_all_category(conn):
     stmt = select(t_pipeline_components.c.category).distinct().where(t_pipeline_components.c.category != None)
     categories = conn.execute(stmt).scalars().all()
     return categories
-    
+def get_all_relation_category(conn):
+    stmt = select(t_pipeline_components_relation.c.category).distinct().where(t_pipeline_components_relation.c.category != None)
+    categories = conn.execute(stmt).scalars().all()
+    return categories
+
 def get_example(conn,component_id):
     component = find_component_by_id(conn,component_id)
     if not component:
@@ -1034,7 +1098,8 @@ def get_components_by_relation_id(conn,relation_id):
     stmt = (
         select(
             t_pipeline_components_relation,  # 关系表所有字段
-            t_pipeline_components.c.script_type  # 组件表所有字段
+            t_pipeline_components.c.script_type,
+            t_pipeline_components.c.content
         )
         .select_from(
             t_pipeline_components_relation.outerjoin(
@@ -1058,5 +1123,10 @@ def get_components_by_relation_id(conn,relation_id):
         # output_component_ids = json.loads(output_component_ids)
         output_components = find_by_component_ids(conn, output_component_ids)
         result['outputFile'] = [format_pipeline_componnet_one(dict(item)) for item in output_components]
-
+    if result['content']:
+        content = json.loads(result['content'])
+        if "formJson" in content:
+            result['formJson'] = content['formJson']
+        if "databases" in content:
+            result['databases'] = content['databases']
     return result

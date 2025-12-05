@@ -85,11 +85,13 @@ class BaseAnalysis(ABC):
             "request_param":json.dumps(request_param),
             # "analysis_method":component_script,
             "component_id":component['component_id'],
+            "relation_id":request_param['relation_id'],
             "is_report":is_report,
             # "is_report":request_param['is_report'] if "is_report" in request_param else False,
             "data_component_ids":request_param['data_component_ids'],
             # "parse_analysis_module":parse_analysis_module
         }
+        relation_id = request_param['relation_id']
         new_analysis = {k:v for k,v in new_analysis.items() if v is not None}
         # module_dir = pipeline_id
         # if "moduleDir" in component_content:
@@ -168,9 +170,9 @@ class BaseAnalysis(ABC):
             #     pipeline_id = request_param['pipeline_id']
             #     output_dir = f"{project_dir}/{pipeline_id}/{component['component_id']}/{str_uuid}"
             # else:
-            output_dir = f"{project_dir}/{component['component_id']}/{str_uuid}"
+            output_dir = f"{project_dir}/{relation_id}/{str_uuid}"
             # /data/wangyang/nf_work/
-            work_dir = f"{work_dir}/{request_param['project']}/{component['component_id']}/{str_uuid}"
+            work_dir = f"{work_dir}/{request_param['project']}/{relation_id}/{str_uuid}"
             params_path = f"{output_dir}/params.json"
             command_path= f"{output_dir}/run.sh"
             command_log_path= f"{output_dir}/run.log"

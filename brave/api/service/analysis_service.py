@@ -2,7 +2,7 @@
 from brave.api.config.db import get_engine
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.core.routers_name import RoutersName
-from brave.api.models.core import analysis as t_analysis, t_pipeline_components,t_project
+from brave.api.models.core import analysis as t_analysis, t_pipeline_components,t_project,t_pipeline_components_relation
 from sqlalchemy import select,update,func
 from fastapi import HTTPException
 import json
@@ -24,31 +24,40 @@ def get_parse_analysis_result_params(conn,analysis_id):
     if not result:
         raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
     component_id = result['component_id']
+    
     component_ = pipeline_service.find_pipeline_by_id(conn, component_id)
     if not component_:
         raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
-  
+    if not result["relation_id"]:
+        raise HTTPException(status_code=500, detail=f"Analysis {analysis_id} relation_id is empty, cannot parse analysis result")
+    find_relation = pipeline_service.find_by_relation_id(conn, result["relation_id"])
+    output_component_ids = find_relation["output_component_ids"]
+    if not output_component_ids:
+        raise HTTPException(status_code=500, detail=f"Analysis {analysis_id} output_component_ids is empty, cannot parse analysis result")
     file_format_list = []
-    if component_["component_type"] == "pipeline":
-        component_ = pipeline_service.get_pipeline_v2(conn,component_id)
-        softwareList = component_['software']
-        component_file_list = [outputFile for item in softwareList if 'outputFile' in item for outputFile in item['outputFile']]
-        file_format_list = [
-            {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
-            for item in component_file_list if 'fileFormat' in item
-        ]
-        pass
-    else:
+    # if component_["component_type"] == "pipeline":
+    #     component_ = pipeline_service.get_pipeline_v2(conn,component_id)
+    #     softwareList = component_['software']
+    #     component_file_list = [outputFile for item in softwareList if 'outputFile' in item for outputFile in item['outputFile']]
+    #     file_format_list = [
+    #         {"dir":item['dir'],"fileFormat":item['fileFormat'],"name":item['name'],"component_id":item['component_id']}
+    #         for item in component_file_list if 'fileFormat' in item
+    #     ]
+    #     pass
+        
+    # else:
      
-        component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
-        component_file_content_list = [{**json.loads(item.content),
-                                        "file_type":item.get("file_type",""),
-                                        "component_name":item["component_name"],
-                                        "component_id":item['component_id']} for item in component_file_list]
-        file_format_list = [
-            {"dir":item['dir'], "file_type":item.get("file_type",""),"fileFormat":item['fileFormat'],"name":item['component_name'],"component_id":item['component_id']}
-            for item in component_file_content_list if 'fileFormat' in item
-        ]
+    #     component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
+
+    component_file_list = pipeline_service.find_component_list_in_ids(conn, output_component_ids)
+    component_file_content_list = [{**json.loads(item.content),
+                                    "file_type":item.get("file_type",""),
+                                    "component_name":item["component_name"],
+                                    "component_id":item['component_id']} for item in component_file_list]
+    file_format_list = [
+        {"dir":item['dir'], "file_type":item.get("file_type",""),"fileFormat":item['fileFormat'],"name":item['component_name'],"component_id":item['component_id']}
+        for item in component_file_content_list if 'fileFormat' in item
+    ]
         # component_file_list = []
     # component_file_list = pipeline_service.find_component_by_parent_id(conn,component_id,"software_output_file")
     component_ = {
@@ -263,6 +272,7 @@ def list_analysis_v1(conn,query:QueryAnalysis):
         t_container.c.container_id.label("container_id"),
         t_container.c.image_status.label("image_status"),
         t_container.c.image_id.label("image_id")
+
         # t_sub_container.c.name.label("sub_container_name"),
         # t_sub_container.c.image.label("sub_container_image")
     )
@@ -295,6 +305,8 @@ def list_analysis(conn,query:QueryAnalysis):
         conditions.append(t_analysis.c.component_id.in_(query.component_ids))
     if query.is_report:
         conditions.append(t_analysis.c.is_report)
+    if query.relation_id:
+        conditions.append(t_analysis.c.relation_id == query.relation_id)
     if query.keywords:
         keyword_pattern = f"%{query.keywords}%"
         conditions.append(
@@ -317,7 +329,8 @@ def list_analysis(conn,query:QueryAnalysis):
         t_container.c.image.label("container_image"),
         t_container.c.container_id.label("container_id"),
         t_container.c.image_status.label("image_status"),
-        t_container.c.image_id.label("image_id")
+        t_container.c.image_id.label("image_id"),
+        t_pipeline_components_relation.c.name.label("relation_name")
         # t_sub_container.c.name.label("sub_container_name"),
         # t_sub_container.c.image.label("sub_container_image")
     )
@@ -326,6 +339,8 @@ def list_analysis(conn,query:QueryAnalysis):
         t_analysis.outerjoin(t_pipeline_components,t_analysis.c.component_id==t_pipeline_components.c.component_id)
         .outerjoin(t_project,t_analysis.c.project==t_project.c.project_id)
         .outerjoin(t_container,t_pipeline_components.c.container_id==t_container.c.container_id)
+        .outerjoin(t_pipeline_components_relation,t_analysis.c.relation_id==t_pipeline_components_relation.c.relation_id)
+
         # .outerjoin(t_sub_container,t_pipeline_components.c.sub_container_id==t_sub_container.c.container_id)
         )
     

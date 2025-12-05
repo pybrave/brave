@@ -5,7 +5,7 @@ import glob
 import json
 from collections import defaultdict
 from brave.api.config.db import get_engine
-from brave.api.schemas.component_store import ComponentStore
+from brave.api.schemas.component_store import ComponentStore, RelationStore
 import brave.api.service.pipeline as pipeline_service
 import requests
 import base64
@@ -21,28 +21,30 @@ def open_file(file_path):
     
     return data
 
-def list_local_components(store_name,component_type):
+def list_local_components(store_name,relation_type):
     settings = get_settings()
     store_dir = settings.STORE_DIR
 
-    file_list = glob.glob(f"{store_dir}/{store_name}/{component_type}/*/install.json")
+    file_list = glob.glob(f"{store_dir}/{store_name}/{relation_type}/*/component_relation.json")
     file_list = [open_file(file) for file in file_list]
-    component_ids= [ item["component_id"] for item in file_list]
+    relation_ids= [ item["relation_id"] for item in file_list]
     with get_engine().begin() as conn: 
-        component_installed =  pipeline_service.find_by_component_ids(conn,component_ids)
-    
-    installed_dict = { item["component_id"]:item for item in component_installed}
+        relation_installed =  pipeline_service.find_relation_list_in_ids(conn,relation_ids)
+
+    installed_dict = { item["relation_id"]:item for item in relation_installed}
     for item in file_list:
-        if item["component_id"] in installed_dict:
+        if item["relation_id"] in installed_dict:
             item["installed"] = True
         else:
             item["installed"] = False
         item["address"] ="local"
         if "img" in item and item["img"] !="":
-            img_dir = item["file_path"].replace(str(settings.STORE_DIR),"")
-            img_dir = os.path.dirname(img_dir)
-            img_name=item["img"]
-            item["img"] = f"/brave-api/store-dir{img_dir}/{img_name}"
+            # img_dir = item["file_path"].replace(str(settings.STORE_DIR),"")
+            # img_dir = os.path.dirname(img_dir)
+            img_name=os.path.basename(item["img"])
+            relation_type = item["relation_type"]
+            relation_id = item["relation_id"]
+            item["img"] = f"/brave-api/store-dir/{store_name}/{relation_type}/{relation_id}/{img_name}"
             
     return file_list
 
@@ -75,9 +77,9 @@ def list_local_store():
 async def list_store(address:str):
     if address=="github":
         return [{
-                    "store_name":"quick-start",
+                    "store_name":"quick-start-v2",
                     "store_path":"pybrave",
-                    "name":"Quick Start Store",
+                    "name":"Quick Start Store V2",
                     "address":"github"
                 }]
     else:
@@ -101,7 +103,24 @@ async def list_components_by_type(componentStore:ComponentStore):
     return components
 
 
-def list_remote_components(owner,store_name,component_type,remote_force,branch,token):
+
+@component_store_api.post("/list-relations")
+async def list_components_by_type(relationStore:RelationStore):
+    if relationStore.address =="github":
+        components = list_remote_components(relationStore.store_path,
+                                            relationStore.store_name,
+                                            relationStore.relation_type,
+                                            relationStore.remote_force,
+                                            relationStore.branch,
+                                            relationStore.token)
+    elif relationStore.address =="local":
+        components = list_local_components(relationStore.store_name,relationStore.relation_type)
+    else:
+        raise ValueError("address must be 'local' or 'github'")
+    return components
+
+
+def list_remote_components(owner,store_name,relation_type,remote_force,branch,token):
     # data = get_github_file_content("pybrave","quick-start","main.json",branch="master")
     
     ## cache data
@@ -121,22 +140,22 @@ def list_remote_components(owner,store_name,component_type,remote_force,branch,t
 
 
     data = json.loads(data)
-    if "components" not in data:
+    if "relation" not in data:
         return []
-    if component_type not in data["components"]:
+    if relation_type not in data["relation"]:
         return []
-    components = data["components"][component_type]
-    component_ids= [ item["component_id"] for item in components]
+    relations = data["relation"][relation_type]
+    relation_ids= [ item["relation_id"] for item in relations]
     with get_engine().begin() as conn: 
-        component_installed =  pipeline_service.find_by_component_ids(conn,component_ids)
-    installed_dict = { item["component_id"]:item for item in component_installed}
-    for item in components:
-        component_id = item["component_id"]
-        item["file_path"] = f"https://api.github.com/repos/{owner}/{store_name}/contents/{component_type}/{component_id}"
+        relation_installed =  pipeline_service.find_relation_list_in_ids(conn,relation_ids)
+    installed_dict = { item["relation_id"]:item for item in relation_installed}
+    for item in relations:
+        relation_id = item["relation_id"]
+        item["file_path"] = f"https://api.github.com/repos/{owner}/{store_name}/contents/{relation_type}/{relation_id}"
         item["branch"] = branch
         item["address"] ="github"
-        item["component_name"]  = item.get("name",component_id)
-        if item["component_id"] in installed_dict:
+        item["name"]  = item.get("name",relation_id)
+        if item["relation_id"] in installed_dict:
             item["installed"] = True
         else:
             item["installed"] = False
@@ -144,8 +163,8 @@ def list_remote_components(owner,store_name,component_type,remote_force,branch,t
             # img_name=item["img"]
             pass
         else:
-            item["img"] = f"https://raw.githubusercontent.com/{owner}/{store_name}/refs/heads/{branch}/{component_type}/{component_id}/main.png"
-    return components
+            item["img"] = f"https://raw.githubusercontent.com/{owner}/{store_name}/refs/heads/{branch}/{relation_type}/{relation_id}/main.png"
+    return relations
 
 # https://api.github.com/repos/pybrave/quick-start/contents/software
 

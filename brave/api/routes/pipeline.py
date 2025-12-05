@@ -16,7 +16,7 @@ import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import or_, select, and_, join, func,insert,update
 import re
-from brave.api.schemas.pipeline import InstallComponent, PageComponentRelationQuery, PagePipelineQuery, PublishComponent, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
+from brave.api.schemas.pipeline import InstallComponent, PageComponentRelationQuery, PagePipelineQuery, PublishComponent, PublishRelation, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
 import brave.api.service.pipeline  as pipeline_service
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
@@ -595,10 +595,10 @@ async def find_pipeline_relation(relation_id):
 @pipeline.post("/save-pipeline-relation",tags=['pipeline'])
 async def save_pipeline_relation_controller(savePipelineRelation:SavePipelineRelation):
     with get_engine().begin() as conn:  
-        await save_pipeline_relation(conn,savePipelineRelation)
+        relation_id = await save_pipeline_relation(conn,savePipelineRelation)
 
-        
-        return {"message":"success"}
+    pipeline_service.write_relation_json(relation_id)
+    return {"message":"success"}
 
 async def save_pipeline_relation(conn,savePipelineRelation):
     save_pipeline_relation_dict = savePipelineRelation.dict()
@@ -614,6 +614,7 @@ async def save_pipeline_relation(conn,savePipelineRelation):
         if parent_component:
             component_id = parent_component["component_id"]
     if savePipelineRelation.relation_id:
+        relation_id = savePipelineRelation.relation_id
         stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)
         conn.execute(stmt)
     else:
@@ -625,14 +626,13 @@ async def save_pipeline_relation(conn,savePipelineRelation):
         # exist_relation = conn.execute(query_stmt).fetchone()
         # if exist_relation:
         #     raise HTTPException(status_code=500, detail="This relation already exists and cannot be added again!")
-        save_pipeline_relation_dict['relation_id'] = str(uuid.uuid4())
+        relation_id = str(uuid.uuid4())
+        save_pipeline_relation_dict['relation_id'] = relation_id
         child_component_count = pipeline_service.get_child_component_count(conn,savePipelineRelation.parent_component_id,savePipelineRelation.relation_type)
         save_pipeline_relation_dict['order_index'] = child_component_count + 1
         stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
         conn.execute(stmt)
-    # TODO
-    # pipeline_service.write_component_json(component_id)
-
+    return relation_id
     # stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipelineRelation.component_id)
     # find_pipeine = conn.execute(stmt).fetchone()
     # await run_in_threadpool(create_pipeline_dir, savePipelineRelation.pipeline_id, find_pipeine.content ,find_pipeine.component_type)
@@ -689,7 +689,7 @@ async def update_or_save_components(savePipeline:SavePipeline):
 async def save_pipeline(savePipeline:SavePipeline):
     component_id = await update_or_save_components(savePipeline)
      
-    pipeline_service.write_component_json(component_id)
+    # pipeline_service.write_component_json(component_id)
     # t0 = time.time()
     
 
@@ -697,6 +697,100 @@ async def save_pipeline(savePipeline:SavePipeline):
     # print("文件创建耗时", time.time() - t0)
 
     return {"message":"success"}
+@pipeline.post("/publish-relation",tags=['pipeline'])
+async def publish_component(publishRelation:PublishRelation):
+    setting = get_settings()
+    store_path = f"{setting.STORE_DIR}/default"
+    if publishRelation.store_path:
+        store_path = publishRelation.store_path
+    with get_engine().begin() as conn:
+        find_relation = pipeline_service.find_by_relation_id(conn,publishRelation.relation_id)
+        relation_type = find_relation['relation_type']
+        relation_id  = find_relation['relation_id']
+
+    pipeline_dir = pipeline_service.get_pipeline_dir()
+    relation_dir = f"{pipeline_dir}/{relation_type}/{relation_id}"
+    relation_dir_component = f"{relation_dir}/component.json"
+
+    if not os.path.exists(relation_dir_component):
+        pipeline_service.write_relation_json(relation_id)
+    source_dir = relation_dir
+    target_dir = f"{store_path}/{relation_type}/{relation_id}"
+
+    if os.path.exists(target_dir):
+        if publishRelation.force:
+            shutil.rmtree(target_dir)
+            shutil.copytree(source_dir,target_dir)
+            print(f"force publish {source_dir} to {target_dir}")
+        else:
+            raise HTTPException(status_code=500, detail=f"Store {target_dir} already exists! If you want to overwrite it, please set force to true.")
+    else:
+        os.makedirs(os.path.dirname(target_dir),exist_ok=True)
+        shutil.copytree(source_dir,target_dir)
+        print(f"publish {source_dir} to {target_dir}")
+
+    with open(relation_dir_component,"r") as f:
+        component_json = json.load(f)
+    
+    for component_item in component_json:
+        component_type = component_item["component_type"]
+        component_id = component_item["component_id"]
+        source_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+        target_dir = f"{store_path}/{component_type}/{component_id}"
+        if not os.path.exists(source_dir):
+            print(f"source dir {source_dir} not exists, skip it!")
+            continue
+        if os.path.exists(target_dir):
+            if publishRelation.force:
+                shutil.rmtree(target_dir)
+                shutil.copytree(source_dir,target_dir)
+                print(f"force publish {source_dir} to {target_dir}")
+            else:
+                raise HTTPException(status_code=500, detail=f"Store {target_dir} already exists! If you want to overwrite it, please set force to true.")
+        else:
+            os.makedirs(os.path.dirname(target_dir),exist_ok=True)
+            shutil.copytree(source_dir,target_dir)
+            print(f"publish {source_dir} to {target_dir}")
+    
+    install_json = {
+        "relation":{
+            "tools":[]
+        }
+    }
+    install_file = f"{store_path}/main.json"
+
+    if  os.path.exists(install_file):
+        with open(install_file,"r") as f:
+            install_json = json.load(f)
+
+    relation_name = find_relation['name']
+    category = find_relation.get('category','default')
+    order_index = find_relation.get('order_index',0)
+    install_json_component_type = install_json["relation"][relation_type]
+    found = False
+    for existing_item in install_json_component_type:
+        if existing_item["relation_id"] == relation_id:
+            # ✅ 已存在 → 更新字段
+            existing_item.update({
+                "name": relation_name,
+                "category": category,
+                "order_index": order_index
+            })
+            found = True
+            break
+
+    if not found:
+        # ✅ 不存在 → 添加新项
+        install_json_component_type.append({
+            "name": relation_name,
+            "relation_id": relation_id,
+            "category": category,
+            "order_index": order_index
+        })
+    with open(install_file,"w") as f:
+        json.dump(install_json,f)
+    return {"message":"success"}
+
 
 @pipeline.post("/publish-component",tags=['pipeline'])
 async def publish_component(publishComponent:PublishComponent):
@@ -894,13 +988,33 @@ async def copy_component(component_id):
 async def install_github_component(installComponent:InstallComponent):
     force = installComponent.force
     pipeline_dir = pipeline_service.get_pipeline_dir()
-    component_path = f"{installComponent.path}/pipeline_component.json?ref={installComponent.branch}"
-    components_info =component_store_service.get_github_file_content_by_url(component_path,token=installComponent.token)
-    components_info = json.loads(components_info)
+    relation_path = f"{installComponent.path}/component_relation.json?ref={installComponent.branch}"
+    relation_info =component_store_service.get_github_file_content_by_url(relation_path,token=installComponent.token)
+    relation_info = json.loads(relation_info)
+
     path_list = installComponent.path.split("/")
     install_component_id = path_list[-1]
     install_component_type = path_list[-2]
     source_prefix = installComponent.path.replace(f"/{install_component_type}/{install_component_id}","")
+    relation_type = relation_info['relation_type']
+    relation_id = relation_info['relation_id']
+    target_path = f"{pipeline_dir}/{relation_type}/{relation_id}"
+    source_url = f"{source_prefix}/{relation_type}/{relation_id}?ref={installComponent.branch}"
+    if not os.path.exists(target_path):
+        await asyncio.to_thread(component_store_service.download_github_folder,source_url,target_path,installComponent.token)
+    
+        print("download_github_folder",source_url,target_path)
+    else:
+        if force:
+            shutil.rmtree(target_path)
+            # component_store_service.download_github_folder(source_url,target_path,installComponent.token)
+            await asyncio.to_thread(component_store_service.download_github_folder,source_url,target_path,installComponent.token)
+            print("force download_github_folder",source_url,target_path)
+
+    component_path = f"{target_path}/component.json"
+    with open(component_path,"r") as f:
+        components_info= json.load(f)
+
 
     for install_info in components_info:
         if "component_id" not in install_info:
@@ -927,30 +1041,42 @@ async def install_github_component(installComponent:InstallComponent):
     install_target_path = f"{pipeline_dir}/{install_component_type}/{install_component_id}"
     with get_engine().begin() as conn:
         pipeline_service.import_component(conn,install_target_path,force)
-        pipeline_service.import_component_relation(conn,install_target_path,force)
+        pipeline_service.import_relation_one(conn,relation_info,force)
         container_service.import_container(conn,install_target_path,force)
         # pipeline_service.import_component(conn,path,force)
 
-def install_local_component(installComponent:InstallComponent):
-    force = installComponent.force
+def install_local_component(installRelation:InstallComponent):
+    force = installRelation.force
     pipeline_dir = pipeline_service.get_pipeline_dir()
-    with open(installComponent.path,"r") as f:
+    path = os.path.dirname(installRelation.path)
+    with open(installRelation.path,"r") as f:
         data = json.load(f)
-    path = os.path.dirname(installComponent.path)
-
+        relation_type = data['relation_type']
+        relation_id = data['relation_id']
+        source_path = path
+        install_path = f"{pipeline_dir}/{relation_type}/{relation_id}"
+    if not os.path.exists(install_path):
+            # os.makedirs(install_path)
+            shutil.copytree(source_path, install_path)
+            print("copytree",source_path, install_path)
+    else:
+        if force:   
+            shutil.rmtree(install_path)
+            shutil.copytree(source_path, install_path)
+            print("force copytree",source_path, install_path)
 
     with get_engine().begin() as conn:
         pipeline_service.import_component(conn,path,force)
-        pipeline_service.import_component_relation(conn,path,force)
+        pipeline_service.import_relation_one(conn,data,force)
         container_service.import_container(conn,path,force)
 
     # install all components
-    store_dir  =  os.path.dirname(installComponent.path)
+    store_dir  =  os.path.dirname(installRelation.path)
     store_dir = os.path.dirname(store_dir)
     store_dir = os.path.dirname(store_dir)
 
 
-    with open(f"{path}/pipeline_component.json","r") as f:
+    with open(f"{path}/component.json","r") as f:
         components_list = json.load(f)
     for item in components_list:
         component_id = item["component_id"]
@@ -982,7 +1108,20 @@ async def install_component(installComponent:InstallComponent,
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 
-    
+
+@pipeline.post("/install-relation",tags=['pipeline'])
+@inject
+async def install_component(installRelation:InstallComponent,
+    job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
+):
+    if installRelation.address=="github":
+        await install_github_component(installRelation)
+    elif installRelation.address=="local":
+        install_local_component(installRelation)
+    else:
+        raise HTTPException(status_code=500, detail=f"Not support {installRelation.address} yet!")
+    asyncio.create_task(job_executor.update_images_status())
+    return {"message":"success"}
 
 
 
@@ -1051,6 +1190,33 @@ async def convert_ipynb(component_id):
 #         return "success"
 #     raise HTTPException(status_code=404, detail=f"{script_path}或{ipynb_path}不存在!")
 
+@pipeline.post("/component/relation-img-upload/{relation_id}")
+async def upload_image(relation_id,file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=404, detail=f"only image files are allowed!")
+    with get_engine().begin() as conn:
+        find_relation = pipeline_service.find_by_relation_id(conn,relation_id)
+        if not find_relation:
+            raise HTTPException(status_code=500, detail=f"{relation_id} can't find!")
+        relation_type = find_relation['relation_type']
+    pipeline_dir = pipeline_service.get_pipeline_dir()
+    file_path = f"{pipeline_dir}/{relation_type}/{relation_id}"
+    if not os.path.exists(file_path):
+        os.makedirs(file_path, exist_ok=True)
+    name, ext = os.path.splitext(file.filename)
+    filename = f"main{ext}"
+    file_path = f"{file_path}/{filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    print("save image to ",file_path)
+    settings = get_settings()
+    url_suffix = file_path.replace(str(settings.PIPELINE_DIR),"")
+    ts_str = str(int(time.time()))
+    url = f"/brave-api/pipeline-dir{url_suffix}?v={ts_str}"
+    filename = f"{filename}?v={ts_str}"
+    return {"filename": filename, "url":url}
+
+
 
 @pipeline.post("/component/upload/{component_id}")
 async def upload_image(component_id,file: UploadFile = File(...)):
@@ -1089,7 +1255,10 @@ async def get_all_category():
     with get_engine().begin() as conn:
         return pipeline_service.get_all_category(conn)
     
-
+@pipeline.get("/component/get-all-relation-category")
+async def get_all_relation_category():
+    with get_engine().begin() as conn:
+        return pipeline_service.get_all_relation_category(conn)
 
 @pipeline.post("/component/page-component-relation",tags=['pipeline'])
 async def page_component_relation(query:PageComponentRelationQuery ):

@@ -9,3 +9,12 @@ class ComponentStore(BaseModel):
     remote_force:Optional[bool] = False
     branch:Optional[str] = "master"
     token:Optional[str] = None
+
+class RelationStore(BaseModel):
+    store_name:Optional[str] = None
+    relation_type:str
+    address:str
+    store_path:Optional[str] = "pybrave"
+    remote_force:Optional[bool] = False
+    branch:Optional[str] = "master"
+    token:Optional[str] = None

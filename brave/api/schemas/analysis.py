@@ -21,6 +21,7 @@ class QueryAnalysis(BaseModel):
     page_number: Optional[int]=1
     page_size: Optional[int]=10
     keywords: Optional[str]=None
+    relation_id: Optional[str]=None
 
 class Analysis(BaseModel):
     id: Optional[int]
