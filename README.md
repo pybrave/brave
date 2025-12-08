@@ -1,6 +1,7 @@
 <p align="center">
   <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/brave/frontend/img/logo.png" alt="brave" style="width: 500px;">
 </p>
+
 <p align="center" style="font-size: 1.5em;">
     <em>Bioinformatics Reactive Analysis and Visualization Engine</em>
 </p>
@@ -51,6 +52,14 @@ cd $HOME/brave-install/store
 git clone https://github.com/pybrave/quick-start.git
 # UI: Workflow -> Intsall Components
 ```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/install_1.png" alt="brave" style="width: 500px;">
+</p>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/install_2.png" alt="brave" style="width: 500px;">
+</p>
 
-
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/brave_report.png" alt="brave" style="width: 500px;">
+</p>
