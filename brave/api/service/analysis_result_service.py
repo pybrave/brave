@@ -482,3 +482,8 @@ def find_analysis_result_in_analysis_id(conn,analysis_id_list):
 #             db.commit()
 #             print(">>>>新增: ",sample_name, software, content_type)
 
+
+def find_analysis_result_by_component_id(conn,component_id):
+    stmt = analysis_result.select().where(analysis_result.c.component_id==component_id)
+    result = conn.execute(stmt).mappings().all()
+    return result

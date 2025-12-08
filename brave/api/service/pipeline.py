@@ -260,7 +260,34 @@ def find_component_by_id(conn,component_id):
     find_pipeine = conn.execute(stmt).mappings().first()
     return find_pipeine
 
+
+
+def find_relation_component_by_script_component_id(conn,component_id):
+    stmt = select(
+        t_pipeline_components_relation
+    ).where(
+            t_pipeline_components_relation.c.component_id == component_id,
+
+    )
+    result = conn.execute(stmt).mappings().all()
+    return result
+
+
+
+# find component_id is in json input_component_ids and  json output_component_ids use WHERE JSON_CONTAINS(json_column, '"b"');
+def find_relation_component_by_file_component_id(conn,component_id):
+    stmt = select(
+        t_pipeline_components_relation
+    ).where(
+        or_(
+            func.json_contains(t_pipeline_components_relation.c.input_component_ids, f'"{component_id}"'),
+            func.json_contains(t_pipeline_components_relation.c.output_component_ids, f'"{component_id}"')
+        )
+    )
+    result = conn.execute(stmt).mappings().all()
+    return result
 # find relation left join  component
+
 def find_relation_component_by_id(conn,relation_id):
     stmt =select(
         t_pipeline_components_relation,  # 关系表所有字段
@@ -796,6 +823,14 @@ def get_component_relation(conn,component_id):
     final_query = select(cte)
     data = conn.execute(final_query).mappings().all()
     return data
+
+def delete_relation_file(find_relation):
+    relation_type = find_relation["relation_type"]
+    relation_id = find_relation["relation_id"]
+    pipeline_dir = get_pipeline_dir()
+    pipeline_dir = f"{pipeline_dir}/{relation_type}/{relation_id}"
+    if os.path.exists(pipeline_dir):
+        shutil.rmtree(pipeline_dir)
 
 def delete_component_file(component):
     component_type = component["component_type"]

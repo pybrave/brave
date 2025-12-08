@@ -35,7 +35,7 @@ from fastapi import  File, UploadFile
 import shutil
 import time
 from brave.api.executor.base import JobExecutor
-
+import brave.api.service.analysis_result_service  as analysis_result_service
 
 pipeline = APIRouter()
 
@@ -936,20 +936,57 @@ async def delete_pipeline_relation(relation_id: str):
     return {"message":"success"}
 
 
+@pipeline.delete("/delete-relation/{relation_id}")
+async def delete_relation(relation_id: str):
+    with get_engine().begin() as conn:
+        find_relation = pipeline_service.find_by_relation_id(conn,relation_id)
+        if not find_relation:
+            raise HTTPException(status_code=500, detail=f"Cannot find relation for {relation_id}!")
+        stmt = t_pipeline_components_relation.delete().where(t_pipeline_components_relation.c.relation_id == relation_id)
+        conn.execute(stmt)
+    pipeline_service.delete_relation_file(find_relation)
+    return {"message":"success"}
 
-@pipeline.delete("/delete-component/{component_id}")
-async def delete_component(component_id: str):
+def get_component_depends(conn,component_id: str,component_type:str):
+    if component_type =="file":
+        depends = pipeline_service.find_relation_component_by_file_component_id(conn,component_id)
+    elif component_type =="script":
+        depends = pipeline_service.find_relation_component_by_script_component_id(conn,component_id)
 
+    return depends
+
+# list component relation by component id
+@pipeline.get("/list-component-relation/{component_id}",tags=['pipeline'])
+async def list_component_relation(component_id: str):
     with get_engine().begin() as conn:
         find_component = pipeline_service.find_component_by_id(conn,component_id)
         if not find_component:
             raise HTTPException(status_code=500, detail=f"Cannot find component for {component_id}!")
-        stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.parent_component_id ==component_id)
-        parent_find_pipeine = conn.execute(stmt).fetchone()
-        stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.component_id ==component_id)
-        child_find_pipeine = conn.execute(stmt).fetchall()
+        component_type = find_component['component_type']
+        return get_component_depends(conn,component_id, component_type)
 
-        if  parent_find_pipeine or child_find_pipeine:
+
+@pipeline.delete("/delete-component/{component_id}")
+async def delete_component(component_id: str):
+    with get_engine().begin() as conn:
+        find_component = pipeline_service.find_component_by_id(conn,component_id)
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"Cannot find component for {component_id}!")
+        component_type = find_component['component_type']
+        if component_type=="file":
+            find_analysis_result = analysis_result_service.find_analysis_result_by_component_id(conn,component_id)
+        if find_analysis_result:
+            raise HTTPException(status_code=500, detail=f"Cannot delete because there are existing analysis results!")
+        find_relation = get_component_depends(conn,component_id, component_type)
+
+        # if not find_component:
+        #     raise HTTPException(status_code=500, detail=f"Cannot find component for {component_id}!")
+        # stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.parent_component_id ==component_id)
+        # parent_find_pipeine = conn.execute(stmt).fetchone()
+        # stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.component_id ==component_id)
+        # child_find_pipeine = conn.execute(stmt).fetchall()
+
+        if  find_relation:
             raise HTTPException(status_code=500, detail=f"Cannot delete because there are existing associations!") 
         else:
             # find_component = pipeline_service.find_component_by_id(conn,component_id)
@@ -1122,6 +1159,19 @@ async def install_component(installRelation:InstallComponent,
         raise HTTPException(status_code=500, detail=f"Not support {installRelation.address} yet!")
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
+
+@pipeline.get("/get-depend-relation/{relation_id}",tags=['pipeline'])
+async def get_depend_relation(relation_id):
+    with get_engine().begin() as conn:
+        find_relation = pipeline_service.find_by_relation_id(conn, relation_id)
+        if not find_relation:
+            raise HTTPException(status_code=404, detail=f"Relation {relation_id} not found")
+        
+        input_component_ids = find_relation["input_component_ids"] or []
+        output_component_ids = find_relation["output_component_ids"] or []
+        component_id = find_relation["component_id"]
+        component_list = pipeline_service.find_component_list_in_ids(conn,input_component_ids + output_component_ids + [component_id])
+        return component_list
 
 
 
