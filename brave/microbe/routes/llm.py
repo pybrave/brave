@@ -4,6 +4,11 @@ from pydantic import BaseModel
 import openai
 import os
 from fastapi.responses import StreamingResponse
+from brave.api.enum.component_script import ScriptName
+from brave.api.service import analysis_service
+from brave.api.service import analysis_result_service
+import brave.api.service.pipeline as  pipeline_service
+from brave.api.config.db import get_engine
 
 # DeepSeek 官方兼容 OpenAI SDK
 # openai.api_base = "https://api.deepseek.com/v1"
@@ -72,8 +77,8 @@ async def chat(req: ChatRequest):
 #   -d '{"message": "你好，介绍一下DeepSeek"}'
 
 
-@llm_api.post("/chat/stream")
-async def chat_stream(req: ChatRequest):
+@llm_api.post("/chat/stream-test")
+async def chat_stream( req: ChatRequest):
     """
     流式返回 DeepSeek 响应
     """
@@ -89,6 +94,99 @@ async def chat_stream(req: ChatRequest):
                 messages=[
                     # {"role": "system", "content":system_prompt},
                     {"role": "user", "content": req.message},
+                ],
+            ) as completion:
+                for event in completion:
+                    if event.type == "message":
+                        # 完整消息一次性输出（可改为逐段输出）
+                        yield event.message.content
+                    elif event.type == "content.delta":
+                        # 模型输出的每一小段（类似 ChatGPT 打字机效果）
+                        yield event.delta
+                    elif event.type == "error":
+                        yield f"[Error] {event.error}"
+                    await asyncio.sleep(0)  # 让事件循环更流畅
+
+        except Exception as e:
+            yield f"[Server Error] {str(e)}"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+system_prompt = """
+You are an expert in bioinformatics data analysis. 
+"""
+template = """
+Use the context below to answer the question.
+If a user's question is irrelevant to the context, please encourage the user to ask a question that is relevant to the context.
+If users ask code-related questions, please obtain the code from the code section.
+
+Code:
+{code}
+
+Context:
+{context}
+
+Question:
+{question}
+
+"""
+
+
+@llm_api.post("/chat/stream/{type}/{biz_id}")
+async def chat_stream(type,biz_id, req: ChatRequest):
+    """
+    流式返回 DeepSeek 响应
+    """
+    context=""
+    code = ""
+    with get_engine().begin() as conn:
+        if type=="tools":
+            find_relation = pipeline_service.find_relation_component_prompt_by_id(conn, biz_id)
+            if find_relation:
+                if find_relation["prompt"]:
+                    context = find_relation["prompt"]
+            
+            component_script = pipeline_service.find_component_module(find_relation,ScriptName.main)['path']
+            if os.path.exists(component_script):
+                with open(component_script, "r") as f:
+                    code = f.read()
+        elif type=="analysis":
+            find_analysis = analysis_service.find_analysis_and_component_by_id(conn, biz_id)
+            if  find_analysis:
+                # raise HTTPException(status_code=404, detail="Analysis not found")
+                output_dir = find_analysis["output_dir"]
+                prompt = f"{output_dir}/output/prompt.ai"
+                if find_analysis["relation_prompt"]:
+                    context = find_analysis["relation_prompt"]
+                if os.path.exists(prompt):
+                    prompt0 = "The analysis results are as follows:\n"
+                    with open(prompt, "r") as f:
+                        context = context + "\n" + prompt0 + f.read()
+                if find_analysis["pipeline_script"]:
+                    component_script = find_analysis["pipeline_script"]
+                    if os.path.exists(component_script):
+                        with open(component_script, "r") as f:
+                            code = f.read()
+
+                
+
+
+    content = template.format(context=context,
+                              code=code,
+                              question=req.message)
+
+    async def stream():
+        try:
+            # 使用新版 SDK 的 stream=True
+            with client.chat.completions.stream(
+                model="deepseek-chat",
+                tools=tools,
+                # response_format={
+                #     'type': 'json_object'
+                # },
+                messages=[
+                    {"role": "system", "content":system_prompt},
+                    {"role": "user", "content": content},
                 ],
             ) as completion:
                 for event in completion:

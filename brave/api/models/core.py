@@ -175,6 +175,7 @@ t_pipeline_components = Table(
     Column("img", String(255)), 
     Column("container_id", String(255)),
     Column("tools_container_id", Text),
+    Column("prompt",Text().with_variant(LONGTEXT(), "mysql")),
 
     Column("sub_container_id", String(255)),
     Column("tags", String(255)), 
@@ -198,6 +199,8 @@ t_pipeline_components_relation = Table(
     Column("tags", JSON), 
     Column("category", String(255), default="default"), 
     Column("description", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("prompt",Text().with_variant(LONGTEXT(), "mysql")),
+
     Column("relation_id", String(255)),
     Column("relation_type", String(255)), 
     Column("install_key", String(255)),

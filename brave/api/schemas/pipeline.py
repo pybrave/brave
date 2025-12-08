@@ -37,6 +37,7 @@ class SavePipelineRelation(BaseModel):
     order_index:Optional[int]=None
     input_component_ids:Optional[list]=None
     output_component_ids:Optional[list]=None
+    prompt:Optional[str]=None
 
 
 

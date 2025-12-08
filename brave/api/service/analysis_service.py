@@ -190,6 +190,20 @@ def find_analysis_by_id(conn,analysis_id):
     result = conn.execute(stmt).mappings().first()
     return result
 
+def find_analysis_and_component_by_id(conn,analysis_id):
+    stmt = select(
+        t_analysis,
+        t_pipeline_components.c.prompt.label("component_prompt"),
+        t_pipeline_components_relation.c.prompt.label("relation_prompt")
+    ).select_from(
+        t_analysis.outerjoin(t_pipeline_components,t_analysis.c.component_id==t_pipeline_components.c.component_id)   
+        .outerjoin(t_pipeline_components_relation,t_analysis.c.relation_id==t_pipeline_components_relation.c.relation_id)
+    ).where(t_analysis.c.analysis_id == analysis_id)
+    result = conn.execute(stmt).mappings().first()
+    return result
+
+
+
 async def finished_analysis(analysis_id,run_type,status):
     with get_engine().begin() as conn:  
         finished_analysis_(conn,analysis_id,run_type,status)

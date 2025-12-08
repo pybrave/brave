@@ -304,6 +304,21 @@ def find_relation_component_by_id(conn,relation_id):
     return find_component
 
 
+def find_relation_component_prompt_by_id(conn,relation_id):
+    stmt =select(
+        t_pipeline_components_relation,  # 关系表所有字段
+        t_pipeline_components.c.prompt.label("component_prompt"),
+        t_pipeline_components.c.script_type
+    ).select_from(
+        t_pipeline_components_relation.outerjoin(
+            t_pipeline_components,
+            t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+        )
+    ).where(t_pipeline_components_relation.c.relation_id == relation_id)
+    find_component = conn.execute(stmt).mappings().first()
+    return find_component
+
+
 def find_pipeline_by_id(conn,component_id):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
     find_component = conn.execute(stmt).mappings().first()
