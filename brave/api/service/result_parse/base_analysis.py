@@ -333,6 +333,20 @@ class BaseAnalysis(ABC):
                     analysis_result[column_group] = columns
 
                 db_dict[k] = analysis_result
+            elif query_form_type =="CollectedSampleSelect" and "columns"in query_form:
+                analysis_result = v[0]
+                columns = query_form["columns"]
+                analysis_result["form_type"] = query_form_type
+                analysis_result["groups"] = columns
+                for column_group in columns:
+                    columns = request_param[k][column_group]
+                    columns = analysis_result_service.build_collected_analysis_result(columns,analysis_result,samples_dict)
+                    # columns = {**columns,
+                    #     "selcted_group_name":groups_name[k].get(column_group),
+                    #     "re_groups_name":re_groups_name[k].get(column_group)}
+                    analysis_result[column_group] = columns
+
+                db_dict[k] = analysis_result                
             else:
                 ids = db_ids_dict[k]
                 # for single select

@@ -623,7 +623,7 @@ async def get_cache_params(analysis_result_parse_service:AnalysisResultParse = D
 
 
 def format_form_json_item(item):
-    if item.get("type") =='CollectedGroupSelectSampleButton':
+    if item.get("type") =='CollectedGroupSelectSampleButton' or item.get("type") =='CollectedSampleSelect':
         item["type"] = "CollectedSimplpeGroupSelect"
         
     elif item.get("type") =="GroupSelectSampleButton":
@@ -633,6 +633,61 @@ def format_form_json_item(item):
     return item
 
 @analysis_api.get("/analysis/visualization-results/{analysis_id}")
+async def visualization_results(analysis_id):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        if not find_analysis:
+            raise HTTPException(status_code=404, detail=f"Analysis with id {analysis_id} not found")
+        # find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
+        if find_analysis['relation_id']:
+            find_relation = pipeline_service.find_relation_component_by_id(conn,find_analysis['relation_id'])
+        else:
+            find_relation = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
+            find_relation = dict(find_relation)
+            find_relation['component_description'] = ""
+            find_relation["relation_id"] = ""
+            find_relation["relation_type"] = ""
+            find_relation["name"]  =""
+
+    file_result = await file_operation_service.visualization_results(find_analysis["output_dir"])
+    # file_result = {}
+    file_result['component_description'] = find_relation["component_description"]
+    file_result['analysis_name'] = find_analysis["analysis_name"]
+    file_result['job_status'] = find_analysis["job_status"]
+    file_result['server_status'] = find_analysis["server_status"]
+    file_result['is_report'] = find_analysis["is_report"]
+    file_result['analysis_id'] = find_analysis["analysis_id"]
+
+    # file_result['analysis_id'] = find_analysis["analysis_id"]
+
+    file_result['name'] = find_relation["name"]
+    
+    file_result['component_id'] = find_relation["component_id"]
+    file_result['relation_id'] = find_relation["relation_id"]
+
+    file_result['component_type'] = find_relation["component_type"]
+    file_result['relation_type'] = find_relation["relation_type"]
+
+    file_result['command_log_path'] = find_analysis["command_log_path"]
+
+    file_result['request_param'] =  json.loads(find_analysis["request_param"])
+    
+    component_content = json.loads(find_relation["content"])
+    if "formJson" in component_content:
+        form_json = component_content["formJson"]
+        
+        # if not  item.get("db")
+        file_result['form_json'] =  [format_form_json_item(item)  for item in form_json  if item.get("quickShow")!=False and  item.get("name")!="group_field"]
+    else:
+        file_result['form_json'] = []
+
+    file_result['form_json'] = [item for item in file_result['form_json'] if item is not None]
+
+
+    return file_result
+
+
+@analysis_api.get("/analysis/visualization-results-old/{analysis_id}")
 async def visualization_results(analysis_id):
     with get_engine().begin() as conn:
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)

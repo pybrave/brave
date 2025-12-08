@@ -260,6 +260,23 @@ def find_component_by_id(conn,component_id):
     find_pipeine = conn.execute(stmt).mappings().first()
     return find_pipeine
 
+# find relation left join  component
+def find_relation_component_by_id(conn,relation_id):
+    stmt =select(
+        t_pipeline_components_relation,  # 关系表所有字段
+        t_pipeline_components.c.description.label("component_description"),
+        t_pipeline_components.c.component_type,
+        t_pipeline_components.c.content
+    ).select_from(
+        t_pipeline_components_relation.outerjoin(
+            t_pipeline_components,
+            t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+        )
+    ).where(t_pipeline_components_relation.c.relation_id == relation_id)
+    find_component = conn.execute(stmt).mappings().first()
+    return find_component
+
+
 def find_pipeline_by_id(conn,component_id):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==component_id)
     find_component = conn.execute(stmt).mappings().first()
@@ -835,8 +852,8 @@ def write_relation_json(relation_id):
     with get_engine().begin() as conn:
         find_relation = find_by_relation_id(conn,relation_id)
         relation_type = find_relation["relation_type"]
-        input_component_ids = find_relation["input_component_ids"]
-        output_component_ids = find_relation["output_component_ids"]
+        input_component_ids = find_relation["input_component_ids"] or []
+        output_component_ids = find_relation["output_component_ids"] or []
         component_id = find_relation["component_id"]
         component_list = find_component_list_in_ids(conn,input_component_ids + output_component_ids + [component_id])
         container_id_list = [ item['container_id'] for item in component_list if item['container_id'] is not None ]
@@ -1099,7 +1116,8 @@ def get_components_by_relation_id(conn,relation_id):
         select(
             t_pipeline_components_relation,  # 关系表所有字段
             t_pipeline_components.c.script_type,
-            t_pipeline_components.c.content
+            t_pipeline_components.c.content,
+            t_pipeline_components.c.description.label("component_description"),
         )
         .select_from(
             t_pipeline_components_relation.outerjoin(
