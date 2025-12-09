@@ -975,8 +975,8 @@ async def delete_component(component_id: str):
         component_type = find_component['component_type']
         if component_type=="file":
             find_analysis_result = analysis_result_service.find_analysis_result_by_component_id(conn,component_id)
-        if find_analysis_result:
-            raise HTTPException(status_code=500, detail=f"Cannot delete because there are existing analysis results!")
+            if find_analysis_result:
+                raise HTTPException(status_code=500, detail=f"Cannot delete because there are existing analysis results!")
         find_relation = get_component_depends(conn,component_id, component_type)
 
         # if not find_component:
@@ -1308,8 +1308,9 @@ async def get_all_category():
 @pipeline.get("/component/get-all-relation-category")
 async def get_all_relation_category():
     with get_engine().begin() as conn:
-        return pipeline_service.get_all_relation_category(conn)
-
+        categories = pipeline_service.get_all_relation_category(conn)
+        categories = [item for item in categories if item !=""]
+        return categories
 @pipeline.post("/component/page-component-relation",tags=['pipeline'])
 async def page_component_relation(query:PageComponentRelationQuery ):
     with get_engine().begin() as conn:

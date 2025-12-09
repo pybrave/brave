@@ -339,8 +339,15 @@ class BaseAnalysis(ABC):
                 analysis_result["form_type"] = query_form_type
                 analysis_result["groups"] = columns
                 for column_group in columns:
+                    # if "name" in column_group:
+                    #     column_group = column_group["name"]
                     columns = request_param[k][column_group]
-                    columns = analysis_result_service.build_collected_analysis_result(columns,analysis_result,samples_dict)
+                    if isinstance(columns, list):
+                        columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
+                            for item in columns
+                        ]
+                    else:
+                        columns = analysis_result_service.build_collected_analysis_result(columns,analysis_result,samples_dict)
                     # columns = {**columns,
                     #     "selcted_group_name":groups_name[k].get(column_group),
                     #     "re_groups_name":re_groups_name[k].get(column_group)}
