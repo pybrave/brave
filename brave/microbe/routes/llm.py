@@ -1,5 +1,6 @@
 import asyncio
 from fastapi import APIRouter, FastAPI, HTTPException
+from flask import json
 from pydantic import BaseModel
 import openai
 import os
@@ -126,6 +127,9 @@ Code:
 Context:
 {context}
 
+Data:
+{data}
+
 Question:
 {question}
 
@@ -139,6 +143,7 @@ async def chat_stream(type,biz_id, req: ChatRequest):
     """
     context=""
     code = ""
+    data=""
     with get_engine().begin() as conn:
         if type=="tools":
             find_relation = pipeline_service.find_relation_component_prompt_by_id(conn, biz_id)
@@ -146,10 +151,37 @@ async def chat_stream(type,biz_id, req: ChatRequest):
                 if find_relation["prompt"]:
                     context = find_relation["prompt"]
             
-            component_script = pipeline_service.find_component_module(find_relation,ScriptName.main)['path']
-            if os.path.exists(component_script):
-                with open(component_script, "r") as f:
-                    code = f.read()
+                component_script = pipeline_service.find_component_module(find_relation,ScriptName.main)['path']
+                if os.path.exists(component_script):
+                    with open(component_script, "r") as f:
+                        code = f.read()
+        elif type=="script":
+            component = pipeline_service.find_component_by_id(conn, biz_id)
+            if component:
+                if component["prompt"]:
+                    context = component["prompt"]
+                
+                component_script = pipeline_service.find_component_module(component,ScriptName.main)['path']
+                if os.path.exists(component_script):
+                    with open(component_script, "r") as f:
+                        code = f.read()
+        elif type =="file":
+            find_result = analysis_result_service.find_component_and_analysis_result_by_analysis_result_id(conn, biz_id)
+            if find_result:
+                
+                file_type = find_result["file_type"]
+                file_content = find_result["content"]
+                component_prompt = find_result["component_prompt"]
+                if component_prompt:
+                    context = component_prompt
+
+                if file_type =="collected" and os.path.exists(file_content):
+                    with open(file_content, "r") as f:
+                        data = "".join([line for _, line in zip(range(100), f)])
+                else:
+                    data = file_content
+                    
+            
         elif type=="analysis":
             find_analysis = analysis_service.find_analysis_and_component_by_id(conn, biz_id)
             if  find_analysis:
@@ -161,7 +193,7 @@ async def chat_stream(type,biz_id, req: ChatRequest):
                 if os.path.exists(prompt):
                     prompt0 = "The analysis results are as follows:\n"
                     with open(prompt, "r") as f:
-                        context = context + "\n" + prompt0 + f.read()
+                        data =  prompt0 + f.read()
                 if find_analysis["pipeline_script"]:
                     component_script = find_analysis["pipeline_script"]
                     if os.path.exists(component_script):
@@ -173,6 +205,7 @@ async def chat_stream(type,biz_id, req: ChatRequest):
 
     content = template.format(context=context,
                               code=code,
+                              data=data,
                               question=req.message)
 
     async def stream():

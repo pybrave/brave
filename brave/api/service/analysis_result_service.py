@@ -416,6 +416,21 @@ def find_by_analysis_result_id(conn,analysis_result_id):
     result = conn.execute(stmt).mappings().first()
     return result   
 
+# left join component_id
+def find_component_and_analysis_result_by_analysis_result_id(conn,analysis_result_id):
+    stmt = select(
+        analysis_result,
+        t_pipeline_components.c.prompt.label("component_prompt"),
+        t_pipeline_components.c.file_type
+    )
+    stmt = stmt.select_from(
+        analysis_result.outerjoin(t_pipeline_components,t_pipeline_components.c.component_id==analysis_result.c.component_id)
+    )
+    stmt = stmt.where(analysis_result.c.analysis_result_id==analysis_result_id)
+    result = conn.execute(stmt).mappings().first()
+    return result   
+
+
 def update_sample_id(conn,analysis_result_id,sample_id):
     stmt = analysis_result.update().where(analysis_result.c.analysis_result_id==analysis_result_id).values({"sample_id":sample_id})
     conn.execute(stmt)

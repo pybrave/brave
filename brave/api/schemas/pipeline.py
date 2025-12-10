@@ -21,6 +21,7 @@ class SavePipeline(BaseModel):
     tools_container_id:Optional[str]=None
     tags:Optional[str]=None
     component_ids:Optional[str]=None
+    prompt:Optional[str]=None
 
 class SavePipelineRelation(BaseModel):
     relation_id:Optional[str]=None
