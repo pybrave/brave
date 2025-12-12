@@ -295,13 +295,13 @@ class BaseAnalysis(ABC):
     
         db_ids_dict = {key: get_ids(request_param[key]) for key in query_name_list if key in request_param}
         db_dict = { key:analysis_result_service.find_analyais_result_by_ids(conn,value) for key,value in  db_ids_dict.items()}
-        project_list = [item["project"] for item_list in db_dict.values() for item in item_list]
-        project_list = list(set(project_list))
-        metadata_form =[]
-        if len(project_list)>0:
-            project_list =  project_service.find_by_project_ids(conn,project_list)
-            metadata_form = [json.loads(item["metadata_form"]) for item in project_list if item["metadata_form"]]
-            metadata_form = [item for item_list in metadata_form for item in item_list if item is not None]
+        # project_list = [item["project"] for item_list in db_dict.values() for item in item_list]
+        # project_list = list(set(project_list))
+        # metadata_form =[]
+        # if len(project_list)>0:
+        #     project_list =  project_service.find_by_project_ids(conn,project_list)
+        #     metadata_form = [json.loads(item["metadata_form"]) for item in project_list if item["metadata_form"]]
+        #     metadata_form = [item for item_list in metadata_form for item in item_list if item is not None]
 
         
         samples_dict = {}
@@ -426,7 +426,7 @@ class BaseAnalysis(ABC):
             "groups":query_name_list,
             # "file_columns":file_columns,
             "settings":settings,
-            "metadata_form":metadata_form
+            # "metadata_form":metadata_form
         }
 
         parse_data = getattr(module, "parse_data")

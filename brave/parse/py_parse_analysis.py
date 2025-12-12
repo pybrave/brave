@@ -3,7 +3,7 @@
 def parse_data(analysis_dict,
                database_dict,
                colors,
-               extra_dict,groups_name,re_groups_name,groups,settings,metadata_form):
+               extra_dict,groups_name,re_groups_name,groups,settings):
     # sample_list = [{
     #                     "sample_name":item["sample_name"],
     #                     "sample_source":item["sample_source"],
@@ -23,6 +23,6 @@ def parse_data(analysis_dict,
         "re_groups_name":re_groups_name,
         "groups":groups,
         "pipeline_dir":str(settings.PIPELINE_DIR),
-        "metadata_form":metadata_form
+        # "metadata_form":metadata_form
     
     }

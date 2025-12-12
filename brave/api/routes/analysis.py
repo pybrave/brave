@@ -39,7 +39,6 @@ from brave.api.utils.get_db_utils import get_ids
 from brave.api.config.config import get_settings
 from brave.api.routes.pipeline import get_pipeline_file
 import textwrap
-# from brave.api.routes.sample_result import find_analyais_result_by_ids
 from brave.api.routes.sample_result import parse_result_one
 import  brave.api.service.pipeline as pipeline_service
 import brave.api.service.bio_database_service as bio_database_service

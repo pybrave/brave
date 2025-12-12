@@ -353,18 +353,37 @@ def build_collected_analysis_result(column,analsyis_result,samples_dict):
             "analysis_result_id":analsyis_result.get("analysis_result_id"),
             "columns_name":column}
 
+# analysis reulst params
 def model_dump_one(item):
+    metadata = {}
+    content = {}
+    if item["metadata"]:
+        metadata = json.loads(item["metadata"])
     if item.get("content_type")=="json" and  isinstance(item.get("content"), dict):
-        if item["metadata"]:
-            metadata = json.loads(item["metadata"])
-            item = {**metadata,**item}
-            del item["metadata"]
-
-        return{
-            **{k:v for k,v in item.items() if k!="content"},
-            **item['content']
-            # 'content':item['content']
-        }
+        content = item["content"]
+    else:
+        content = {"content":item["content"]}
+            # item = {**metadata,**item}
+            # del item["metadata"]
+        # if item["content"]:
+            
+            # item = {**content,**item}
+            # del item["content"]
+        # item = {
+        #     **{k:v for k,v in item.items() if k!="content"},
+        #     **item['content']
+        #     # 'content':item['content']
+        # }
+    item = {
+        "id": item["id"],
+        "analysis_result_id": item["analysis_result_id"],
+        "sample_id": item["sample_id"],
+        "file_name": item["file_name"],
+        "component_id": item["component_id"],
+        "file_type": item["file_type"],
+        **metadata,
+        **content
+    }
     return item
 
 def find_analyais_result_by_ids( conn,value):

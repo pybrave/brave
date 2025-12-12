@@ -212,10 +212,6 @@ async def parse_result_restful(base_path,verison,project):
         parse_result(dir_path,project,verison)
     return {"msg":"success"}
 
-# def find_analyais_result_by_ids( value):
-#     with get_engine().begin() as conn:
-#         result_dict = analysis_result_service.find_analyais_result_by_ids(conn,value)
-#     return result_dict
 
 def find_analyais_result(analysisResultQuery:AnalysisResultQuery):
     with get_engine().begin() as conn:
