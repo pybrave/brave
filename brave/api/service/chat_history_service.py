@@ -25,5 +25,5 @@ def get_chat_history_by_project_id_and_biz_id(conn, query: QueryChatHistory):
         t_chat_history.c.biz_id == biz_id
     ).order_by(t_chat_history.c.created_at.asc())
 
-    result = conn.execute(stmt).all()
+    result = conn.execute(stmt).mappings().all()
     return result

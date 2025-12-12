@@ -1,5 +1,5 @@
 import asyncio
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 # from flask import json
 import json
 from pydantic import BaseModel
