@@ -1,4 +1,4 @@
-from litellm import uuid
+import uuid
 from brave.api.schemas.chat_history import CreateChatHistory, QueryChatHistory
 from brave.api.models.core import t_chat_history
 from sqlalchemy import func, select
