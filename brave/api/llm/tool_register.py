@@ -1,5 +1,5 @@
 
-from matplotlib.backend_managers import ToolManager
+from brave.api.llm.tool_manager import ToolManager
 from brave.api.llm.tools.log_tools import get_error_log
 
 
