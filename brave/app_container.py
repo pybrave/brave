@@ -9,6 +9,7 @@ from brave.api.core.pubsub import PubSubManager
 from brave.api.core.routers.ingress_event_router import IngressEventRouter
 from brave.api.ingress.manager import IngressManager
 from brave.api.core.workflow_sse import WorkflowSSEManager
+from brave.api.llm.tool_manager import ToolManager
 from brave.api.service.result_parse.analysis_manage import AnalysisManage
 from brave.api.service.result_parse.nextflow_analysis import NextflowAnalysis
 from brave.api.service.result_parse.script_analysis import ScriptAnalysis
@@ -76,6 +77,7 @@ class AppContainer(containers.DeclarativeContainer):
     
     
     listener_files_service = providers.Singleton(ListenerFilesService)
+    tool_manager = providers.Singleton(ToolManager)
 
     analysis_result_parse_service = providers.Singleton(
         AnalysisResultParse

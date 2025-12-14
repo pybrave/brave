@@ -29,7 +29,7 @@ from brave.microbe.routes.study import  study_api
 from brave.microbe.nlp.nlp import  nlp_api
 from brave.api.routes.kegg import kegg_api
 from brave.api.routes.component_store import component_store_api
-from brave.microbe.routes.llm import llm_api
+from brave.api.routes.llm import llm_api
 
 import httpx
 import websockets
