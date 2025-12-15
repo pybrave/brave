@@ -22,3 +22,7 @@ class QueryChatHistory(BaseModel):
     biz_type: Optional[str] = None
     role: Optional[str] = None
     project_id: Optional[str] = None
+
+class ClearChatHistory(BaseModel):
+    biz_id: Optional[str] = None
+    project_id: Optional[str] = None

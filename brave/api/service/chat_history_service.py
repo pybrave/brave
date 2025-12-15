@@ -1,5 +1,5 @@
 import uuid
-from brave.api.schemas.chat_history import CreateChatHistory, QueryChatHistory
+from brave.api.schemas.chat_history import ClearChatHistory, CreateChatHistory, QueryChatHistory
 from brave.api.models.core import t_chat_history
 from sqlalchemy import func, select
 
@@ -27,3 +27,21 @@ def get_chat_history_by_project_id_and_biz_id(conn, query: QueryChatHistory):
 
     result = conn.execute(stmt).mappings().all()
     return result
+
+def clear_chat_history(conn, clearChatHistory: ClearChatHistory):
+    project_id = clearChatHistory.project_id
+    biz_id = clearChatHistory.biz_id
+    stmt = t_chat_history.delete().where(
+        t_chat_history.c.project_id == project_id,
+        t_chat_history.c.biz_id == biz_id
+    )
+    conn.execute(stmt)
+    conn.commit()
+
+
+def delete_chat_history_by_id(conn, chat_history_id: str):
+    stmt = t_chat_history.delete().where(
+        t_chat_history.c.chat_history_id == chat_history_id
+    )
+    conn.execute(stmt)
+    conn.commit()

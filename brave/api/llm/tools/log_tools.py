@@ -1,11 +1,13 @@
 import brave.api.service.analysis_service as analysis_service
 from brave.api.config.db import get_engine
 import os
-
-async def get_error_log(biz_id: str):
+async def get_error_log(arguments: dict):
     # 这里写你自己的逻辑
     # data = f"模拟获取日志内容{biz_id}-{biz_type}"
     # print(f"获取日志: {biz_id}, {biz_type}")
+    if "biz_id" not in arguments:
+        return "缺少参数 biz_id"
+    biz_id = arguments["biz_id"]
     data = ""
     with get_engine().begin() as conn:
         analysis = analysis_service.find_analysis_by_id(conn,biz_id)

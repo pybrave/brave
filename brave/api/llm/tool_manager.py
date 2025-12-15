@@ -41,5 +41,8 @@ class ToolManager:
 
         func = tool["func"]
         if asyncio.iscoroutinefunction(func):
-            return await func(**arguments)
+            if "parameters" in arguments:
+                arguments = {**arguments["parameters"], **arguments}
+                del arguments["parameters"]
+            return await func(arguments)
         return func(**arguments)

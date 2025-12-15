@@ -13,7 +13,7 @@ from brave.api.service import analysis_service, chat_history_service
 from brave.api.service import analysis_result_service
 import brave.api.service.pipeline as  pipeline_service
 from brave.api.config.db import get_engine
-from brave.api.schemas.chat_history import CreateChatHistory, QueryChatHistory
+from brave.api.schemas.chat_history import ClearChatHistory, CreateChatHistory, QueryChatHistory
 from brave.api.utils.lock_llm import BizProjectLock
 from brave.api.llm.schemas.llm import ChatRequest
 from dependency_injector.wiring import Provide
@@ -169,18 +169,30 @@ def build_prompt(req: ChatRequest):
         if biz_type=="tools":
             find_relation = pipeline_service.find_relation_component_prompt_by_id(conn, biz_id)
             if find_relation:
+
                 if find_relation["prompt"]:
                     context = find_relation["prompt"]
-            
+                if find_relation["content"]:
+                    from_prompt = """
+                    The following is a JSON form used when inputting scripts.
+                    """
+                    data = from_prompt+"\n"+find_relation["content"]
+                
                 component_script = pipeline_service.find_component_module(find_relation,ScriptName.main)['path']
                 if os.path.exists(component_script):
                     with open(component_script, "r") as f:
                         code = f.read()
+
         elif biz_type=="script":
             component = pipeline_service.find_component_by_id(conn, biz_id)
             if component:
                 if component["prompt"]:
                     context = component["prompt"]
+                if component["content"]:
+                    from_prompt = """
+                    The following is a JSON form used when inputting scripts.
+                    """
+                    data = from_prompt+"\n"+component["content"]
                 
                 component_script = pipeline_service.find_component_module(component,ScriptName.main)['path']
                 if os.path.exists(component_script):
@@ -436,3 +448,17 @@ async def chat_history(queryChatHistory: QueryChatHistory):
         chat_history = chat_history_service.get_chat_history_by_project_id_and_biz_id(
             conn, queryChatHistory)
     return chat_history
+
+
+@llm_api.post("/chat/history/clear")
+async def clear_chat_history(clearChatHistory: ClearChatHistory):
+    with get_engine().begin() as conn:
+        chat_history_service.clear_chat_history(
+            conn, clearChatHistory)
+    return {"message": "Chat history cleared."}
+
+@llm_api.delete("/chat/history/del-by-chat-history-id/{chat_history_id}")
+async def delete_chat_history_by_id(chat_history_id: str):
+    with get_engine().begin() as conn:
+        stmt = chat_history_service.delete_chat_history_by_id(conn, chat_history_id)
+    return {"message": f"Chat history with id {chat_history_id} deleted."}

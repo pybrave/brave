@@ -122,3 +122,7 @@ class PublishRelation(BaseModel):
     relation_id: str
     store_path:Optional[str]=None
     force: Optional[bool]=False
+
+
+class FileConetent(BaseModel):
+    content: str

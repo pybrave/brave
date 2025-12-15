@@ -308,7 +308,8 @@ def find_relation_component_prompt_by_id(conn,relation_id):
     stmt =select(
         t_pipeline_components_relation,  # 关系表所有字段
         t_pipeline_components.c.prompt.label("component_prompt"),
-        t_pipeline_components.c.script_type
+        t_pipeline_components.c.script_type,
+        t_pipeline_components.c.content
     ).select_from(
         t_pipeline_components_relation.outerjoin(
             t_pipeline_components,

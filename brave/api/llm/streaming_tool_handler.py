@@ -32,7 +32,6 @@ class StreamingToolHandler:
 
 
     async def run(self, messages,biz_id,biz_type, project_id):
-
         # biz_id = req.biz_id
         # biz_type= req.biz_type
         # project_id= req.project_id
@@ -42,6 +41,8 @@ class StreamingToolHandler:
         async def stream():
             # content = build_prompt(req)
             tools = self.tool_manager.get_schemas()
+            # print(tools)
+
             assistant_message = ""  # 最终累积模型输出
             current_messages = list(messages)
             try:
@@ -114,6 +115,7 @@ class StreamingToolHandler:
                                 yield f"event: message\ndata: {json.dumps({'content': event.delta})}\n\n"
                             elif event.type == "tool_calls.function.arguments.delta":
                                 pass
+                                # yield f"event: message\ndata: {json.dumps({'content': event.arguments_delta})}\n\n"
                             elif event.type == "tool_calls.function.arguments.done":
                                 
                                 # if idx in tool_calls:

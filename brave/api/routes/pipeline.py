@@ -16,7 +16,7 @@ import uuid
 from brave.api.config.db import get_engine
 from sqlalchemy import or_, select, and_, join, func,insert,update
 import re
-from brave.api.schemas.pipeline import InstallComponent, PageComponentRelationQuery, PagePipelineQuery, PublishComponent, PublishRelation, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
+from brave.api.schemas.pipeline import FileConetent, InstallComponent, PageComponentRelationQuery, PagePipelineQuery, PublishComponent, PublishRelation, SavePipeline,Pipeline,QueryPipeline,QueryModule, SavePipelineComponentsEdges,SavePipelineRelation,SaveOrder
 import brave.api.service.pipeline  as pipeline_service
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from sqlalchemy.orm import aliased
@@ -651,7 +651,7 @@ async def update_or_save_components(savePipeline:SavePipeline):
  
  
     save_pipeline_dict = savePipeline.dict()
-    save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="parent_component_id" and k!="pipeline_id" and k!='relation_type' }
+    save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="parent_component_id" and k!="pipeline_id" and k!='relation_type' and v is not  None }
     
     with get_engine().begin() as conn:
         find_pipeine = None
@@ -1325,3 +1325,18 @@ async def get_components_by_relation_id(relation_id):
 
 
   
+
+@pipeline.post("/component/save-script/{component_id}",tags=['pipeline'])
+async def save_script_by_component_id(component_id, fileConetent:FileConetent):
+    content = fileConetent.content
+
+    with get_engine().begin() as conn:
+        find_component = pipeline_service.find_component_by_id(conn,component_id)
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"Cannot find component for {component_id}!")
+    module_info:dict = pipeline_service.find_component_module(find_component, ScriptName.main)
+    # py_module_path = py_module['path']
+    if module_info and os.path.exists(module_info['path']):
+        with open(module_info['path'],"w") as f:
+            f.write(content)
+    return {"message":"success"}
