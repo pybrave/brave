@@ -1,6 +1,4 @@
 import os
-
-from flask import json
 from brave.api.enum.component_script import ScriptName
 from brave.api.llm.schemas.llm import ChatRequest
 from brave.api.schemas.chat_history import CreateChatHistory
