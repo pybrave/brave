@@ -63,3 +63,7 @@ git clone https://github.com/pybrave/quick-start.git
 <p align="center">
   <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/brave_report.png" alt="brave" >
 </p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/tools_llm.png" alt="brave" >
+</p>
