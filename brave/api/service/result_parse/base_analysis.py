@@ -324,12 +324,19 @@ class BaseAnalysis(ABC):
                 analysis_result["groups"] = columns
                 for column_group in columns:
                     columns = request_param[k][column_group]
-                    columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
-                        for item in columns
-                    ]
-                    columns = [ {**item,
-                        "selcted_group_name":groups_name[k].get(column_group),
-                        "re_groups_name":re_groups_name[k].get(column_group)}for item in columns ]
+                    if isinstance(columns, list):
+                        columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
+                            for item in columns
+                        ]
+                        columns = [ {**item,
+                            "selcted_group_name":groups_name[k].get(column_group),
+                            "re_groups_name":re_groups_name[k].get(column_group)}for item in columns ]
+                    else:
+                        columns = analysis_result_service.build_collected_analysis_result(columns,analysis_result,samples_dict)
+                    # columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
+                    #     for item in columns
+                    # ]
+                
                     analysis_result[column_group] = columns
 
                 db_dict[k] = analysis_result

@@ -27,19 +27,19 @@ def register_tools(tool_manager: ToolManager):
         # },
     )
 
-    tool_manager.register(
-        name="create_script_component",
-        func=component_tools.create_script_component,
-        description="为tools创建脚本",
-         parameters={
-            "type": "object",
-            "properties": {
-                "script": {
-                    "type": "string",
-                    "description": "LLM 生成的完整脚本内容，必须是可执行或可保存的脚本代码",
-                },
+    # tool_manager.register(
+    #     name="create_script_component",
+    #     func=component_tools.create_script_component,
+    #     description="为tools创建脚本",
+    #      parameters={
+    #         "type": "object",
+    #         "properties": {
+    #             "script": {
+    #                 "type": "string",
+    #                 "description": "LLM 生成的完整脚本内容，必须是可执行或可保存的脚本代码",
+    #             },
          
-            },
-            "required": ["script"],
-        },
-    )
+    #         },
+    #         "required": ["script"],
+    #     },
+    # )

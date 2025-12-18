@@ -12,6 +12,7 @@ class CreateChatHistory(BaseModel):
     project_id: Optional[str] = None
     system_prompt: Optional[str] = None
     user_prompt: Optional[str] = None
+    thought_chain: Optional[list] = None
 
 
 class QueryChatHistory(BaseModel):

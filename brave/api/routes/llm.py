@@ -18,19 +18,24 @@ from brave.api.utils.lock_llm import BizProjectLock
 from brave.api.llm.schemas.llm import ChatRequest
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
-
+from brave.api.llm import llm_service
 from brave.app_container import AppContainer
 
 # DeepSeek 官方兼容 OpenAI SDK
 # openai.api_base = "https://api.deepseek.com/v1"
 # openai.api_key =  "sk-" #os.getenv("DEEPSEEK_API_KEY")
-api_key = os.getenv("DEEPSEEK_API_KEY","")
 llm_api = APIRouter(prefix="/llm", tags=["llm"])
+
+api_key = os.getenv("API_KEY","")
+
+# client = openai.OpenAI(
+#         api_key=api_key,
+#         base_url="https://api.deepseek.com",
+#     )
 client = openai.OpenAI(
         api_key=api_key,
-        base_url="https://api.deepseek.com",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
     )
-
 # message:nextContent,
 # biz_id: biz_id,
 # biz_type: biz_type,
@@ -157,117 +162,9 @@ Question:
 
 """
 
-def build_prompt(req: ChatRequest):
-    biz_id = req.biz_id
-    biz_type= req.biz_type
-    project_id= req.project_id
-    context =""
-    code =""
-    data =""
-
-    with get_engine().begin() as conn:
-        if biz_type=="tools":
-            find_relation = pipeline_service.find_relation_component_prompt_by_id(conn, biz_id)
-            if find_relation:
-
-                if find_relation["prompt"]:
-                    context = find_relation["prompt"]
-                if find_relation["content"]:
-                    from_prompt = """
-                    The following is a JSON form used when inputting scripts.
-                    """
-                    data = from_prompt+"\n"+find_relation["content"]
-                
-                component_script = pipeline_service.find_component_module(find_relation,ScriptName.main)['path']
-                if os.path.exists(component_script):
-                    with open(component_script, "r") as f:
-                        code = f.read()
-
-        elif biz_type=="script":
-            component = pipeline_service.find_component_by_id(conn, biz_id)
-            if component:
-                if component["prompt"]:
-                    context = component["prompt"]
-                if component["content"]:
-                    from_prompt = """
-                    The following is a JSON form used when inputting scripts.
-                    """
-                    data = from_prompt+"\n"+component["content"]
-                
-                component_script = pipeline_service.find_component_module(component,ScriptName.main)['path']
-                if os.path.exists(component_script):
-                    with open(component_script, "r") as f:
-                        code = f.read()
-        elif biz_type =="file":
-            component = pipeline_service.find_component_by_id(conn, biz_id)
-            # find_result = analysis_result_service.find_component_and_analysis_result_by_analysis_result_id(conn, biz_id)
-            if component:
-
-                # file_type = component["file_type"]
-                # file_content = component["content"]
-                prompt = component["prompt"]
-                if prompt:
-                    context = prompt
-                content = component["content"]
-                if content:
-                    data = content
-        elif biz_type =="analysis_result":
-            find_result = analysis_result_service.find_component_and_analysis_result_by_analysis_result_id(conn, biz_id)
-            if find_result:
-                
-                file_type = find_result["file_type"]
-                file_content = find_result["content"]
-                component_prompt = find_result["component_prompt"]
-                if component_prompt:
-                    context = component_prompt
-
-                if file_type =="collected" and os.path.exists(file_content):
-                    with open(file_content, "r") as f:
-                        data = "".join([line for _, line in zip(range(100), f)])
-                else:
-                    data = file_content
-                    
 
 
-        elif biz_type =="analysis":
-            find_analysis = analysis_service.find_analysis_and_component_by_id(conn, biz_id)
-            if  find_analysis:
-                # raise HTTPException(status_code=404, detail="Analysis not found")
-                output_dir = find_analysis["output_dir"]
-                prompt = f"{output_dir}/output/prompt.ai"
-                if find_analysis["relation_prompt"]:
-                    context = find_analysis["relation_prompt"]
-                if os.path.exists(prompt):
-                    prompt0 = "The analysis results are as follows:\n"
-                    with open(prompt, "r") as f:
-                        data =  prompt0 + f.read()
-                if find_analysis["pipeline_script"]:
-                    component_script = find_analysis["pipeline_script"]
-                    if os.path.exists(component_script):
-                        with open(component_script, "r") as f:
-                            code = f.read()
 
-        
-        content = template.format(context=context,
-                                code=code,
-                                data=data,
-                                question=req.message)
-        create_chatHistory = CreateChatHistory(
-                user_id=None,
-                session_id=None,
-                biz_id=biz_id,
-                biz_type=biz_type,
-                role="user",
-                content=req.message,
-                project_id=project_id,
-            )
-            # system_prompt=system_prompt,
-            # user_prompt=content,
-        if req.is_save_prompt:
-            create_chatHistory.system_prompt=system_prompt
-            create_chatHistory.user_prompt=content
-        chat_history_service.insert_chat_history(conn, create_chatHistory)
-    return content
 async def lock_wrapper(biz_id, project_id, gen):
     async with BizProjectLock(biz_id, project_id):
         async for item in gen:
@@ -308,18 +205,14 @@ async def chat_stream(req: ChatRequest,
     biz_id = req.biz_id
     project_id = req.project_id
     biz_type = req.biz_type
+    model_name = req.model_name
+    
+   
 
-    content = build_prompt(req)
-
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": content},
-    ]
-
-    handler:StreamingToolHandler = StreamingToolHandler(client, tool_manager)
+    handler:StreamingToolHandler = StreamingToolHandler( model_name,tool_manager)
 
     return await handler.run(
-        messages=messages,
+        req=req,
         biz_id=biz_id,
         biz_type=biz_type,
         project_id=project_id,
@@ -335,7 +228,7 @@ async def chat_stream2(req: ChatRequest):
     流式返回 DeepSeek 响应
     """
     async def stream():
-        content = build_prompt(req)
+        content = await llm_service.build_prompt(req,system_prompt,template)
 
         assistant_message = ""  # 最终累积模型输出
         try:
