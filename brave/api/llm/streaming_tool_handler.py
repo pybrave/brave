@@ -2,7 +2,6 @@
 import asyncio
 import json
 import os
-from pyexpat import model
 from fastapi.responses import StreamingResponse
 import openai
 
