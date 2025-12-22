@@ -20,6 +20,8 @@ from brave.api.enum.component_script import ScriptName
 from sqlalchemy import  Column, Integer, String, Text, select, cast, null,text,case
 from .notebook import generate_notebook
 import brave.api.service.container_service as container_service
+from brave.api.models.core import t_container
+
 
 def get_pipeline_dir():
     settings = get_settings()
@@ -293,6 +295,7 @@ def find_relation_component_by_id(conn,relation_id):
         t_pipeline_components_relation,  # 关系表所有字段
         t_pipeline_components.c.description.label("component_description"),
         t_pipeline_components.c.component_type,
+        t_pipeline_components.c.script_type,
         t_pipeline_components.c.content
     ).select_from(
         t_pipeline_components_relation.outerjoin(
@@ -303,6 +306,25 @@ def find_relation_component_by_id(conn,relation_id):
     find_component = conn.execute(stmt).mappings().first()
     return find_component
 
+
+def find_relation_component_container_by_id(conn,relation_id):
+    stmt =select(
+        t_pipeline_components_relation,  # 关系表所有字段
+        t_pipeline_components.c.description.label("component_description"),
+        t_pipeline_components.c.component_type,
+        t_pipeline_components.c.content,
+        t_container.c.name.label("container_name"),
+    ).select_from(
+        t_pipeline_components_relation.outerjoin(
+            t_pipeline_components,
+            t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+        ).outerjoin(
+            t_container, 
+            t_pipeline_components.c.container_id == t_container.c.id
+        )
+    ).where(t_pipeline_components_relation.c.relation_id == relation_id)
+    find_component = conn.execute(stmt).mappings().first()
+    return find_component
 
 def find_relation_component_prompt_by_id(conn,relation_id):
     stmt =select(
@@ -330,9 +352,9 @@ def find_pipeline_by_id(conn,component_id):
         if find_component["container_id"]:
             find_container = container_service.find_container_by_id(conn,find_component["container_id"])
             find_component['container'] = find_container
-        if find_component["sub_container_id"]:
-            find_container = container_service.find_container_by_id(conn,find_component["sub_container_id"])
-            find_component['sub_container'] = find_container
+        # if find_component["sub_container_id"]:
+        #     find_container = container_service.find_container_by_id(conn,find_component["sub_container_id"])
+        #     find_component['sub_container'] = find_container
 
     # if find_component and find_component["server_container_id"]:
     #     find_component = dict(find_component)
@@ -1095,23 +1117,44 @@ def get_all_relation_category(conn):
     categories = conn.execute(stmt).scalars().all()
     return categories
 
-def get_example(conn,component_id):
-    component = find_component_by_id(conn,component_id)
-    if not component:
-        raise HTTPException(status_code=500, detail=f"组件{component_id}没有找到!")
-    component_type = component["component_type"]
-    if(component_type != "file"):
-        raise HTTPException(status_code=500, detail=f"组件{component_id}不是file类型!")
+    # component = find_component_by_id(conn,relation_id)
+def get_exampleV2(conn,script_component_id, file_component_id):
+    find_component = find_component_by_id(conn,script_component_id)
+    if not find_component:
+        raise HTTPException(status_code=500, detail=f"component {script_component_id} can't found!")
+    component_type = find_component["component_type"]
+    if(component_type != "script"):
+        raise HTTPException(status_code=500, detail=f"component type {component_type} not support example file!")
     pipeline_dir = get_pipeline_dir()
-    component_dir = f"{pipeline_dir}/{component_type}/{component_id}"
+    component_dir = f"{pipeline_dir}/{component_type}/{script_component_id}"
     if not os.path.exists(component_dir):
-        raise HTTPException(status_code=500, detail=f"组件{component_id}文件目录没有找到!")
-    example_file = f"{component_dir}/example.tsv"
-    if not os.path.exists(component_dir):
-        raise HTTPException(status_code=500, detail=f"组件{example_file}示例文件没有找到!")
+        raise HTTPException(status_code=500, detail=f"Component {component_dir} directory not found!")
+    example_file = f"{component_dir}/{file_component_id}.tsv"
+    if not os.path.exists(example_file):
+        raise HTTPException(status_code=500, detail=f"Component {example_file} example file not found!")
     example_suffix  = example_file.replace(str(pipeline_dir),"")
     example_url = f"/brave-api/pipeline-dir{example_suffix}" 
-    return example_file,example_url,component
+    return example_file,example_url,example_suffix
+
+
+def get_example(conn,relation_id):
+    # component = find_component_by_id(conn,relation_id)
+    find_relation = find_by_relation_id(conn,relation_id)
+    if not find_relation:
+        raise HTTPException(status_code=500, detail=f"relation {relation_id} can't found!")
+    relation_type = find_relation["relation_type"]
+    if(relation_type != "tools"):
+        raise HTTPException(status_code=500, detail=f"relation type {relation_type} not support example file!")
+    pipeline_dir = get_pipeline_dir()
+    relation_dir = f"{pipeline_dir}/{relation_type}/{relation_id}"
+    if not os.path.exists(relation_dir):
+        raise HTTPException(status_code=500, detail=f"Relation {relation_dir} directory not found!")
+    example_file = f"{relation_dir}/example.tsv"
+    if not os.path.exists(example_file):
+        raise HTTPException(status_code=500, detail=f"Relation {example_file} example file not found!")
+    example_suffix  = example_file.replace(str(pipeline_dir),"")
+    example_url = f"/brave-api/pipeline-dir{example_suffix}" 
+    return example_file,example_url,find_relation
 
 
 def find_component_and_relation_by_parent_id(conn,parent_id,relation_type):

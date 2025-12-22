@@ -633,26 +633,54 @@ async def upload(
         "file_path": file_path,
     }
 
-@sample_result.get("/analysis-result/download-example/{component_id}",tags=['analysis_result'])
-async def download_example(component_id):
+@sample_result.get("/analysis-result/preview-example/{relation_id}/{file_component_id}",tags=['analysis_result'])
+async def download_example(relation_id, file_component_id):
     with get_engine().begin() as conn:
-        example_file,example_url,component = pipeline_service.get_example(conn,component_id)
+        try:
+            find_relation = pipeline_service.find_by_relation_id(conn,relation_id)
+            component_id = find_relation["component_id"]
+            example_file,example_url,example_suffix = pipeline_service.get_exampleV2(conn,component_id,file_component_id)
+        except Exception as e:
+            print(e)
+            return {"error":str(e)}
+    content = file_utils.get_table_content(example_file,-1)
+
     return {
-        "example_file": example_file,
-        "example_url": example_url
+        "path": example_file,
+        "content": content,
+        "url": example_url,
+        "suffix": example_suffix,
+        "component_id": file_component_id
     }
 
-@sample_result.post("/analysis-result/add-example/{component_id}",tags=['analysis_result'])
-async def download_example(component_id,project):
-    with get_engine().begin() as conn:
-        example_file,example_url,component = pipeline_service.get_example(conn,component_id)
+# @sample_result.get("/analysis-result/download-example/{component_id}",tags=['analysis_result'])
+# async def download_example(component_id):
+#     with get_engine().begin() as conn:
+#         example_file,example_url,component = pipeline_service.get_example(conn,component_id)
+#     return {
+#         "example_file": example_file,
+#         "example_url": example_url
+#     }
 
+@sample_result.post("/analysis-result/add-example/{component_id}",tags=['analysis_result'])
+async def download_example(component_id, path, project):
+    with get_engine().begin() as conn:
+        find_component = pipeline_service.find_component_by_id(conn,component_id)
+        if not find_component:
+            raise HTTPException(status_code=500, detail=f"组件{component_id}不存在!")
+        # find_relation = pipeline_service.find_by_relation_id(conn,relation_id)
+        # component_id = find_relation["component_id"]
+        # example_file,example_url,component = pipeline_service.get_exampleV2(conn,component_id,file_component_id)
+    pipeline_dir = pipeline_service.get_pipeline_dir()
+    example_file = f"{pipeline_dir}/{path}"
+    if not os.path.exists(example_file):
+        raise HTTPException(status_code=500, detail=f"示例文件{example_file}不存在!")
     import_data_list =[
         ImportData(
             component_id= component_id,
             project= project,
             content= example_file,
-            file_type= component.file_type,
+            file_type= find_component["file_type"],
             file_name= "example",
             # sample_source= "source",
         )
@@ -660,7 +688,7 @@ async def download_example(component_id,project):
     await import_data(import_data_list)
     return {
         "example_file": example_file,
-        "example_url": example_url
+        # "example_url": example_url
     }
 
 @sample_result.post("/analysis-result/create-metadata",tags=['analysis_result'])

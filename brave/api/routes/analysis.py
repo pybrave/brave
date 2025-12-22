@@ -211,6 +211,55 @@ async def list_analysis(query:QueryAnalysis):
 def build_tree(data):
     grouped = defaultdict(list)
     for item in data:
+        grouped[item["relation_id"]].append(item)
+
+    tree = []
+    for comp_id, items in grouped.items():
+        parent = {
+            "title": items[0]["relation_name"],  # 每组的名字
+            "key": comp_id,   
+            "type":"relation",                    # 用 component_id 当 key
+            "children": []
+        }
+        for i, it in enumerate(items):
+            parent["children"].append({
+                "title": it["analysis_name"],
+                "type":"analysis",
+                "key": it["analysis_id"],
+                "relation_id": it["relation_id"],
+                "relation_name": it["relation_name"],
+                "relation_type": it["relation_type"],
+                "job_status": it["job_status"],
+                "server_status": it["server_status"],
+                "relation_order_index": it["relation_order_index"]
+
+            })
+        tree.append(parent)
+    return tree
+
+@analysis_api.post(
+    "/list-analysis-tree",
+    # response_model=List[Analysis],
+)
+async def list_analysis(query:QueryAnalysis):
+    with get_engine().begin() as conn:
+        analysis_list = analysis_service.list_analysis_v1(conn,query)
+    analysis_list = [dict(item) for item in analysis_list]
+    sorted_data = sorted(
+        analysis_list,
+        key=lambda x: (
+            0 if x["relation_order_index"] not in (None, "") else 1,   # 有值优先，空值最后
+            -(int(x["relation_order_index"])) if x["relation_order_index"] not in (None, "") else float("inf")  # 数字取负 → 实现降序
+        )
+    )
+    data = build_tree(sorted_data)
+    return data
+
+
+
+def build_tree_old(data):
+    grouped = defaultdict(list)
+    for item in data:
         grouped[item["component_id"]].append(item)
 
     tree = []
@@ -238,12 +287,12 @@ def build_tree(data):
     return tree
 
 @analysis_api.post(
-    "/list-analysis-tree",
+    "/list-analysis-tree-old",
     # response_model=List[Analysis],
 )
-async def list_analysis(query:QueryAnalysis):
+async def list_analysis_old(query:QueryAnalysis):
     with get_engine().begin() as conn:
-        analysis_list = analysis_service.list_analysis_v1(conn,query)
+        analysis_list = analysis_service.list_analysis_v1_old(conn,query)
     analysis_list = [dict(item) for item in analysis_list]
     sorted_data = sorted(
         analysis_list,
@@ -252,8 +301,10 @@ async def list_analysis(query:QueryAnalysis):
             -(int(x["component_order_index"])) if x["component_order_index"] not in (None, "") else float("inf")  # 数字取负 → 实现降序
         )
     )
-    data = build_tree(sorted_data)
+    data = build_tree_old(sorted_data)
     return data
+
+
 
 
 @analysis_api.delete("/fast-api/analysis/{analysis_id}",  status_code=HTTP_204_NO_CONTENT)
@@ -406,10 +457,70 @@ async def run_analysis(
     # return software_analysis.save_analysis(request_param)
     # return {"msg":"success"}
 
-
 @analysis_api.post("/fast-api/analysis-controller")
 @inject
 async def save_script_analysis(
+    request_param: Dict[str, Any],
+    # type:Optional[str]="nextflow",
+    save:Optional[bool]=False,
+    is_submit:Optional[bool]=False,
+    is_report:Optional[bool]=None,
+    app_container:AppContainer = Depends(Provide[AppContainer]),
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus])
+    ): # request_param: Dict[str, Any]
+    
+
+    with get_engine().begin() as conn:
+        relation_id = request_param['relation_id']
+
+        component = pipeline_service.find_relation_component_by_id(conn, relation_id)
+
+        # pipeline_id = request_param['pipeline_id']
+        if component["component_id"] is None:
+            raise HTTPException(status_code=500, detail=f"component_id is None")
+        # component = pipeline_service.find_pipeline_by_id(conn, component_id)
+        # if component["component_type"] == "pipeline":
+        #     component = pipeline_service.get_pipeline_v2(conn,component_id)
+        if component is None:
+            raise HTTPException(status_code=404, detail=f"Component with id {relation_id} not found")
+        if component is None or "content" not in component:
+            raise HTTPException(status_code=404, detail=f"Component with id {relation_id} not found or missing content.")
+
+        # component_content = 
+        component_obj = {
+            **{ k:v for k,v in component.items() if k != "content"},
+            **json.loads(component['content'])
+        }
+
+        script_type = component_obj['script_type']   
+        # if  script_type=="nextflow":
+        #     analysis_controller = app_container.nextflow_analysis()
+        # else:
+        #     analysis_controller = app_container.script_analysis()
+        
+
+        if script_type == "python" or script_type == "shell" or script_type == "r" or script_type == "jupyter":
+            analysis_controller = app_container.script_analysis()
+        else:
+            analysis_controller = app_container.nextflow_analysis()
+
+        parse_analysis_result = analysis_controller.get_parames(conn,request_param,component_obj)
+        if not save:
+            return parse_analysis_result
+        
+        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report) 
+        if is_submit:
+            analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
+
+    if is_submit:
+        await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
+
+    return parse_analysis_result
+    
+
+@analysis_api.post("/fast-api/analysis-controller-old")
+@inject
+async def save_script_analysis_old(
     request_param: Dict[str, Any],
     # type:Optional[str]="nextflow",
     save:Optional[bool]=False,
