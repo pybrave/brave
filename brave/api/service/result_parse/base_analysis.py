@@ -348,6 +348,8 @@ class BaseAnalysis(ABC):
                 for column_group in columns:
                     # if "name" in column_group:
                     #     column_group = column_group["name"]
+                    if column_group not in request_param[k]:
+                        continue
                     columns = request_param[k][column_group]
                     if isinstance(columns, list):
                         columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
