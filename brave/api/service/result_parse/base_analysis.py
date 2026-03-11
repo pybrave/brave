@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
 from ast import Dict
+from collections import defaultdict
 import json
 import os
 from typing import Any, Optional
+
+from copy import deepcopy
 from brave.api.config.db import get_engine
 from fastapi import HTTPException
 from brave.api.core.evenet_bus import EventBus
@@ -24,6 +27,28 @@ from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.service import namespace_service, project_service, sample_service
 
 
+def merge_columns_by_name(form_json):
+    result = deepcopy(form_json)
+
+    sample_map = {}
+    columns_map = {}
+
+    for item in result:
+        name = item.get("name")
+
+        if item.get("type") == "CollectedSampleSelect":
+            sample_map[name] = item
+
+        elif item.get("type") == "CollectedColumnsSelect":
+            columns_map.setdefault(name, []).append(item)
+
+    for name, sample in sample_map.items():
+        sample_columns = sample.setdefault("columns", [])
+
+        for node in columns_map.get(name, []):
+            sample_columns.extend(node.get("columns", []))
+
+    return result
 class BaseAnalysis(ABC):
     def __init__(self, event_bus:EventBus) -> None:
         self.event_bus = event_bus
@@ -57,7 +82,8 @@ class BaseAnalysis(ABC):
             return component_file_name_list
         elif component['component_type'] == "script":
             if "formJson" in component:
-                return {item['name']:item for item in component['formJson'] if "db" in item and  item['db']}
+                new_form = merge_columns_by_name(component['formJson'])
+                return {item['name']:item for item in new_form if "db" in item and  item['db']}
         elif component['component_type'] == "pipeline":
             input_file_list = component['inputFile']
             return {item['name']:item for item in input_file_list}
