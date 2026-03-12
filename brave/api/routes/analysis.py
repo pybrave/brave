@@ -69,6 +69,8 @@ from brave.api.models.core import t_pipeline_components
 from sqlalchemy.orm import aliased
 from collections import defaultdict
 
+from build.lib.brave.api.service import project_service
+
 analysis_api = APIRouter()
 
 
@@ -1002,4 +1004,71 @@ async def list_tools_containers(analysis_id, job_executor: JobExecutor = Depends
             "tools_containers":all_containers,
             "running_containers":running_containers
         }
+
+
+
+@analysis_api.post("/analysis/download-results/{analysis_id}")
+async def download_results(analysis_id):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+    output_dir =   find_analysis["output_dir"]
+    output_dir_sub = f"{output_dir}/output"
+    if not os.path.exists(output_dir_sub):
+        raise HTTPException(status_code=404, detail=f"Output directory {output_dir_sub} not found")
+    analysis_name = find_analysis["analysis_name"].replace(" ","_")
+    zip_path = f"{output_dir}/{analysis_name}.zip"
+    shutil.make_archive(f"{output_dir}/{analysis_name}", 'zip', output_dir_sub)
+
+    settings = get_settings()
+    base_dir = settings.ANALYSIS_DIR
+    path_name = zip_path.replace(str(base_dir),"")
+    return {
+        "download_url": f"/brave-api/analysis-dir{path_name}",
+        "filename": os.path.basename(zip_path)
+    }
+
+@analysis_api.post("/analysis/download-project/{project_id}")
+async def list_analysis(project_id):
+    with get_engine().begin() as conn:
+        project = await project_service.find_by_project_id(conn,project_id) # check project exist
+        # project = dict(project)
+        analysis_list = analysis_service.list_analysis_v1(conn,QueryAnalysis(
+            project=project_id,
+            is_report =True
+        ))
+    # download all analysis report
+    project_dir = f"{get_settings().ANALYSIS_DIR}/{project_id}"
+    project_path = f"{project_dir}/project_output"
+    if not os.path.exists(project_path):
+        os.makedirs(project_path, exist_ok=True)
+    else:
+        shutil.rmtree(project_path)
+        os.makedirs(project_path, exist_ok=True)
+
+    for analysis in analysis_list:
+        output_dir =   analysis["output_dir"]
+        relation_name = analysis["relation_name"].replace(" ","_")
+        output_dir_sub = f"{output_dir}/output"
+        if os.path.exists(output_dir_sub):
+            relation_dir = f"{project_path}/{relation_name}"
+            os.makedirs(relation_dir, exist_ok=True)
+            analysis_name = analysis['analysis_name'].replace(" ","_")
+            shutil.copytree(output_dir_sub, f"{relation_dir}/{analysis_name}")
+            print(f"Copied {output_dir_sub} to {relation_dir}/{analysis_name}")
+            # output_dirs.append(output_dir_sub)
+    project_name = project["project_name"].replace(" ","_")
+    output_zip = f"{project_dir}/{project_name}.zip"
+    shutil.make_archive(f"{project_dir}/{project_name}", 'zip', project_path)
+
+    settings = get_settings()
+    base_dir = settings.ANALYSIS_DIR
+    path_name = output_zip.replace(str(base_dir),"")
+    return {
+        "download_url": f"/brave-api/analysis-dir{path_name}",
+        "filename": os.path.basename(output_zip)
+    }
+
+
+
+
 
