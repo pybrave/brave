@@ -145,6 +145,11 @@ def format_table_output(path,row_num=None):
             data = f.read()
         data_type="info"
         order=10
+    elif path.endswith("md"):
+        with open(path,"r") as f:
+            data = f.read()
+        data_type="md"
+        order=10
     else:
         with open(path,"r") as f:
             data = f.read()
@@ -220,7 +225,7 @@ async def visualization_results(path):
         merged_images.append(merged_item)
     # images = []
     tables = []
-    for ext in ("*.csv", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list","*.diff"):
+    for ext in ("*.csv","*.md", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list","*.diff"):
         tables.extend(glob.glob(os.path.join(path, ext)))
     tables = [format_table_output(table,100) for table in tables]
     tables = sorted(tables, key=lambda x: x.get("order", 0), reverse=True)
