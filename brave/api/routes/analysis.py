@@ -30,6 +30,7 @@ import importlib
 import importlib.util
 import uuid
 import os
+from brave.api.service import project_service
 from brave.api.service.result_parse import script_analysis
 from brave.api.service.result_parse import nextflow_analysis
 from brave.api.service.result_parse.nextflow_analysis    import NextflowAnalysis
@@ -69,7 +70,7 @@ from brave.api.models.core import t_pipeline_components
 from sqlalchemy.orm import aliased
 from collections import defaultdict
 
-from build.lib.brave.api.service import project_service
+# from build.lib.brave.api.service import project_service
 
 analysis_api = APIRouter()
 
