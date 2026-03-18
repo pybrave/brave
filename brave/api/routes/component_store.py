@@ -38,14 +38,15 @@ def list_local_components(store_name,relation_type):
         else:
             item["installed"] = False
         item["address"] ="local"
-        if "img" in item and item["img"] !="":
+        if "img" in item and  item["img"] is not None and item["img"] !="":
             # img_dir = item["file_path"].replace(str(settings.STORE_DIR),"")
             # img_dir = os.path.dirname(img_dir)
             img_name=os.path.basename(item["img"])
             relation_type = item["relation_type"]
             relation_id = item["relation_id"]
             item["img"] = f"/brave-api/store-dir/{store_name}/{relation_type}/{relation_id}/{img_name}"
-            
+        else:
+            item["img"] = f"/brave-api/img/pipeline.jpg"
     return file_list
 
 def format_store(file_path):
