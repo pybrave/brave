@@ -368,6 +368,9 @@ class BaseAnalysis(ABC):
                 db_dict[k] = analysis_result
             elif query_form_type =="CollectedSampleSelect" and "columns"in query_form:
                 analysis_result = v[0]
+                request_param_file = request_param[k]
+                for key,value in request_param_file.items():
+                    analysis_result[key] = value
                 columns = query_form["columns"]
                 analysis_result["form_type"] = query_form_type
                 analysis_result["groups"] = columns
@@ -387,6 +390,8 @@ class BaseAnalysis(ABC):
                     #     "selcted_group_name":groups_name[k].get(column_group),
                     #     "re_groups_name":re_groups_name[k].get(column_group)}
                     analysis_result[column_group] = columns
+
+                
 
                 db_dict[k] = analysis_result                
             else:
