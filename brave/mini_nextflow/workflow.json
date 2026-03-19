@@ -1,0 +1,42 @@
+{
+  "nodes": [
+    {
+      "id": "A",
+      "name": "TaskA",
+      "template": "#!/usr/bin/env bash\nset -euo pipefail\nsleep 30\necho \"A start\"\necho \"name={{params.name}}\" > a.txt\necho \"message={{params.message}}\" >> a.txt\necho \"generated_by=A\" >> a.txt\necho \"A done\"",
+      "outputs": {
+        "a_txt": "a.txt"
+      }
+    },
+    {
+      "id": "B",
+      "name": "TaskB",
+      "template": "#!/usr/bin/env bash\nset -euo pipefail\nsleep 30\necho \"B start\"\ncat \"{{inputs.A.a_txt}}\" > b.txt\necho \"processed_by=B\" >> b.txt\necho \"B done\"",
+      "outputs": {
+        "b_txt": "b.txt"
+      }
+    },
+    {
+      "id": "C",
+      "name": "TaskC",
+      "template": "#!/usr/bin/env bash\nset -euo pipefail\nsleep 30\necho \"C start\"\ncat \"{{inputs.A.a_txt}}\" > c.txt\necho \"processed_by=C\" >> c.txt\necho \"C done\"",
+      "outputs": {
+        "c_txt": "c.txt"
+      }
+    },
+    {
+      "id": "D",
+      "name": "TaskD",
+      "template": "#!/usr/bin/env bash\nset -euo pipefail\nsleep 30\necho \"D start\"\ncat \"{{inputs.B.b_txt}}\" \"{{inputs.C.c_txt}}\" > d.txt\necho \"processed_by=D\" >> d.txt\necho \"D done\"",
+      "outputs": {
+        "d_txt": "d.txt"
+      }
+    }
+  ],
+  "edges": [
+    { "from": "A", "to": "B" },
+    { "from": "A", "to": "C" },
+    { "from": "B", "to": "D" },
+    { "from": "C", "to": "D" }
+  ]
+}

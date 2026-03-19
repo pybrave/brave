@@ -296,11 +296,18 @@ def find_relation_component_by_id(conn,relation_id):
         t_pipeline_components.c.description.label("component_description"),
         t_pipeline_components.c.component_type,
         t_pipeline_components.c.script_type,
-        t_pipeline_components.c.content
+        t_pipeline_components.c.content,
+        t_container.c.name.label("container_name"),
+        t_container.c.image_status,
+        t_container.c.image_id,
+        t_container.c.container_id
     ).select_from(
         t_pipeline_components_relation.outerjoin(
             t_pipeline_components,
             t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+        ).outerjoin(
+            t_container,
+            t_pipeline_components.c.container_id == t_container.c.container_id
         )
     ).where(t_pipeline_components_relation.c.relation_id == relation_id)
     find_component = conn.execute(stmt).mappings().first()

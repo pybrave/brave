@@ -770,6 +770,8 @@ async def visualization_results(analysis_id):
     file_result['server_status'] = find_analysis["server_status"]
     file_result['is_report'] = find_analysis["is_report"]
     file_result['analysis_id'] = find_analysis["analysis_id"]
+    file_result["image_status"] = find_relation["image_status"]
+    file_result["container_id"] = find_relation["container_id"]
 
     # file_result['analysis_id'] = find_analysis["analysis_id"]
 
