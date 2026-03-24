@@ -393,11 +393,24 @@ class BaseAnalysis(ABC):
 
                 
 
-                db_dict[k] = analysis_result                
+                db_dict[k] = analysis_result
+            elif query_form_type =="NestCollectedSampleSelect":
+                ids = db_ids_dict[k]
+                request_param_item = request_param[k]
+                request_param_item_dict = {item["file"]:item for item in request_param_item}
+                db_dict[k] = [ {**item,
+                    # "form_type":query_form_type,
+                    # "selcted_group_name":groups_name.get(k),
+                    # "re_groups_name":re_groups_name.get(k),
+                    **request_param_item_dict.get(item["id"],{})} for item in v ]
             else:
                 ids = db_ids_dict[k]
+                request_param_item = request_param[k]
+                # for key,value in request_param_item.items():
+                #     analysis_result[key] = value
                 # for single select
                 if isinstance(ids,list):
+
                     db_dict[k] = [ {**item,
                         "form_type":query_form_type,
                         "selcted_group_name":groups_name.get(k),

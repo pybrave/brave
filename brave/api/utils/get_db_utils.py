@@ -8,6 +8,17 @@ def get_ids(values):
             return values['value']
         else:
             return []
+    elif isinstance(values, list):
+        ids = []
+        for item in values:
+            if isinstance(item, dict):
+                if "file" in item:
+                    ids.append(item['file'])
+                elif "sample" in item:
+                    ids.append(item['sample'])
+                elif "value" in item and  "label" in item:
+                    ids.append(item['value'])
+        return ids
     return values
 
 def get_group(values):
