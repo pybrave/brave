@@ -109,8 +109,7 @@ async def build_prompt(req: ChatRequest, system_prompt: str, template: str,queue
         
         content = template.format(context=context,
                                 code=code,
-                                data=data,
-                                question=req.message)
+                                data=data)
         create_chatHistory = CreateChatHistory(
                 user_id=None,
                 session_id=None,
@@ -123,7 +122,7 @@ async def build_prompt(req: ChatRequest, system_prompt: str, template: str,queue
             # system_prompt=system_prompt,
             # user_prompt=content,
         if req.is_save_prompt:
-            create_chatHistory.system_prompt=system_prompt
-            create_chatHistory.user_prompt=content
+            create_chatHistory.system_prompt=content
+            # create_chatHistory.user_prompt=content
         chat_history_service.insert_chat_history(conn, create_chatHistory)
     return content

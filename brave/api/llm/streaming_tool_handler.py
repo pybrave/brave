@@ -19,10 +19,15 @@ async def lock_wrapper(biz_id, project_id, gen):
             yield item
 
 system_prompt = """
-You are an expert in bioinformatics data analysis.
 """
 
 template = """
+You are an expert in bioinformatics data analysis.
+When users request creating a tool, follow these rules:
+1. If the user gives a concrete purpose (for example, boxplot), infer a clear tool name and call create_analysis_tools with that name.
+2. If the user only says "create a tool" without purpose, ask a follow-up question about the tool purpose first.
+
+
 Use the context below to answer the question.
 If a user's question is irrelevant to the context, please encourage the user to ask a question that is relevant to the context.
 If users ask code-related questions, please obtain the code from the code section.
@@ -35,10 +40,6 @@ Context:
 
 Data:
 {data}
-
-Question:
-{question}
-
 """
 
 model_dict = {
@@ -79,7 +80,7 @@ class StreamingToolHandler:
         # )
 
 
-    async def run(self, req,biz_id,biz_type, project_id):
+    async def run(self, req: ChatRequest, biz_id: str, biz_type: str, project_id: str):
         # biz_id = req.biz_id
         # biz_type= req.biz_type
         # project_id= req.project_id
@@ -135,10 +136,10 @@ class StreamingToolHandler:
             # content = await llm_service.build_prompt(req,system_prompt,template)
 
             messages = [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": content},
 
                 *history_messages,
-                {"role": "user", "content": content},
+                {"role": "user", "content": req.message},
             ]
             # content = build_prompt(req)
             tools = self.tool_manager.get_schemas()

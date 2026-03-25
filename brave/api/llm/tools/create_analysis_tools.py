@@ -22,7 +22,10 @@ async def create_analysis_tools(arguments: dict, sse_service=None):
     #     "relation_type": "tools"
     # }
   
-    name = arguments.get("name", "test")
+    name = str(arguments.get("name", "")).strip()
+    if not name:
+        return "请先说明工具用途，例如：创建箱线图工具。"
+
     await pipeline_routes.save_pipeline_relation_controller(SavePipelineRelation(
         name=name,
         component_id="5c87d12e-9bf5-4c10-9e54-ef44c1328dd9",

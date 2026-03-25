@@ -63,11 +63,16 @@ def register_tools(tool_manager: ToolManager, sse_service=None):
             "function": {
                 "name": "create_analysis_tools",
                 "strict": "true",
-                "description": "创建分析工具",
+                "description": "根据用户需求创建分析工具。必须传入工具名称 name（例如：箱线图工具）。如果用户只说“创建工具”但未说明用途，先追问用途，再根据用途生成工具名称后调用。",
                 "parameters": {
                     "type": "object",
                     "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "要创建的工具名称，例如：箱线图工具、PCA降维工具。"
+                        }
                     },
+                    "required": ["name"],
                     "additionalProperties": "false"
                 }
             }
