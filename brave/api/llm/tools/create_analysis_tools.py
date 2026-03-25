@@ -3,7 +3,7 @@
 
 from brave.api.config.db import get_engine
 from brave.api.schemas.pipeline import SavePipelineRelation
-import build.lib.brave.api.routes.pipeline as pipeline_routes
+import brave.api.routes.pipeline as pipeline_routes
 
 
 async def create_analysis_tools(arguments: dict):
