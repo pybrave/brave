@@ -35,9 +35,8 @@ from brave.app_container import AppContainer
 from brave.setup_routes import setup_routes
 from fastapi.middleware.cors import CORSMiddleware
 # from fastapi.middleware.gzip import GZipMiddleware
-
-
 container = AppContainer()
+
 # container.config.executer_type.from_env("EXECUTER_TYPE","local")    
 
 container.wire(modules=["brave.api.routes"], packages=["brave.api.routes","brave.api.handlers"])
@@ -56,6 +55,7 @@ async def lifespan(app: FastAPI):
     setup_routes(app,manager)
     init_config(app)
     app.state.manager = manager 
+    app.container = container
     yield 
     await manager.stop()
 
