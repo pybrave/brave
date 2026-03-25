@@ -6,7 +6,7 @@ class ToolManager:
     def __init__(self):
         self.tools = {}
 
-    def register(self, name: str, func, description: str = "", parameters: dict = None):
+    def register(self, name: str, func,schema:dict):
         # self.tools[name] = [
         #         {
         #             "type": "function",
@@ -19,14 +19,7 @@ class ToolManager:
         #     ]
         self.tools[name] = {
             "func": func,
-            "schema": {
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "description": description,
-                    "parameters": parameters or {"type": "object", "properties": {}},
-                },
-            },
+            "schema":schema,
         }
 
     def get_schemas(self):
@@ -45,4 +38,4 @@ class ToolManager:
                 arguments = {**arguments["parameters"], **arguments}
                 del arguments["parameters"]
             return await func(arguments)
-        return func(**arguments)
+        return func(arguments)

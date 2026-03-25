@@ -83,6 +83,21 @@ class StreamingToolHandler:
         # biz_id = req.biz_id
         # biz_type= req.biz_type
         # project_id= req.project_id
+
+        # 查询历史消息
+        history_messages = []
+        with get_engine().begin() as conn:
+            chat_history = chat_history_service.get_chat_history_by_project_id_and_biz_id(
+                conn, chat_history_service.QueryChatHistory(
+                    project_id=project_id,
+                    biz_id=biz_id
+                )
+            )
+            chat_history_dict = [ dict(item) for item in chat_history]
+            history_messages = [
+                {"role": item["role"], "content": item["content"]}
+                for item in chat_history_dict
+            ]
         """
         流式返回 DeepSeek 响应
         """
@@ -121,6 +136,8 @@ class StreamingToolHandler:
 
             messages = [
                 {"role": "system", "content": system_prompt},
+
+                *history_messages,
                 {"role": "user", "content": content},
             ]
             # content = build_prompt(req)

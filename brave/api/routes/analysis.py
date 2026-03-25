@@ -761,6 +761,8 @@ async def visualization_results(analysis_id):
             find_relation["relation_id"] = ""
             find_relation["relation_type"] = ""
             find_relation["name"]  =""
+            find_relation["image_status"] = ""
+            find_relation["container_id"] = ""
 
     file_result = await file_operation_service.visualization_results(find_analysis["output_dir"])
     # file_result = {}
