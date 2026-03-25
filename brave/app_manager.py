@@ -172,7 +172,7 @@ class AppManager:
             await namespace_service.init_db(conn)
             await project_service.init_db(conn)
         
-        register_tools(self.tool_manager)
+        register_tools(self.tool_manager, self.sse_service)
 
         
 

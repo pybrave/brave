@@ -3,7 +3,7 @@ from brave.api.llm.tool_manager import ToolManager
 from brave.api.llm.tools.create_analysis_tools import create_analysis_tools
 from brave.api.llm.tools.get_weather import get_weather
 from brave.api.llm.tools.log_tools import get_error_log
-def register_tools(tool_manager: ToolManager):
+def register_tools(tool_manager: ToolManager, sse_service=None):
     """注册所有工具到 ToolManager"""
 
     tool_manager.register(
@@ -52,9 +52,12 @@ def register_tools(tool_manager: ToolManager):
     )
 
     # 创建分析工具,
+    async def create_analysis_tools_with_runtime_sse(arguments: dict):
+        return await create_analysis_tools(arguments, sse_service=sse_service)
+
     tool_manager.register(
         name="create_analysis_tools",
-        func=create_analysis_tools,
+        func=create_analysis_tools_with_runtime_sse,
         schema={
             "type": "function",
             "function": {
