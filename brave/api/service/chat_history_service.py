@@ -32,8 +32,8 @@ def clear_chat_history(conn, clearChatHistory: ClearChatHistory):
     project_id = clearChatHistory.project_id
     biz_id = clearChatHistory.biz_id
     stmt = t_chat_history.delete().where(
-        t_chat_history.c.project_id == project_id,
-        t_chat_history.c.biz_id == biz_id
+        t_chat_history.c.project_id == project_id
+        # t_chat_history.c.biz_id == biz_id
     )
     conn.execute(stmt)
     conn.commit()
