@@ -104,5 +104,13 @@ sseController = APIRouter()
 @sseController.get("/send-test")
 @inject
 async def send_message2(sse_service:SSESessionService = Depends(Provide[AppContainer.sse_service])  ):
-    await sse_service.push_message({"group":"default","data":json.dumps({"msgType":"test","msg":"hello"})})
+    data = {"msgType":"test","msg":"hello"}
+    data ={
+        "action": "router.go",
+        "payload": {
+            "path": "/c/scripts",
+        }
+    }
+    await sse_service.push_message({"group":"default",
+                                    "data":json.dumps(data)})
     return {"message": "success"}
