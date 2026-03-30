@@ -85,8 +85,11 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.include_router(ws_app,prefix="/brave-api")  
 
 
-
-    app.get("/brave-api/sse-group")(manager.sse_service.create_endpoint())  
+    endpoint_factory = manager.realtime_service.create_endpoint()
+    if manager.realtime_service.endpoint_transport == "websocket":
+        app.websocket("/brave-api/ws-group")(endpoint_factory)
+    else:
+        app.get("/brave-api/sse-group")(endpoint_factory)
     endpoint = manager.ingress_manager.create_endpoint()
     if endpoint:
         app.post("/brave-api/ingress")(endpoint)

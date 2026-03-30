@@ -24,6 +24,7 @@ from brave.api.executor.docker_excutor import DockerExecutor
 from brave.api.executor.k8s_executor import K8sExecutor
 from brave.api.executor.slurm_executor import SlurmExecutor
 from brave.api.executor.local_executor import LocalExecutor
+from brave.api.service.ws_service import WSSessionService
 class AppContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
 
@@ -61,7 +62,15 @@ class AppContainer(containers.DeclarativeContainer):
     #     pubsub=pubsub_manager,
     #     workflow_event_router=workflow_event_router
     # )
-    sse_service = providers.Singleton(SSESessionService)
+    sse_impl = providers.Singleton(SSESessionService)
+    ws_impl = providers.Singleton(WSSessionService)
+    realtime_service = providers.Selector(
+        config.realtime_type,
+        sse=sse_impl,
+        ws=ws_impl,
+    )
+    # Keep backward-compatible provider name for existing call sites.
+    sse_service = realtime_service
     workflow_sse_manager = providers.Singleton(WorkflowSSEManager, workflow_queue_manager=workflow_queue_manager)
     
     event_bus = providers.Singleton(

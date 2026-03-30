@@ -38,7 +38,7 @@ def build_action_messages(start_seq: int = 1) -> List[Dict[str, Any]]:
             "seq": seq + 2,
             "type": "action",
             "action": "router.go",
-            "payload": {"path": "/dashboard"},
+            "payload": {"path": "/c/scripts"},
             "ts": _utc_now_iso(),
         },
         {
@@ -47,6 +47,12 @@ def build_action_messages(start_seq: int = 1) -> List[Dict[str, Any]]:
             "action": "ui.show_message",
             "payload": {"type": "warning", "text": "High latency detected"},
             "ts": _utc_now_iso(),
+        },{
+            "seq": seq + 4,
+            "type": "action",
+            "action": "router.go",
+            "payload": {"path": "/c/tools"},
+            "ts": _utc_now_iso(),
         },
     ]
     return messages
@@ -54,7 +60,7 @@ def build_action_messages(start_seq: int = 1) -> List[Dict[str, Any]]:
 
 
 
-@ws_app.websocket("/ws/mock-actions")
+# @ws_app.websocket("/ws-group")
 async def mock_actions(websocket: WebSocket) -> None:
     await websocket.accept()
     print("[ws] client connected")

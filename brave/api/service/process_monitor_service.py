@@ -10,7 +10,7 @@ import logging
 from importlib.resources import files
 from importlib import import_module
 import inspect
-from brave.api.service.sse_service import SSESessionService
+from brave.api.service.realtime_service import RealtimeService
 from brave.api.service.analysis_result_parse import AnalysisResultParse
 from collections import defaultdict
 from typing import Dict, Set
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class ProcessMonitor:
     def __init__(self, 
-    sse_service: SSESessionService,
+    sse_service: RealtimeService,
     analysis_result_parse_service: AnalysisResultParse,
     listener_files_service: ListenerFilesService,
     check_interval: int = 5,

@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse
 
 import os
 from brave.api.config.config import get_settings,init as init_config
-from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
+# from brave.api.service.sse_service import  SSEService  # 从 service.py 导入
 from brave.api.routes.namespace import namespace
 from brave.api.routes.file_operation import file_operation  
 # from brave.api.service.sse_service import get_sse_service
@@ -46,7 +46,8 @@ container.wire(modules=["brave.api.routes"], packages=["brave.api.routes","brave
 async def lifespan(app: FastAPI):
     settings = get_settings()
     container.config.from_dict({
-        'executer_type': settings.EXECUTER_TYPE
+        'executer_type': settings.EXECUTER_TYPE,
+        'realtime_type': os.getenv("REALTIME_TYPE", "ws")
     })
 
     manager = AppManager()

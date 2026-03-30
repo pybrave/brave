@@ -10,13 +10,13 @@ from brave.api.core.event import WorkflowEvent
 from brave.api.core.evenet_bus import EventBus
 import brave.api.service.analysis_service as analysis_service
 import asyncio
-from brave.api.service.sse_service import SSESessionService
+from brave.api.service.realtime_service import RealtimeService
 import json
 @inject
 def setup_handlers(
     evenet_bus:EventBus  = Provide[AppContainer.event_bus],
     router: WorkflowEventRouter = Provide[AppContainer.workflow_event_router],
-    sse_service:SSESessionService = Provide[AppContainer.sse_service],
+    sse_service:RealtimeService = Provide[AppContainer.sse_service],
     result_parse_manage:AnalysisManage = Provide[AppContainer.result_parse_manage]
     ):
 

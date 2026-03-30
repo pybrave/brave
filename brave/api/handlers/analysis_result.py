@@ -13,12 +13,12 @@ from brave.app_container import AppContainer
 from brave.api.core.event import AnalysisResultEvent, WorkflowEvent
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.executor.models import JobSpec, LocalJobSpec
-from brave.api.service.sse_service import SSESessionService
+from brave.api.service.realtime_service import RealtimeService
 
 @inject
 def setup_handlers(
     evenet_bus:EventBus  = Provide[AppContainer.event_bus],
-    sse_service:SSESessionService = Provide[AppContainer.sse_service],
+    sse_service:RealtimeService = Provide[AppContainer.sse_service],
     router:AnalysisResultRouter  = Provide[AppContainer.analysis_result_router]):
     
     evenet_bus.register_router(RoutersName.ANALYSIS_RESULT_ROUTER,router)

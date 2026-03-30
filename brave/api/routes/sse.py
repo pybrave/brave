@@ -103,7 +103,7 @@ sseController = APIRouter()
 
 @sseController.get("/send-test")
 @inject
-async def send_message2(sse_service:SSESessionService = Depends(Provide[AppContainer.sse_service])  ):
+async def send_message2(sse_service:SSESessionService = Depends(Provide[AppContainer.realtime_service])  ):
     data = {"msgType":"test","msg":"hello"}
     data ={
         "action": "router.go",

@@ -10,7 +10,7 @@ from brave.api.handlers import analysis_executer
 from brave.api.llm.tool_manager import ToolManager
 from brave.api.service.listener_files_service import get_listener_files_service
 from brave.api.service.process_monitor_service import ProcessMonitor
-from brave.api.service.sse_service import SSESessionService
+from brave.api.service.realtime_service import RealtimeService
 from brave.api.config.db import get_engine
 from brave.api.service import namespace_service, project_service
 from brave.api.ingress.manager import IngressManager
@@ -39,7 +39,7 @@ class AppManager:
         workflow_queue_manager: WorkflowQueueManager = Provide[AppContainer.workflow_queue_manager],
         ingress_manager: IngressManager = Provide[AppContainer.ingress_manager],
         ingress_event_router: IngressEventRouter = Provide[AppContainer.ingress_event_router],
-        sse_service: SSESessionService = Provide[AppContainer.sse_service],
+        realtime_service: RealtimeService = Provide[AppContainer.realtime_service],
         analysis_result_parse_service: AnalysisResultParse = Provide[AppContainer.analysis_result_parse_service],
         listener_files_service: ListenerFilesService = Provide[AppContainer.listener_files_service],
         workflow_event_router:WorkflowEventRouter=Provide[AppContainer.workflow_event_router],
@@ -53,7 +53,9 @@ class AppManager:
         self.workflow_queue_manager = workflow_queue_manager
         self.ingress_event_router = ingress_event_router
         self.ingress_manager = ingress_manager
-        self.sse_service = sse_service
+        self.realtime_service = realtime_service
+        # Backward compatibility for existing code paths.
+        # self.sse_service = realtime_service
         self.analysis_result_parse_service = analysis_result_parse_service
         self.listener_files_service = listener_files_service
         self.workflow_event_router = workflow_event_router
@@ -94,7 +96,7 @@ class AppManager:
             watchfile_event_router=self.watchfile_event_router
         ) 
         self.process_monitor = ProcessMonitor(
-            sse_service=self.sse_service,
+            sse_service=self.realtime_service,
             analysis_result_parse_service=self.analysis_result_parse_service,
             listener_files_service=self.listener_files_service
         )
@@ -148,7 +150,7 @@ class AppManager:
         # self.workflow_queue_manager.register_subscriber("", subscriber)
 
         async def push_file_watch_message(msg:dict):
-            await self.sse_service.push_message({"group": "default", "data": json.dumps(msg)})
+            await self.realtime_service.push_message({"group": "default", "data": json.dumps(msg)})
 
         # self.watchfile_event_router.register_handler(WatchFileEvent.WORKFLOW_LOG,push_file_watch_message)
         # self.watchfile_event_router.register_handler(WatchFileEvent.TRACE_LOG,  push_file_watch_message)
@@ -157,9 +159,8 @@ class AppManager:
         analysis_executer.setup_handlers()
         workflow_events.setup_handlers()
         analysis_result.setup_handlers()
-        self.tasks.append(asyncio.create_task(self.sse_service.broadcast_loop()))
-
-
+        self.tasks.append(asyncio.create_task(self.realtime_service.broadcast_loop()))
+        # self.tasks.append(asyncio.create_task(self.ws_service.broadcast_loop()))
 
         # self.tasks.append(asyncio.create_task(self.analysis_result_parse_service.auto_save_analysis_result()))
         self.tasks.append(asyncio.create_task(self.file_watcher_service.watch_folder()))
@@ -172,7 +173,7 @@ class AppManager:
             await namespace_service.init_db(conn)
             await project_service.init_db(conn)
         
-        register_tools(self.tool_manager, self.sse_service)
+        register_tools(self.tool_manager, self.realtime_service)
 
         
 

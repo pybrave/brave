@@ -8,71 +8,74 @@ from typing import Dict, Set
 import json
 from fastapi import Request
 from fastapi.responses import StreamingResponse
+from brave.api.service.realtime_service import RealtimeService
 
 
-class SSEService:
-    def __init__(self):
-        self.global_queue = asyncio.Queue()
-        self.connected_clients = set()
+# class SSEService:
+#     def __init__(self):
+#         self.global_queue = asyncio.Queue()
+#         self.connected_clients = set()
 
-    async def broadcast_loop(self):
-        # current_loop = asyncio.get_event_loop()
-        # print(f"broadcast_loop 事件循环：{current_loop}")
-        while True:
-            msg = await self.global_queue.get()
-            print(f"广播消息: {msg} 客户端数量: {len(self.connected_clients)}")
-            for q in self.connected_clients.copy():
-                await q.put(msg)
+#     async def broadcast_loop(self):
+#         # current_loop = asyncio.get_event_loop()
+#         # print(f"broadcast_loop 事件循环：{current_loop}")
+#         while True:
+#             msg = await self.global_queue.get()
+#             print(f"广播消息: {msg} 客户端数量: {len(self.connected_clients)}")
+#             for q in self.connected_clients.copy():
+#                 await q.put(msg)
 
-    async def event_generator(self, request, client_queue):
-        try:
-            # 首条立即推送，确保客户端立即建立连接
-            # yield "data: connected\n\n"
-            while True:
-                if await request.is_disconnected():
-                    print("请求关闭!")
-                    break
-                try:
-                    msg = await asyncio.wait_for(client_queue.get(), timeout=10)
-                    print(f"产生消息: {msg}!")
-                    yield f"data: {msg}\n\n"
-                except asyncio.TimeoutError:
-                    yield ": keep-alive\n\n"
-        except asyncio.CancelledError:
-            print("连接被取消")
-        finally:
-            print("finally请求关闭!")
-            self.connected_clients.discard(client_queue)
+#     async def event_generator(self, request, client_queue):
+#         try:
+#             # 首条立即推送，确保客户端立即建立连接
+#             # yield "data: connected\n\n"
+#             while True:
+#                 if await request.is_disconnected():
+#                     print("请求关闭!")
+#                     break
+#                 try:
+#                     msg = await asyncio.wait_for(client_queue.get(), timeout=10)
+#                     print(f"产生消息: {msg}!")
+#                     yield f"data: {msg}\n\n"
+#                 except asyncio.TimeoutError:
+#                     yield ": keep-alive\n\n"
+#         except asyncio.CancelledError:
+#             print("连接被取消")
+#         finally:
+#             print("finally请求关闭!")
+#             self.connected_clients.discard(client_queue)
 
-    async def push_message(self, msg: str):
-        await self.global_queue.put(msg)
+#     async def push_message(self, msg: str):
+#         await self.global_queue.put(msg)
 
-    def add_client(self, client_queue):
-        self.connected_clients.add(client_queue)
+#     def add_client(self, client_queue):
+#         self.connected_clients.add(client_queue)
 
-    def remove_client(self, client_queue):
-        self.connected_clients.discard(client_queue)
+#     def remove_client(self, client_queue):
+#         self.connected_clients.discard(client_queue)
 
-    def create_endpoint(self):
-        async def endpoint(request: Request):
-            q = asyncio.Queue()
-            self.add_client(q)
-            return StreamingResponse(self.event_generator(request, q), media_type="text/event-stream")
-        return endpoint
+#     def create_endpoint(self):
+#         async def endpoint(request: Request):
+#             q = asyncio.Queue()
+#             self.add_client(q)
+#             return StreamingResponse(self.event_generator(request, q), media_type="text/event-stream")
+#         return endpoint
 
-    async def producer(self):
-        i = 1
-        while True:
-            await asyncio.sleep(10)
-            print(f"📦 当前线程：{threading.current_thread().name}, 消息 {i}")
-            await self.push_message(f"消息 {i}")
-            i += 1
-
-
+#     async def producer(self):
+#         i = 1
+#         while True:
+#             await asyncio.sleep(10)
+#             print(f"📦 当前线程：{threading.current_thread().name}, 消息 {i}")
+#             await self.push_message(f"消息 {i}")
+#             i += 1
 
 
 
-class SSESessionService:
+
+
+class SSESessionService(RealtimeService):
+    endpoint_transport = "http"
+
     def __init__(self):
         self.global_queue = asyncio.Queue()
         self.client_groups: Dict[str, Set[asyncio.Queue]] = defaultdict(set)

@@ -11,7 +11,7 @@ from brave.app_container import AppContainer
 async def create_analysis_tools(arguments: dict, sse_service=None):
     # Prefer injected runtime instance so SSE producer/consumer share the same service.
     if sse_service is None:
-        sse_service = AppContainer.sse_service()
+        sse_service = AppContainer.realtime_service()
     # {
     #     "name": "test",
     #     "component_id": "5c87d12e-9bf5-4c10-9e54-ef44c1328dd9",

@@ -14,7 +14,7 @@ from brave.app_container import AppContainer
 from brave.api.core.event import WorkflowEvent
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.executor.models import JobSpec, LocalJobSpec, DockerJobSpec
-from brave.api.service.sse_service import SSESessionService
+from brave.api.service.realtime_service import RealtimeService
 from brave.api.service.result_parse.analysis_manage import AnalysisManage
 from brave.api.executor.local_executor import LocalExecutor
 
@@ -23,7 +23,7 @@ def setup_handlers(
     evenet_bus:EventBus  = Provide[AppContainer.event_bus],
     router:AnalysisExecutorRouter  = Provide[AppContainer.analysis_executer_router],
     job_executor:JobExecutor = Provide[AppContainer.job_executor_selector],
-    sse_service:SSESessionService = Provide[AppContainer.sse_service],
+    sse_service:RealtimeService = Provide[AppContainer.sse_service],
     result_parse_manage:AnalysisManage = Provide[AppContainer.result_parse_manage]):
     
     evenet_bus.register_router(RoutersName.ANALYSIS_EXECUTER_ROUTER,router)
