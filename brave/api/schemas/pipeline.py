@@ -11,6 +11,7 @@ class SavePipeline(BaseModel):
     component_name:Optional[str]=None
     description:Optional[str]=None
     tags:Optional[str]=None
+    relation_id:Optional[str]=None
     category:Optional[str]=None
     img:Optional[str]=None
     container_id:Optional[str]=None
@@ -65,6 +66,7 @@ class PagePipelineQuery(BaseModel):
 class PageComponentRelationQuery(BaseModel):
     page_number: Optional[int]=1
     page_size: Optional[int]=10
+    is_last: Optional[bool]=False    
     relation_type: Optional[str]=None
     keywords: Optional[str]=None
     category: Optional[str]=None

@@ -651,7 +651,9 @@ async def update_or_save_components(savePipeline:SavePipeline):
  
  
     save_pipeline_dict = savePipeline.dict()
-    save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="parent_component_id" and k!="pipeline_id" and k!='relation_type' and v is not  None }
+    save_pipeline_dict = {k:v for k,v in save_pipeline_dict.items() if k!="parent_component_id" and k!="pipeline_id" 
+                          and k!="relation_id"
+                          and k!='relation_type' and v is not  None }
     
     with get_engine().begin() as conn:
         find_pipeine = None
@@ -688,6 +690,10 @@ async def update_or_save_components(savePipeline:SavePipeline):
 @pipeline.post("/save-pipeline",tags=['pipeline'])
 async def save_pipeline(savePipeline:SavePipeline):
     component_id = await update_or_save_components(savePipeline)
+
+    if savePipeline.relation_id:
+        with get_engine().begin() as conn:
+            pipeline_service.update_relation_component_id(conn, savePipeline.relation_id, component_id)
      
     # pipeline_service.write_component_json(component_id)
     # t0 = time.time()

@@ -111,6 +111,24 @@ async def send_message2(sse_service:SSESessionService = Depends(Provide[AppConta
             "path": "/c/scripts",
         }
     }
+    data = {
+        "actions":[
+            {
+                "action": "router.go",
+                "payload": {
+                    "path": "/c/tools",
+                    "state": {"last":True}
+                }
+            },{
+                "action": "component.invoke",
+                "payload": {
+                    "category": "tables",
+                    "id": "tools-card",
+                    "method": "reload"
+                }
+            }, {"action": "ui.show_message", "payload": {"type": "success", "text": "工具创建成功"}}
+        ]
+    }
     await sse_service.push_message({"group":"default",
                                     "data":json.dumps(data)})
     return {"message": "success"}

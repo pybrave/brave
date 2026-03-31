@@ -10,7 +10,7 @@ from brave.api.config.config import get_settings
 from pathlib import Path
 import shutil
 from fastapi import Depends, HTTPException
-from brave.api.schemas.pipeline import PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule,SaveOrder,SavePipelineComponentsEdges
+from brave.api.schemas.pipeline import PageComponentRelationQuery, PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule,SaveOrder,SavePipelineComponentsEdges
 from brave.api.config.db import get_engine
 from brave.api.models.core import  t_pipeline_components, t_pipeline_components_edges, t_pipeline_components_relation
 import importlib.resources as resources
@@ -468,7 +468,12 @@ def page_pipeline(conn,query:PagePipelineQuery):
     }
 
 
-def page_component_relation(conn,query):
+def page_component_relation(conn,query:PageComponentRelationQuery):
+    if query.page_number < 1:
+        query.page_number = 1
+    
+    is_last = query.is_last if query.is_last is not None else False
+    
     stmt =select(
         t_pipeline_components_relation,
         # t_pipeline_components,
@@ -505,12 +510,18 @@ def page_component_relation(conn,query):
         )
     ).where(and_(*conditions))
 
+    total = conn.execute(count_stmt).scalar() or 0
+    if is_last:
+        if total > 0:
+            query.page_number = (total - 1) // query.page_size + 1
+        else:
+            query.page_number = 1
+
     stmt = stmt.offset((query.page_number - 1) * query.page_size).limit(query.page_size)
     find_pipeline = conn.execute(stmt).mappings().all()
     find_pipeline = [dict(item) for item in find_pipeline]
     find_pipeline = [format_pipeline_componnet_one(item) for item in find_pipeline]
 
-    total = conn.execute(count_stmt).scalar()
     return {
         "items": find_pipeline,
         "total":total,
@@ -822,6 +833,9 @@ def update_component_description(conn, component_id,description):
 
 
 
+def update_relation_component_id(conn,relation_id, component_id):
+    stmt = t_pipeline_components_relation.update().where(t_pipeline_components_relation.c.relation_id == relation_id).values(component_id=component_id)
+    conn.execute(stmt)
 
 
 
