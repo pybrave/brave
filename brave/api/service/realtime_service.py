@@ -14,6 +14,10 @@ class RealtimeService(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def push_message_wait_ack(self, msg: Dict[str, Any], timeout: float | None = None) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def broadcast_loop(self):
         raise NotImplementedError
 

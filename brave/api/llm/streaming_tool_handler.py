@@ -52,7 +52,7 @@ Step 3: Read tools_id from Step 2 result, then create script.
 -> call create_analysis_script({{ name: "<script_name>", tools_id: "<tools_id_from_step2>" }})
 
 Step 4: Refresh tool's detail table UI.
--> call ui_action({{ action: "component.invoke", payload: {{ category: "tables", id: "tools-card", method: "reload", args: [] }} }})
+-> call ui_action({{ action: "component.invoke", payload: {{ category: "tables", id: "tools-details", method: "reload" }} }})
 
 Step 5: Notify success in UI.
 -> call ui_action({{ action: "ui.show_message", payload: {{ type: "success", text: "工具创建成功" }} }})

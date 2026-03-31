@@ -113,6 +113,15 @@ class SSESessionService(RealtimeService):
         # 消息结构：{"group": "typeA", "data": "hello"}
         await self.global_queue.put({"group": "default", "data": msg})
 
+    async def push_message_wait_ack(self, msg: dict, timeout: float | None = None) -> dict:
+        await self.push_message(msg)
+        return {
+            "ok": True,
+            "transport": "http",
+            "ack_supported": False,
+            "detail": "sse_ack_not_supported",
+        }
+
     async def broadcast_loop(self):
         while True:
             msg = await self.global_queue.get()

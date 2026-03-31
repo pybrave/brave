@@ -2,6 +2,7 @@
 import json
 from typing import Any, Dict, List, Tuple
 
+from brave.api.service.realtime_service import RealtimeService
 from brave.app_container import AppContainer
 
 
@@ -40,7 +41,7 @@ def _normalize_actions(arguments: Dict[str, Any]) -> Tuple[List[Dict[str, Any]],
 async def ui_action(arguments: dict, sse_service=None):
     if sse_service is None:
         # Reuse runtime-configured realtime implementation (SSE or WebSocket).
-        sse_service = AppContainer.realtime_service()
+        sse_service:RealtimeService = AppContainer.realtime_service()
 
     actions, err = _normalize_actions(arguments)
     if err:
@@ -61,7 +62,12 @@ async def ui_action(arguments: dict, sse_service=None):
             "action": item["action"],
             "payload": payload,
         }
-        await sse_service.push_message({"group": "default", "data": json.dumps(message, ensure_ascii=False)})
+        ack_result = await sse_service.push_message_wait_ack(
+            {"group": "default", "data": json.dumps(message, ensure_ascii=False)}
+        )
+        if not ack_result.get("ok", False):
+            reason = ack_result.get("error") or ack_result.get("detail") or "ack_failed"
+            return f"UI 指令未确认({reason}): {item['action']}"
         pushed += 1
 
     if pushed == 1:

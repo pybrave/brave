@@ -1,7 +1,7 @@
 import asyncio
 import json
 from collections import defaultdict
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from fastapi import WebSocket, WebSocketDisconnect
 from brave.api.service.realtime_service import RealtimeService
@@ -21,6 +21,56 @@ class WSSessionService(RealtimeService):
         self._seq_by_client: Dict[WebSocket, int] = defaultdict(int)
         self._pending_acks: Dict[WebSocket, Dict[int, Dict[str, Any]]] = defaultdict(dict)
         self._ack_lock = asyncio.Lock()
+
+    async def push_message_wait_ack(self, msg: dict, timeout: float | None = None) -> dict:
+        group = msg.get("group")
+        data = msg.get("data")
+        if not group or data is None:
+            return {"ok": False, "error": "invalid_message"}
+
+        async with self.lock:
+            clients = self.client_groups.get(group, set()).copy()
+
+        if not clients:
+            return {"ok": False, "error": "no_client", "group": group}
+
+        ack_timeout = timeout if timeout is not None else self.ack_timeout_seconds * (self.ack_max_retries + 1)
+
+        pending_items: List[Tuple[WebSocket, int]] = []
+        disconnected: Set[WebSocket] = set()
+        for client in clients:
+            try:
+                seq = await self._send_to_websocket(client, data)
+                if seq is not None:
+                    pending_items.append((client, seq))
+            except Exception:
+                disconnected.add(client)
+
+        if disconnected:
+            async with self.lock:
+                for client in disconnected:
+                    self.remove_client(client, group)
+
+        if not pending_items:
+            return {
+                "ok": True,
+                "group": group,
+                "acked": 0,
+                "total": 0,
+                "detail": "message_does_not_require_ack",
+            }
+
+        results = await asyncio.gather(
+            *(self._wait_for_ack(client, seq, ack_timeout) for client, seq in pending_items),
+            return_exceptions=False,
+        )
+        acked = sum(1 for it in results if it)
+        return {
+            "ok": acked == len(pending_items),
+            "group": group,
+            "acked": acked,
+            "total": len(pending_items),
+        }
 
     def add_client(self, client: WebSocket, group: str):
         self.client_groups[group].add(client)
@@ -61,22 +111,55 @@ class WSSessionService(RealtimeService):
             return self._seq_by_client[websocket]
 
     async def _mark_pending_ack(self, websocket: WebSocket, seq: int, payload: Dict[str, Any]):
+        loop = asyncio.get_running_loop()
+        wait_future = loop.create_future()
         async with self._ack_lock:
             self._pending_acks[websocket][seq] = {
                 "message": payload,
                 "sent_at": asyncio.get_running_loop().time(),
                 "retry_count": 0,
+                "wait_future": wait_future,
             }
+
+    async def _wait_for_ack(self, websocket: WebSocket, seq: int, timeout: float | None = None) -> bool:
+        async with self._ack_lock:
+            pending = self._pending_acks.get(websocket)
+            if not pending:
+                return True
+            meta = pending.get(seq)
+            if not meta:
+                return True
+            wait_future = meta.get("wait_future")
+            if not isinstance(wait_future, asyncio.Future):
+                return False
+
+        try:
+            if timeout is None:
+                return bool(await wait_future)
+            return bool(await asyncio.wait_for(wait_future, timeout=timeout))
+        except asyncio.TimeoutError:
+            return False
 
     async def _ack_received(self, websocket: WebSocket, seq: int) -> bool:
         async with self._ack_lock:
             pending = self._pending_acks.get(websocket)
             if not pending:
                 return False
-            return pending.pop(seq, None) is not None
+            meta = pending.pop(seq, None)
+            if not meta:
+                return False
+            wait_future = meta.get("wait_future")
+            if isinstance(wait_future, asyncio.Future) and not wait_future.done():
+                wait_future.set_result(True)
+            return True
 
     async def _clear_client_state(self, websocket: WebSocket):
         async with self._ack_lock:
+            pending = self._pending_acks.get(websocket, {})
+            for meta in pending.values():
+                wait_future = meta.get("wait_future")
+                if isinstance(wait_future, asyncio.Future) and not wait_future.done():
+                    wait_future.set_result(False)
             self._seq_by_client.pop(websocket, None)
             self._pending_acks.pop(websocket, None)
 
@@ -91,6 +174,9 @@ class WSSessionService(RealtimeService):
                 if now - float(meta["sent_at"]) < self.ack_timeout_seconds:
                     continue
                 if int(meta["retry_count"]) >= self.ack_max_retries:
+                    wait_future = meta.get("wait_future")
+                    if isinstance(wait_future, asyncio.Future) and not wait_future.done():
+                        wait_future.set_result(False)
                     to_drop.append(seq)
                     continue
                 meta["retry_count"] = int(meta["retry_count"]) + 1
