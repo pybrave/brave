@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import traceback
 from fastapi.responses import StreamingResponse
 import openai
 
@@ -363,6 +364,10 @@ class StreamingToolHandler:
                     chat_history_service.insert_chat_history(conn, create_chatHistory)
 
             except Exception as e:
+                # 打印错误track
+                
+                traceback.print_exc()
+
                 print(f"Error occurred: {str(e)}")
                 yield f"[Server Error] {str(e)}"
 
