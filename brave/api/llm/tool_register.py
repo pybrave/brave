@@ -1,10 +1,13 @@
 
 from brave.api.llm.tool_manager import ToolManager
+from brave.api.llm.tools.add_example import add_example
+from brave.api.llm.tools.update_analysis_script_from import update_analysis_script_from
 from brave.api.llm.tools.create_analysis_script import create_analysis_script
 from brave.api.llm.tools.create_analysis_tools import create_analysis_tools
 from brave.api.llm.tools.get_weather import get_weather
 from brave.api.llm.tools.log_tools import get_error_log
 from brave.api.llm.tools.ui_action import ui_action
+from brave.api.llm.tools.update_analysis_script import update_analysis_script
 def register_tools(tool_manager: ToolManager, sse_service=None):
     """注册所有工具到 ToolManager"""
 
@@ -80,6 +83,7 @@ def register_tools(tool_manager: ToolManager, sse_service=None):
             }
         }
     )
+    
 
     tool_manager.register(
         name="create_analysis_script",
@@ -102,6 +106,87 @@ def register_tools(tool_manager: ToolManager, sse_service=None):
                         }
                     },
                     "required": ["name", "tools_id"],
+                    "additionalProperties": False
+                }
+            }
+        }
+    )
+
+    tool_manager.register(
+        name="update_analysis_script",
+        func=update_analysis_script,
+        schema={
+            "type": "function",
+            "function": {
+                "name": "update_analysis_script",
+                "strict": True,
+                "description": "更新分析脚本。必须传入脚本 ID script_id 和脚本内容 script。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "要更新的脚本 ID。"
+                        },
+                        "script": {
+                            "type": "string",
+                            "description": "要更新的脚本内容。"
+                        }
+                    },
+                    "required": ["script_id", "script"],
+                    "additionalProperties": False
+                }
+            }
+        }
+
+    )
+
+    tool_manager.register(
+        name="update_analysis_script_from",
+        func=update_analysis_script_from,
+        schema={
+            "type": "function",
+            "function": {
+                "name": "update_analysis_script_from",
+                "strict": True,
+                "description": "从表单内容更新分析脚本。必须传入脚本 ID script_id 和表单内容 content。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "要更新的脚本 ID。"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "表单内容 JSON 字符串，用于更新脚本。"
+                        }
+                    },
+                    "required": ["script_id", "content"],
+                    "additionalProperties": False
+                }
+            }
+        }
+    )
+
+    tool_manager.register(
+        name="add_example",
+        func=add_example,
+        schema={
+            "type": "function",
+            "function": {
+                "name": "add_example",
+                "strict": True,
+                "description": "根据script和form json 为tools 生成测试数据。必须传入 content 参数，内容为示例数据为tsv格式文本。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "tsv格式示例数据文本内容。"
+                        }
+                    },
+                    "required": ["content"],
                     "additionalProperties": False
                 }
             }

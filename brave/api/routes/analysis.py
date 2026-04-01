@@ -518,7 +518,10 @@ async def save_script_analysis(
     if is_submit:
         await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
 
-    return parse_analysis_result
+    return {
+        **parse_analysis_result,
+        "analysis_id": save_analysis["analysis_id"],   
+    }
     
 
 @analysis_api.post("/fast-api/analysis-controller-old")

@@ -27,6 +27,8 @@ system_prompt = """
 4) 当信息不足时先追问，不要盲目创建。
 """
 
+
+
 template = """
 You are an expert in bioinformatics data analysis and tool orchestration.
 
@@ -54,7 +56,18 @@ Step 3: Read tools_id from Step 2 result, then create script.
 Step 4: Refresh tool's detail table UI.
 -> call ui_action({{ action: "component.invoke", payload: {{ category: "tables", id: "tools-details", method: "reload" }} }})
 
-Step 5: Notify success in UI.
+Step 5: Write script form json content based on tool name and typical analysis steps.
+{from_json_schema}
+-> call update_analysis_script_from({{ script_id: "<script_id_from_step3>", content: "<form_json_content>" }})
+
+Step 6: Write script content based on tool name and typical analysis steps.
+- For example, if the tool is a "箱线图工具", the script should include steps like "数据清洗", "绘制箱线图", "结果解释" etc., and use typical libraries like pandas, matplotlib, seaborn.
+- Script content must be relevant to the tool's purpose and provide real value to users, not just a placeholder.
+- use R language for scripts, and ensure the content is valid R code that can be executed in a typical data analysis environment.
+{script_example}
+-> call update_analysis_script({{ script_id: "<script_id_from_step3>", script: "<script_content>" }})
+
+Step 7: Notify success in UI.
 -> call ui_action({{ action: "ui.show_message", payload: {{ type: "success", text: "工具创建成功" }} }})
 
 Failure handling:
@@ -66,9 +79,17 @@ Language policy:
 1. Respond in the same language as the user.
 2. Keep textual replies concise when tool calls already express the action.
 
+If user require to add example data, call this workflow strictly:
+-> call add_example({{ content: "<tsv_format_example_data>" }})
+- content must be in tsv format and relevant to the tool's expected input data.
+
+
+
 Use the context below to answer the question.
 If a user's question is irrelevant to the context, please encourage the user to ask a question that is relevant to the context.
 If users ask code-related questions, please obtain the code from the code section.
+
+
 
 Code:
 {code}
@@ -280,8 +301,12 @@ class StreamingToolHandler:
                             for tc in pending_tool_calls:
                                 idx = tc.index
                                 if idx in  tool_calls:
-                                    args = json.loads(tc.arguments)
-                                    
+                                    try:
+                                        args = json.loads(tc.arguments)
+                                    except Exception as e:
+                                        print(f"Failed to parse tool arguments: {str(e)}")
+
+                                    # print(f"Executing tool {tc.name} with arguments {args}...")
                                     result = await self.tool_manager.run(tc.name, {"biz_id":biz_id,**args})
                                    
                                     tool_results.append({

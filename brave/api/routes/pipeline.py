@@ -686,15 +686,17 @@ async def update_or_save_components(savePipeline:SavePipeline):
                     relation_type=savePipeline.relation_type,
                     # pipeline_id=savePipeline.pipeline_id
                 ))
+                
+        if savePipeline.relation_id:
+        # with get_engine().begin() as conn:
+            pipeline_service.update_relation_component_id(conn, savePipeline.relation_id, component_id)
+     
     return component_id
 @pipeline.post("/save-pipeline",tags=['pipeline'])
 async def save_pipeline(savePipeline:SavePipeline):
     component_id = await update_or_save_components(savePipeline)
 
-    if savePipeline.relation_id:
-        with get_engine().begin() as conn:
-            pipeline_service.update_relation_component_id(conn, savePipeline.relation_id, component_id)
-     
+  
     # pipeline_service.write_component_json(component_id)
     # t0 = time.time()
     
