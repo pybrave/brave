@@ -600,7 +600,12 @@ async def save_pipeline_relation_controller(savePipelineRelation:SavePipelineRel
     pipeline_service.write_relation_json(relation_id)
     return {"message":"success"}
 
-async def save_pipeline_relation(conn,savePipelineRelation):
+async def save_pipeline_relation(conn,savePipelineRelation:SavePipelineRelation):
+    try:
+        if savePipelineRelation.dag_definition:
+            json.dumps(savePipelineRelation.dag_definition)
+    except Exception as e:
+        raise ValueError(f"The dag_definition is not valid JSON format! Error message:{str(e)}")
     save_pipeline_relation_dict = savePipelineRelation.dict()
     # if save_pipeline_relation_dict["tags"]:
     #     save_pipeline_relation_dict["tags"] = json.dumps(save_pipeline_relation_dict["tags"])
@@ -609,10 +614,10 @@ async def save_pipeline_relation(conn,savePipelineRelation):
     # if save_pipeline_relation_dict["output_component_ids"]:
     #     save_pipeline_relation_dict["output_component_ids"] = json.dumps(save_pipeline_relation_dict["output_component_ids"])
     # save_pipeline_relation_dict = {k:v for k,v in save_pipeline_relation_dict.items() if k!="pipeline_id"}
-    if savePipelineRelation.parent_component_id:
-        parent_component = pipeline_service.find_pipeline_by_id(conn,savePipelineRelation.parent_component_id)
-        if parent_component:
-            component_id = parent_component["component_id"]
+    # if savePipelineRelation.parent_component_id:
+    #     parent_component = pipeline_service.find_pipeline_by_id(conn,savePipelineRelation.parent_component_id)
+        # if parent_component:
+        #     component_id = parent_component["component_id"]
     if savePipelineRelation.relation_id:
         relation_id = savePipelineRelation.relation_id
         stmt = t_pipeline_components_relation.update().values(save_pipeline_relation_dict).where(t_pipeline_components_relation.c.relation_id==savePipelineRelation.relation_id)

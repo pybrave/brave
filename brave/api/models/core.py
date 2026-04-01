@@ -200,6 +200,8 @@ t_pipeline_components_relation = Table(
     Column("category", String(255), default="default"), 
     Column("description", Text().with_variant(LONGTEXT(), "mysql")),
     Column("prompt",Text().with_variant(LONGTEXT(), "mysql")),
+    Column("dag_definition",Text().with_variant(LONGTEXT(), "mysql")),
+
 
     Column("relation_id", String(255)),
     Column("relation_type", String(255)), 

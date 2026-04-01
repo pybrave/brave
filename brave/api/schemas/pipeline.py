@@ -40,6 +40,7 @@ class SavePipelineRelation(BaseModel):
     input_component_ids:Optional[list]=None
     output_component_ids:Optional[list]=None
     prompt:Optional[str]=None
+    dag_definition: Optional[str]=None
 
 
 
