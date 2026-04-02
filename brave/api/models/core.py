@@ -93,10 +93,12 @@ analysis = Table(
 analyis_task = Table(
     "analysis_task",
     meta,
-    Column("id", Integer, primary_key=True),
     Column("task_id", String(255)),
+    Column("sample_id", String(255)),
     Column("analysis_id", String(255)),
     Column("task_name", String(255)),
+    Column("node_id", String(255)),
+    Column("parents", JSON),
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)
     # Column("task_type", String(255)),

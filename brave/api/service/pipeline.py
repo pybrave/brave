@@ -293,7 +293,7 @@ def find_relation_component_by_file_component_id(conn,component_id):
 def find_relation_component_by_id(conn,relation_id):
     stmt =select(
         t_pipeline_components_relation,  # 关系表所有字段
-        t_pipeline_components_relation.c.dag_definition,
+        # t_pipeline_components_relation.c.dag_definition,
         t_pipeline_components.c.description.label("component_description"),
         t_pipeline_components.c.component_type,
         t_pipeline_components.c.script_type,
@@ -312,6 +312,9 @@ def find_relation_component_by_id(conn,relation_id):
         )
     ).where(t_pipeline_components_relation.c.relation_id == relation_id)
     find_component = conn.execute(stmt).mappings().first()
+    if find_component and find_component["dag_definition"]:
+        find_component = dict(find_component)
+        find_component["dag_definition"] = json.loads(find_component["dag_definition"])
     return find_component
 
 

@@ -459,7 +459,20 @@ async def run_analysis(
   
     # return software_analysis.save_analysis(request_param)
     # return {"msg":"success"}
+# @analysis_api.post("/analysis/create-analysis-task/{analysis_id}") 
+# async def create_analyis_task(analysis_id):
+#     with get_engine().begin() as conn:
+#         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+#         if find_analysis is None:
+#             raise HTTPException(status_code=404, detail="Analysis not found")
+#         find_relation = pipeline_service.find_relation_by_relation_id(conn,find_analysis["relation_id"])
+#         find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=analysis_id)
 
+#     analysis_task_map = {item["task_id"]:item for item in find_analysis_task}
+#     dag_definition = find_relation["dag_definition"]
+#     pass
+    
+    
 @analysis_api.post("/fast-api/analysis-controller")
 @inject
 async def save_script_analysis(
@@ -511,7 +524,12 @@ async def save_script_analysis(
         if not save:
             return parse_analysis_result
         
-        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report) 
+        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report)
+        # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
+        dag_definition = component["dag_definition"]
+        if dag_definition:
+            analysis_task_service.task_generation(conn,save_analysis["analysis_id"],parse_analysis_result, dag_definition)
+
         if is_submit:
             analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
 
@@ -686,19 +704,7 @@ async def stop_analysis(
         return {"msg":"success"}
 
 
-@analysis_api.post("/analysis/create-analysis-task/{analysis_id}") 
-async def create_analyis_task(analysis_id):
-    with get_engine().begin() as conn:
-        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
-        if find_analysis is None:
-            raise HTTPException(status_code=404, detail="Analysis not found")
-        find_relation = pipeline_service.find_relation_by_relation_id(conn,find_analysis["relation_id"])
-        find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=analysis_id)
 
-    analysis_task_map = {item["task_id"]:item for item in find_analysis_task}
-    dag_definition = find_relation["dag_definition"]
-    pass
-    
 
 @analysis_api.get("/find-analysis-by-id/{analysis_id}") 
 async def find_analysis_by_id(analysis_id):
@@ -793,7 +799,7 @@ async def visualization_results(analysis_id):
     file_result['analysis_id'] = find_analysis["analysis_id"]
     file_result["image_status"] = find_relation["image_status"]
     file_result["container_id"] = find_relation["container_id"]
-    file_result["dag_definition"] = json.loads(find_relation["dag_definition"]) if find_relation["dag_definition"] else {}
+    file_result["dag_definition"] =  find_relation["dag_definition"]
 
     # file_result['analysis_id'] = find_analysis["analysis_id"]
 

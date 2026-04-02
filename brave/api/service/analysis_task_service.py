@@ -38,3 +38,8 @@ def find_analysis_tasks_by_analysis_id(conn, analysis_id: str):
     result = conn.execute(stmt).mappings().all()
 
     return result
+
+def task_generation(conn, analysis_id,params, dag_definition):
+    find_analysis_task = find_analysis_tasks_by_analysis_id(conn, analysis_id)
+    analysis_task_map = {item["task_id"]:item for item in find_analysis_task}
+    pass
