@@ -293,6 +293,7 @@ def find_relation_component_by_file_component_id(conn,component_id):
 def find_relation_component_by_id(conn,relation_id):
     stmt =select(
         t_pipeline_components_relation,  # 关系表所有字段
+        t_pipeline_components_relation.c.dag_definition,
         t_pipeline_components.c.description.label("component_description"),
         t_pipeline_components.c.component_type,
         t_pipeline_components.c.script_type,
@@ -918,6 +919,14 @@ def copy_component_json(component, component_id):
 def find_relation_by_component_id(conn, component_id):
     stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.component_id == component_id)
     find_components_relation = conn.execute(stmt).mappings().all()
+    return find_components_relation
+
+def find_relation_by_relation_id(conn, relation_id):
+    stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.relation_id == relation_id)
+    find_components_relation = conn.execute(stmt).mappings().first()
+    find_components_relation = dict(find_components_relation) if find_components_relation else None
+    if find_components_relation and find_components_relation["dag_definition"]:
+        find_components_relation["dag_definition"] = json.loads(find_components_relation["dag_definition"])
     return find_components_relation
 
 # for publish components relation list

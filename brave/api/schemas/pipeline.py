@@ -23,6 +23,7 @@ class SavePipeline(BaseModel):
     tags:Optional[str]=None
     component_ids:Optional[str]=None
     prompt:Optional[str]=None
+    io_schema:Optional[str]=None
 
 class SavePipelineRelation(BaseModel):
     relation_id:Optional[str]=None

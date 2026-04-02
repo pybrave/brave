@@ -89,6 +89,24 @@ analysis = Table(
     Column("updated_at", DateTime, onupdate=datetime.now)
 )
 
+
+analyis_task = Table(
+    "analysis_task",
+    meta,
+    Column("id", Integer, primary_key=True),
+    Column("task_id", String(255)),
+    Column("analysis_id", String(255)),
+    Column("task_name", String(255)),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
+    # Column("task_type", String(255)),
+    # Column("request_param", Text().with_variant(LONGTEXT(), "mysql")),
+    # Column("status", String(255)),
+    # Column("result_path", String(255)),
+    # Column("error_message", Text().with_variant(LONGTEXT(), "mysql")),
+
+)
+
 analysis_result = Table(
     "analysis_result",
     meta,
@@ -176,6 +194,8 @@ t_pipeline_components = Table(
     Column("container_id", String(255)),
     Column("tools_container_id", Text),
     Column("prompt",Text().with_variant(LONGTEXT(), "mysql")),
+    Column("io_schema",Text().with_variant(LONGTEXT(), "mysql")),
+
 
     Column("sub_container_id", String(255)),
     Column("tags", String(255)), 

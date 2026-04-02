@@ -30,7 +30,7 @@ import importlib
 import importlib.util
 import uuid
 import os
-from brave.api.service import project_service
+from brave.api.service import analysis_task_service, project_service
 from brave.api.service.result_parse import script_analysis
 from brave.api.service.result_parse import nextflow_analysis
 from brave.api.service.result_parse.nextflow_analysis    import NextflowAnalysis
@@ -686,6 +686,20 @@ async def stop_analysis(
         return {"msg":"success"}
 
 
+@analysis_api.post("/analysis/create-analysis-task/{analysis_id}") 
+async def create_analyis_task(analysis_id):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        if find_analysis is None:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        find_relation = pipeline_service.find_relation_by_relation_id(conn,find_analysis["relation_id"])
+        find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=analysis_id)
+
+    analysis_task_map = {item["task_id"]:item for item in find_analysis_task}
+    dag_definition = find_relation["dag_definition"]
+    pass
+    
+
 @analysis_api.get("/find-analysis-by-id/{analysis_id}") 
 async def find_analysis_by_id(analysis_id):
     settings = get_settings()
@@ -766,6 +780,8 @@ async def visualization_results(analysis_id):
             find_relation["name"]  =""
             find_relation["image_status"] = ""
             find_relation["container_id"] = ""
+            find_relation["dag_definition"] = {}
+
 
     file_result = await file_operation_service.visualization_results(find_analysis["output_dir"])
     # file_result = {}
@@ -777,6 +793,7 @@ async def visualization_results(analysis_id):
     file_result['analysis_id'] = find_analysis["analysis_id"]
     file_result["image_status"] = find_relation["image_status"]
     file_result["container_id"] = find_relation["container_id"]
+    file_result["dag_definition"] = json.loads(find_relation["dag_definition"]) if find_relation["dag_definition"] else {}
 
     # file_result['analysis_id'] = find_analysis["analysis_id"]
 
