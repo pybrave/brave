@@ -51,16 +51,19 @@ dag_definition 示例：
             "name": "bwa",
             "id": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
             "inputs": {
-                "r1": {
-                    "type": "file",
-                    "multiple": false,
-                    "required": true
-                },
-                "r2": {
-                    "type": "file",
-                    "multiple": false,
-                    "required": true
-                }
+              "reads"[
+                  "r1": {
+                      "type": "file",
+                      "multiple": false,
+                      "required": true
+                  },
+                  "r2": {
+                      "type": "file",
+                      "multiple": false,
+                      "required": true
+                  }
+              ]
+               
             },
             "outputs": {
                 "bam": {

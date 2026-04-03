@@ -195,11 +195,11 @@ def _decorate_runtime_graph(analysis_id: str, analysis_nodes: List[Dict[str, Any
 
 
 def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
-	inputs = params.get("inputs") or []
-	if not isinstance(inputs, list):
-		inputs = []
+	input_params = params.get("inputs") or []
+	if not isinstance(input_params, list):
+		input_params = []
 
-	if len(inputs) ==0:
+	if len(input_params) ==0:
 		return {
 			"analysis_nodes": [],
 			"analysis_edges": [],
@@ -219,7 +219,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 		incoming[dst].append(e)
 		outgoing[src].append(e)
 
-	sample_labels = [_sample_label(sample, i) for i, sample in enumerate(inputs)]
+	sample_labels = [_sample_label(sample, i) for i, sample in enumerate(input_params)]
 	output_cache: Dict[Tuple[str, str, str], Any] = {}
 
 	analysis_nodes: List[Dict[str, Any]] = []
@@ -243,7 +243,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 		outputs = _as_dict(node.get("outputs"))
 
 		if node_kind.get(nid) == "sample":
-			for i, sample in enumerate(inputs):
+			for i, sample in enumerate(input_params):
 				sample_label = sample_labels[i]
 				node_instance = f"{name}_{sample_label}"
 				node_params = dict(_as_dict(node_params_defaults))
