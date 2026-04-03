@@ -1,15 +1,22 @@
 
-from litellm import uuid
-
 import uuid
 
-from brave.api.schemas.analysis_task import AnalysisTask
+from brave.api.schemas.analysis_task import AnalysisTask, PageAnalysisTaskQuery
 from brave.api.models.core import analyis_task
+from brave.api.dag.dag import build_runtime_tasks
+from brave.api.service import analysis_node_service, analysis_edge_service
+from sqlalchemy import and_, desc, select,case,or_,func
+
+
 def create_or_update_analysis_task(conn,analysis_task: AnalysisTask):
-    analysis_task_dict = analysis_task.dict()
-    if analysis_task["task_id"]:
+    if isinstance(analysis_task, AnalysisTask):
+        analysis_task_dict = analysis_task.dict()
+    else:
+        analysis_task_dict = dict(analysis_task)
+
+    if analysis_task_dict.get("task_id"):
         # Update existing record
-        stmt = analyis_task.update().where(analyis_task.c.task_id == analysis_task["task_id"]).values(**analysis_task_dict)
+        stmt = analyis_task.update().where(analyis_task.c.task_id == analysis_task_dict["task_id"]).values(**analysis_task_dict)
     else:
         # Insert new record
         str_uuid = str(uuid.uuid4())
@@ -39,7 +46,27 @@ def find_analysis_tasks_by_analysis_id(conn, analysis_id: str):
 
     return result
 
-def task_generation(conn, analysis_id,params, dag_definition):
-    find_analysis_task = find_analysis_tasks_by_analysis_id(conn, analysis_id)
-    analysis_task_map = {item["task_id"]:item for item in find_analysis_task}
-    pass
+def page_analysis_tasks(conn, query:PageAnalysisTaskQuery):
+    if not query.page_number or query.page_number < 1:
+        query.page_number = 1
+    stmt = select(analyis_task)
+    conditions = []
+    if query.analysis_id:
+        conditions.append(analyis_task.c.analysis_id == query.analysis_id)
+    
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
+    total = conn.execute(select(func.count()).select_from(stmt.subquery())).scalar()
+    stmt = stmt.order_by(desc(analyis_task.c.created_at)).offset((query.page_number - 1) * query.page_size).limit(query.page_size)
+    result = conn.execute(stmt).mappings().all()
+    result_dict = [dict(row) for row in result]
+
+    return {
+        "items": result_dict,
+        "total": total,
+        "page_number": query.page_number,
+        "page_size": query.page_size
+    }
+
+
+

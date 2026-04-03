@@ -544,6 +544,9 @@ def datetime_converter(o):
 def find_by_relation_id(conn,relation_id:str):
     stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.relation_id == relation_id)
     find_pipeline = conn.execute(stmt).mappings().first()
+    if find_pipeline and find_pipeline["dag_definition"]:
+        find_pipeline = dict(find_pipeline)
+        find_pipeline["dag_definition"] = json.loads(find_pipeline["dag_definition"])
     return find_pipeline
 
 
@@ -1275,3 +1278,94 @@ def get_components_by_relation_id(conn,relation_id):
         if "databases" in content:
             result['databases'] = content['databases']
     return result
+
+
+
+
+
+def get_script_item(script):
+    node = {}
+    node["name"] = script["component_name"]
+    node["id"] = script["component_id"]
+    if "io_schema" in script and script["io_schema"]:
+        io_schema =  json.loads(script["io_schema"])
+        node["inputs"] = io_schema.get("inputs",{})
+        node["outputs"] = io_schema.get("outputs",{})
+        if "ui" in io_schema and io_schema["ui"]:
+            ui = io_schema["ui"]
+            if "color" in ui:
+                node["color"] = ui["color"]
+            if "icon" in ui:
+                node["icon"] = ui["icon"]
+    else:
+        node["inputs"] = {}
+        node["outputs"] = {}
+    
+    return node
+
+
+def get_workflow_vis(conn, tool_id):
+    find_tool = find_by_relation_id(conn, tool_id)
+    
+
+    if not find_tool:
+        raise HTTPException(status_code=404, detail=f"Tool {tool_id} not found")
+    
+    dag_definition = find_tool.get("dag_definition", {})
+    nodes_res = []
+    if "nodes" in dag_definition:
+        nodes = dag_definition["nodes"] 
+        script_ids = [ node["script_id"] for node in nodes]
+        scripts = find_by_component_ids(conn, script_ids)
+        script_dict = { script["component_id"]: get_script_item(script) for script in scripts}
+
+        for node in nodes:
+            script_id = node.get("script_id")
+            script_node = script_dict.get(script_id)
+            if script_node:
+                nodes_res.append({
+                    **script_node,
+                    **node
+                })
+            else:
+                nodes_res.append({
+                    **node,
+                    "name": "unknown",
+                })
+    dag_definition["nodes"] = nodes_res            
+
+    return dag_definition
+
+
+
+def get_workflow(conn, tool_id):
+    find_tool = find_by_relation_id(conn, tool_id)
+    
+
+    if not find_tool:
+        raise HTTPException(status_code=404, detail=f"Tool {tool_id} not found")
+    
+    dag_definition = find_tool.get("dag_definition", {})
+    nodes_res = []
+    if "nodes" in dag_definition:
+        nodes = dag_definition["nodes"] 
+        script_ids = [ node["script_id"] for node in nodes]
+        scripts = find_by_component_ids(conn, script_ids)
+        script_dict = { script["component_id"]: script for script in scripts}
+
+        for node in nodes:
+            script_id = node.get("script_id")
+            script_node = script_dict.get(script_id)
+            if script_node:
+                nodes_res.append({
+                    **script_node,
+                    **node
+                })
+            else:
+                nodes_res.append({
+                    **node,
+                    "name": "unknown",
+                })
+    dag_definition["nodes"] = nodes_res            
+
+    return dag_definition

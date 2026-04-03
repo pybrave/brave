@@ -69,7 +69,8 @@ import brave.api.service.notebook as notebook_service
 from brave.api.models.core import t_pipeline_components
 from sqlalchemy.orm import aliased
 from collections import defaultdict
-
+from brave.api.dag.dag import build_runtime_tasks
+from brave.api.service import analysis_node_service, analysis_edge_service
 # from build.lib.brave.api.service import project_service
 
 analysis_api = APIRouter()
@@ -528,7 +529,8 @@ async def save_script_analysis(
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
         dag_definition = component["dag_definition"]
         if dag_definition:
-            analysis_task_service.task_generation(conn,save_analysis["analysis_id"],parse_analysis_result, dag_definition)
+            dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
+            dag_runtime_generate(conn,save_analysis["analysis_id"],parse_analysis_result, dag_definition)
 
         if is_submit:
             analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
@@ -538,9 +540,26 @@ async def save_script_analysis(
 
     return {
         **parse_analysis_result,
+        "dag_definition":dag_definition,
         "analysis_id": save_analysis["analysis_id"],   
     }
     
+def dag_runtime_generate(conn, analysis_id,params, dag_definition):
+    runtime = build_runtime_tasks(
+        analysis_id=analysis_id,
+        params=params,
+        dag_definition=dag_definition,
+    )
+
+    analysis_nodes = runtime.get("analysis_nodes", [])
+    analysis_edges = runtime.get("analysis_edges", [])
+
+    analysis_node_service.replace_by_analysis_id(conn, analysis_id, analysis_nodes)
+    analysis_edge_service.replace_by_analysis_id(conn, analysis_id, analysis_edges)
+    analysis_node_service.refresh_ready_status(conn, analysis_id)
+
+    return runtime
+
 
 @analysis_api.post("/fast-api/analysis-controller-old")
 @inject
@@ -787,6 +806,7 @@ async def visualization_results(analysis_id):
             find_relation["image_status"] = ""
             find_relation["container_id"] = ""
             find_relation["dag_definition"] = {}
+        # find_analysis_task =  analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=analysis_id)
 
 
     file_result = await file_operation_service.visualization_results(find_analysis["output_dir"])
@@ -800,6 +820,7 @@ async def visualization_results(analysis_id):
     file_result["image_status"] = find_relation["image_status"]
     file_result["container_id"] = find_relation["container_id"]
     file_result["dag_definition"] =  find_relation["dag_definition"]
+    # file_result["analysis_tasks"] = find_analysis_task
 
     # file_result['analysis_id'] = find_analysis["analysis_id"]
 

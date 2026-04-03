@@ -109,6 +109,106 @@ analyis_task = Table(
 
 )
 
+analysis_nodes = Table(
+    "analysis_nodes",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+
+    # 基本信息
+    Column("analysis_node_id", String(255)),   # 当前节点实例 ID (UUID)
+    Column("analysis_id", String(255)),        # 整个 DAG 实例 ID
+    Column("node_id", String(255)),            # DAG 定义中的节点 ID
+    Column("sample_id", String(255)),
+    Column("script_id", String(255)),
+
+    # 输入输出
+    Column("inputs_patterns", JSON),
+    Column("resolved_inputs", JSON),
+    Column("output_patterns", JSON),
+    Column("resolved_outputs", JSON),
+
+    # 参数
+    Column("params", JSON),
+
+    # 资源＆执行状态
+    Column("cpu", Integer),
+    Column("memory", String(64)),
+    Column("disk", String(64)),
+    Column("gpu", Integer),
+
+    Column("status", String(64)),       # pending/running/done/failed/cached
+    Column("pid", Integer),
+    Column("job_id", String(255)),
+    Column("executor", String(64)),
+
+    # 调度相关
+    Column("retry", Integer, default=0),
+    Column("max_retry", Integer, default=3),
+    Column("exit_code", Integer),
+    Column("error_message", Text),
+
+    # 缓存
+    Column("input_hash", String(255)),
+    Column("cache_hit", Boolean),
+
+    # DAG 关系
+    Column("upstream_ids", JSON),       # list
+    Column("downstream_ids", JSON),
+    Column("input_validation_errors", JSON),
+
+    # 日志与目录
+    Column("log_path", String(255)),
+    Column("workspace_dir", String(255)),
+
+    # 时间
+    Column("started_at", DateTime),
+    Column("finished_at", DateTime),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now),
+)
+# analysis_nodes = Table(
+#     "analysis_nodes",
+#     meta,
+#     Column("id", Integer, primary_key=True, autoincrement=True),
+#     Column("analysis_node_id", String(255)),
+#     Column("analysis_id", String(255)),
+#     Column("node_id", String(255)),
+#     Column("script_id", String(255)),
+#     Column("input_files", JSON),
+#     Column("output_files", JSON),
+#     Column("log_path", String(255)),
+#     Column("workspace_dir", String(255)),
+#     Column("status", String(255)),
+#     Column("sample_id", String(255)),
+#     Column("command_path", String(255)),
+#     Column("params", JSON),
+#     Column("created_at", DateTime, default=datetime.now),
+#     Column("updated_at", DateTime, onupdate=datetime.now)
+# )
+
+
+analysis_edges = Table(
+    "analysis_edges",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("analysis_edge_id", String(255)),
+    Column("analysis_id", String(255)),
+    Column("source_node", String(255)),
+    Column("target_node", String(255)),
+    Column("source_handle", String(255)),
+    Column("target_handle", String(255)),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
+)
+
+Index("idx_analysis_nodes_analysis_id", analysis_nodes.c.analysis_id)
+Index("idx_analysis_nodes_analysis_id_status", analysis_nodes.c.analysis_id, analysis_nodes.c.status)
+Index("idx_analysis_nodes_analysis_id_node_id", analysis_nodes.c.analysis_id, analysis_nodes.c.node_id)
+
+Index("idx_analysis_edges_analysis_id", analysis_edges.c.analysis_id)
+Index("idx_analysis_edges_analysis_id_source", analysis_edges.c.analysis_id, analysis_edges.c.source_node)
+Index("idx_analysis_edges_analysis_id_target", analysis_edges.c.analysis_id, analysis_edges.c.target_node)
+
 analysis_result = Table(
     "analysis_result",
     meta,

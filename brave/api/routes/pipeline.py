@@ -1358,3 +1358,10 @@ async def save_script_by_component_id(component_id, fileConetent:FileConetent):
         with open(module_info['path'],"w") as f:
             f.write(content)
     return {"message":"success"}
+
+
+
+@pipeline.get("/tools/get-workflow-vis/{tool_id}",tags=['pipeline'])
+async def get_workflow(tool_id):
+    with get_engine().begin() as conn:
+        return pipeline_service.get_workflow_vis(conn, tool_id)
