@@ -17,6 +17,14 @@ params 示例：
     }
   ]
 }
+
+{
+      "sample_id": "7470f852-f80f-4585-8fb9-7a0c1b89a4dd",
+      "file_name": "test_s1",
+      "r1": "/data/wangyang/NGS_TEST/test-data/test_s1_1.fastq.gz",
+      "r2": "/data/wangyang/NGS_TEST/test-data/test_s1_2.fastq.gz",
+   
+    }
 ```
 
 dag_definition 示例：
