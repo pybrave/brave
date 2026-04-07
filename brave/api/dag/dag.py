@@ -202,6 +202,27 @@ def _collect_required_input_errors(input_handle: str, input_schema: Dict[str, An
 	return errors
 
 
+def _project_input_value_by_schema(value: Any, input_schema: Dict[str, Any]) -> Any:
+	schema_type = _schema_type(input_schema)
+
+	if schema_type == "object":
+		properties = _as_dict(input_schema.get("properties"))
+		if isinstance(value, dict):
+			return {key: value.get(key) for key in properties.keys() if value.get(key) is not None}
+		return value
+
+	if schema_type == "list":
+		item_schema = _as_dict(input_schema.get("items"))
+		if _schema_type(item_schema) != "object":
+			return value
+		properties = _as_dict(item_schema.get("properties"))
+		if isinstance(value, dict):
+			return {key: value.get(key) for key in properties.keys() if value.get(key) is not None}
+		return value
+
+	return value
+
+
 def _edge_value(edge: Dict[str, Any], camel: str, snake: str) -> str:
 	return str(edge.get(camel) or edge.get(snake) or "")
 
@@ -411,6 +432,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					input_schema = _as_dict(inputs.get(input_handle))
 					direct_value = _sample_value(sample, input_handle)
 					if direct_value is not None:
+						direct_value = _project_input_value_by_schema(direct_value, input_schema)
 						node_params[input_handle] = direct_value
 						resolved_inputs[input_handle] = direct_value
 						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, direct_value))
@@ -426,6 +448,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						source_instance = f"{source_name}_{sample_label}"
 						source_handle = _edge_value(in_edge_match, "sourceHandle", "source_handle")
 						resolved_value = output_cache.get((source_instance, source_handle, sample_label))
+						resolved_value = _project_input_value_by_schema(resolved_value, input_schema)
 						node_params[input_handle] = resolved_value
 						resolved_inputs[input_handle] = resolved_value
 						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, resolved_value))
