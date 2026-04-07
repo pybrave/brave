@@ -22,38 +22,41 @@ def _is_empty(value):
     return False
 
 
+def _schema_type(schema: dict) -> str:
+    return str(schema.get("type") or "").strip().lower()
+
+
+def _required_property_names(schema: dict) -> list[str]:
+    return [
+        str(name)
+        for name, cfg in _as_dict(schema.get("properties")).items()
+        if bool(_as_dict(cfg).get("required"))
+    ]
+
+
+def _collect_required_errors_for_value(input_key: str, cfg_dict: dict, value):
+    errors: list[str] = []
+    schema_type = _schema_type(cfg_dict)
+
+    if schema_type == "object":
+        for prop in _required_property_names(cfg_dict):
+            if not isinstance(value, dict) or value.get(prop) is None:
+                errors.append(f"missing required input: {input_key}.{prop}")
+        return errors
+
+    if schema_type == "list":
+        item_schema = _as_dict(cfg_dict.get("items"))
+        if _schema_type(item_schema) == "object":
+            for prop in _required_property_names(item_schema):
+                if not isinstance(value, dict) or value.get(prop) is None:
+                    errors.append(f"missing required input: {input_key}.{prop}")
+        return errors
+
+    return errors
+
+
 def _inputs_satisfied(node: dict) -> bool:
-    inputs_patterns = _as_dict(node.get("inputs_patterns"))
-    if not inputs_patterns:
-        return True
-
-    params = _as_dict(node.get("params"))
-    resolved_inputs = _as_dict(node.get("resolved_inputs"))
-
-    for input_key, cfg in inputs_patterns.items():
-        cfg_dict = _as_dict(cfg)
-        required = bool(cfg_dict.get("required"))
-        multiple = bool(cfg_dict.get("multiple"))
-
-        key_in_params = input_key in params
-        key_in_resolved = input_key in resolved_inputs
-
-        # DAG 输入 key 与参数 key 必须匹配（只接受精确 key）
-        if required and not (key_in_params or key_in_resolved):
-            return False
-
-        if key_in_resolved:
-            value = resolved_inputs.get(input_key)
-        else:
-            value = params.get(input_key)
-
-        if required and _is_empty(value):
-            return False
-
-        if multiple and value is not None and not isinstance(value, list):
-            return False
-
-    return True
+    return len(_input_validation_errors(node)) == 0
 
 
 def _input_validation_errors(node: dict) -> list[str]:
@@ -63,7 +66,8 @@ def _input_validation_errors(node: dict) -> list[str]:
 
     params = _as_dict(node.get("params"))
     resolved_inputs = _as_dict(node.get("resolved_inputs"))
-    errors: list[str] = []
+    existing_errors = [str(e) for e in (node.get("input_validation_errors") or []) if str(e).strip()]
+    errors: list[str] = list(existing_errors)
 
     for input_key, cfg in inputs_patterns.items():
         cfg_dict = _as_dict(cfg)
@@ -84,7 +88,16 @@ def _input_validation_errors(node: dict) -> list[str]:
         if multiple and value is not None and not isinstance(value, list):
             errors.append(f"input expects list (multiple=true): {input_key}")
 
-    return errors
+        errors.extend(_collect_required_errors_for_value(input_key, cfg_dict, value))
+
+    deduped: list[str] = []
+    seen = set()
+    for err in errors:
+        if err in seen:
+            continue
+        seen.add(err)
+        deduped.append(err)
+    return deduped
 
 
 def delete_by_analysis_id(conn, analysis_id: str):

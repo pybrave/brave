@@ -9,11 +9,11 @@
           "items": {
             "type": "object",
             "properties": {
-              "fastq11": {
+              "fastq1": {
                 "type": "file",
                 "required": true
               },
-              "fastq22": {
+              "fastq2": {
                 "type": "file",
                 "required": true
               }
