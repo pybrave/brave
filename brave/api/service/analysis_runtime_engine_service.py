@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
+import random
+from pathlib import Path
 from typing import Any, Dict, Optional
 
+from brave.api.config.config import get_settings
+from brave.api.config.db import get_engine
 from brave.api.service import analysis_edge_service, analysis_node_service
 
 
 TERMINAL_STATUS = {"done", "failed", "cached", "skipped"}
 SUCCESS_STATUS = {"done", "cached"}
+SIMULATED_MIN_SLEEP_SECONDS = 0.5
+SIMULATED_MAX_SLEEP_SECONDS = 2.0
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -120,7 +127,96 @@ def get_runtime_snapshot(conn, analysis_id: str) -> Dict[str, Any]:
 
 
 def schedule_next(conn, analysis_id: str) -> Optional[Dict[str, Any]]:
+
     return analysis_node_service.claim_next_ready_node(conn, analysis_id)
+
+def _build_workspace_dir(analysis_id: str, node_id: str) -> Path:
+    settings = get_settings()
+    return Path(settings.WORK_DIR) / "analysis-runtime" / analysis_id / node_id
+
+
+async def run_simulated_executor(
+    analysis_id: str,
+    node_id: str,
+    sleep_seconds: Optional[float] = None,
+) -> Dict[str, Any]:
+    delay = float(
+        sleep_seconds
+        if sleep_seconds is not None
+        else random.uniform(SIMULATED_MIN_SLEEP_SECONDS, SIMULATED_MAX_SLEEP_SECONDS)
+    )
+    workspace_dir = _build_workspace_dir(analysis_id=analysis_id, node_id=node_id)
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+
+    with get_engine().begin() as conn:
+        analysis_node_service.update_node(
+            conn,
+            analysis_id=analysis_id,
+            node_id=node_id,
+            values={
+                "workspace_dir": str(workspace_dir),
+            },
+        )
+
+    await asyncio.sleep(max(delay, 0.0))
+
+    try:
+        with get_engine().begin() as conn:
+            latest_node = analysis_node_service.find_node(conn, analysis_id, node_id)
+            if not latest_node:
+                return {
+                    "analysis_id": analysis_id,
+                    "node_id": node_id,
+                    "status": "not_found",
+                    "sleep_seconds": delay,
+                    "workspace_dir": str(workspace_dir),
+                }
+
+            latest_status = str(latest_node.get("status") or "")
+            if latest_status != "running":
+                return {
+                    "analysis_id": analysis_id,
+                    "node_id": node_id,
+                    "status": "ignored",
+                    "node_status": latest_status,
+                    "sleep_seconds": delay,
+                    "workspace_dir": str(workspace_dir),
+                }
+
+            complete_result = complete_node(
+                conn,
+                analysis_id=analysis_id,
+                node_id=node_id,
+                status="done",
+            )
+            return {
+                "analysis_id": analysis_id,
+                "node_id": node_id,
+                "status": "done",
+                "sleep_seconds": delay,
+                "workspace_dir": str(workspace_dir),
+                "result": complete_result,
+            }
+    except Exception as exc:
+        with get_engine().begin() as conn:
+            latest_node = analysis_node_service.find_node(conn, analysis_id, node_id)
+            if latest_node and str(latest_node.get("status") or "") == "running":
+                complete_node(
+                    conn,
+                    analysis_id=analysis_id,
+                    node_id=node_id,
+                    status="failed",
+                    exit_code=1,
+                    error_message=str(exc),
+                )
+        return {
+            "analysis_id": analysis_id,
+            "node_id": node_id,
+            "status": "failed",
+            "sleep_seconds": delay,
+            "workspace_dir": str(workspace_dir),
+            "error": str(exc),
+        }
 
 
 def complete_node(

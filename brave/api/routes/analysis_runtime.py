@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter
 from fastapi import HTTPException
 
@@ -38,10 +40,21 @@ async def schedule_next_runtime_node(query: RuntimeScheduleQuery):
     with get_engine().begin() as conn:
         node = analysis_runtime_engine_service.schedule_next(conn, analysis_id=query.analysis_id)
         snapshot = analysis_runtime_engine_service.get_runtime_snapshot(conn, analysis_id=query.analysis_id)
-        return {
-            "scheduled": node,
-            "snapshot": snapshot,
-        }
+
+    if node:
+        node_id = str(node.get("node_id") or "")
+        if node_id:
+            asyncio.create_task(
+                analysis_runtime_engine_service.run_simulated_executor(
+                    analysis_id=query.analysis_id,
+                    node_id=node_id,
+                )
+            )
+
+    return {
+        "scheduled": node,
+        "snapshot": snapshot,
+    }
 
 
 @analysis_runtime_api.post("/report-node")
