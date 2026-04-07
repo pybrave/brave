@@ -40,7 +40,7 @@
       "outputs": {
         "vcf": {
           "type": "file",
-          "pattern": "{sample}_trimmed.fastq.gz"
+          "pattern": "all.vcf"
         }
       },
       "gather": {
@@ -71,7 +71,7 @@
       "outputs": {
         "bam": {
           "type": "file",
-          "pattern": "{sample}_trimmed.fastq.gz"
+          "pattern": "{sample}_trimmed.bam"
         }
       },
       "color": "green",
@@ -98,12 +98,12 @@
       "outputs": {
         "fastq1": {
           "type": "file",
-          "multiple": false,
+          "pattern": "{sample}_trimmed.fastq1.gz",
           "required": true
         },
         "fastq2": {
           "type": "file",
-          "multiple": false,
+          "pattern": "{sample}_trimmed.fastq2.gz",
           "required": true
         }
       },
