@@ -27,6 +27,27 @@ params 示例：
     }
 ```
 
+
+```json
+"inputs": {
+  "reads": {
+    "type": "list",
+    "items": {
+      "type": "object",
+      "properties": {
+        "r1": { "type": "file", "required": true },
+        "r2": { "type": "file", "required": true }
+      }
+    }
+  }
+}
+
+"inputs": {
+  "r1": { "type": "file", "required": true },
+  "r2": { "type": "file", "required": true }
+}
+```
+
 dag_definition 示例：
 ```json
 {
@@ -59,8 +80,10 @@ dag_definition 示例：
             "name": "bwa",
             "id": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
             "inputs": {
-              "reads"[
-                  "r1": {
+              "reads":{
+                "type":"list",
+                "multiple": true,
+                 "r1": {
                       "type": "file",
                       "multiple": false,
                       "required": true
@@ -70,7 +93,7 @@ dag_definition 示例：
                       "multiple": false,
                       "required": true
                   }
-              ]
+              }
                
             },
             "outputs": {

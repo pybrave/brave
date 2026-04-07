@@ -62,6 +62,70 @@ def _sample_value(sample: Dict[str, Any], handle: str) -> Any:
 	return None
 
 
+def _schema_type(schema: Dict[str, Any]) -> str:
+	return str(schema.get("type") or "").strip().lower()
+
+
+def _normalize_inputs_by_schema(raw_inputs: Any, source_input_schemas: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+	records: List[Dict[str, Any]] = []
+
+	if isinstance(raw_inputs, list):
+		records = [dict(item) for item in raw_inputs if isinstance(item, dict)]
+	elif isinstance(raw_inputs, dict):
+		for handle, schema in source_input_schemas.items():
+			schema_dict = _as_dict(schema)
+			if _schema_type(schema_dict) != "list":
+				continue
+			item_schema = _as_dict(schema_dict.get("items"))
+			if _schema_type(item_schema) != "object":
+				continue
+			items_value = raw_inputs.get(handle)
+			if not isinstance(items_value, list):
+				continue
+
+			records = []
+			for item in items_value:
+				if not isinstance(item, dict):
+					continue
+				record = dict(item)
+				record[handle] = dict(item)
+				records.append(record)
+			if records:
+				break
+
+		if not records:
+			records = [dict(raw_inputs)]
+
+	if not records:
+		return []
+
+	for record in records:
+		for handle, schema in source_input_schemas.items():
+			schema_dict = _as_dict(schema)
+			schema_kind = _schema_type(schema_dict)
+
+			if schema_kind == "object":
+				if isinstance(record.get(handle), dict):
+					continue
+				properties = _as_dict(schema_dict.get("properties"))
+				projected = {prop: record.get(prop) for prop in properties.keys() if record.get(prop) is not None}
+				if projected:
+					record[handle] = projected
+
+			if schema_kind == "list":
+				item_schema = _as_dict(schema_dict.get("items"))
+				if _schema_type(item_schema) != "object":
+					continue
+				if handle in record:
+					continue
+				properties = _as_dict(item_schema.get("properties"))
+				projected = {prop: record.get(prop) for prop in properties.keys() if record.get(prop) is not None}
+				if projected:
+					record[handle] = projected
+
+	return records
+
+
 def _edge_value(edge: Dict[str, Any], camel: str, snake: str) -> str:
 	return str(edge.get(camel) or edge.get(snake) or "")
 
@@ -195,17 +259,6 @@ def _decorate_runtime_graph(analysis_id: str, analysis_nodes: List[Dict[str, Any
 
 
 def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
-	input_params = params.get("inputs") or []
-	if not isinstance(input_params, list):
-		input_params = []
-
-	if len(input_params) ==0:
-		return {
-			"analysis_nodes": [],
-			"analysis_edges": [],
-		}
-		
-
 	nodes = dag_definition.get("nodes") or []
 	edges = dag_definition.get("edges") or []
 	node_map = {_node_key(n): n for n in nodes}
@@ -218,6 +271,25 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 		dst = str(e.get("target", ""))
 		incoming[dst].append(e)
 		outgoing[src].append(e)
+
+	source_input_schemas: Dict[str, Dict[str, Any]] = {}
+	has_sample_nodes = False
+	for node in nodes:
+		nid = _node_key(node)
+		if node_kind.get(nid) != "sample":
+			continue
+		has_sample_nodes = True
+		if incoming.get(nid):
+			continue
+		for handle, schema in _as_dict(node.get("inputs")).items():
+			source_input_schemas[str(handle)] = _as_dict(schema)
+
+	input_params = _normalize_inputs_by_schema(params.get("inputs"), source_input_schemas)
+	if has_sample_nodes and len(input_params) == 0:
+		return {
+			"analysis_nodes": [],
+			"analysis_edges": [],
+		}
 
 	sample_labels = [_sample_label(sample, i) for i, sample in enumerate(input_params)]
 	output_cache: Dict[Tuple[str, str, str], Any] = {}
