@@ -78,8 +78,8 @@
       "icon": "scissors",
       "script_id": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
       "position": {
-        "x": 215.42399080499268,
-        "y": 74.33757277590387
+        "x": 229.42399080499268,
+        "y": 39.337572775903865
       }
     },
     {
@@ -123,27 +123,6 @@
   "edges": [
     {
       "source": "759d6899-e632-400f-9b11-6a8b7b6e2042",
-      "sourceHandle": "r1",
-      "target": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
-      "targetHandle": "r1",
-      "id": "xy-edge__759d6899-e632-400f-9b11-6a8b7b6e2042r1-cbd1a1cc-ca62-46da-8713-b0e868a2d44fr1"
-    },
-    {
-      "source": "759d6899-e632-400f-9b11-6a8b7b6e2042",
-      "sourceHandle": "r2",
-      "target": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
-      "targetHandle": "r2",
-      "id": "xy-edge__759d6899-e632-400f-9b11-6a8b7b6e2042r2-cbd1a1cc-ca62-46da-8713-b0e868a2d44fr2"
-    },
-    {
-      "source": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
-      "sourceHandle": "bam",
-      "target": "e3d00582-2a99-4b02-a687-65e556f7aefa",
-      "targetHandle": "bam",
-      "id": "xy-edge__cbd1a1cc-ca62-46da-8713-b0e868a2d44fbam-e3d00582-2a99-4b02-a687-65e556f7aefabam"
-    },
-    {
-      "source": "759d6899-e632-400f-9b11-6a8b7b6e2042",
       "sourceHandle": "fastq1",
       "target": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
       "targetHandle": "fastq1",
@@ -155,6 +134,13 @@
       "target": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
       "targetHandle": "fastq2",
       "id": "xy-edge__759d6899-e632-400f-9b11-6a8b7b6e2042fastq2-cbd1a1cc-ca62-46da-8713-b0e868a2d44ffastq2"
+    },
+    {
+      "source": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
+      "sourceHandle": "bam",
+      "target": "e3d00582-2a99-4b02-a687-65e556f7aefa",
+      "targetHandle": "bam",
+      "id": "xy-edge__cbd1a1cc-ca62-46da-8713-b0e868a2d44fbam-e3d00582-2a99-4b02-a687-65e556f7aefabam"
     }
   ]
 }

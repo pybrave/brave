@@ -66,95 +66,50 @@ def _schema_type(schema: Dict[str, Any]) -> str:
 	return str(schema.get("type") or "").strip().lower()
 
 
-def _normalize_inputs_by_schema(raw_inputs: Any, source_input_schemas: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
-	def _project_by_properties(payload: Any, properties: Dict[str, Any]) -> Dict[str, Any]:
-		if not isinstance(payload, dict):
-			return {}
-		return {key: payload.get(key) for key in properties.keys() if payload.get(key) is not None}
+def _resolve_input_params(params: Dict[str, Any], nodes: List[Dict[str, Any]], node_kind: Dict[str, str], incoming: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+	scatter_fields: List[str] = []
+	root_input_handles: List[str] = []
 
-	records: List[Dict[str, Any]] = []
-	list_object_handles: List[str] = []
-	object_handles: List[str] = []
-	list_properties_map: Dict[str, Dict[str, Any]] = {}
-	object_properties_map: Dict[str, Dict[str, Any]] = {}
+	for node in nodes:
+		nid = _node_key(node)
+		if node_kind.get(nid) != "sample":
+			continue
+		if incoming.get(nid):
+			continue
 
-	for handle, schema in source_input_schemas.items():
-		schema_dict = _as_dict(schema)
-		schema_kind = _schema_type(schema_dict)
-		if schema_kind == "list":
-			item_schema = _as_dict(schema_dict.get("items"))
-			if _schema_type(item_schema) == "object":
-				list_object_handles.append(handle)
-				list_properties_map[handle] = _as_dict(item_schema.get("properties"))
-		elif schema_kind == "object":
-			object_handles.append(handle)
-			object_properties_map[handle] = _as_dict(schema_dict.get("properties"))
+		for handle in _as_dict(node.get("inputs")).keys():
+			root_input_handles.append(str(handle))
 
-	primary_list_handle = list_object_handles[0] if list_object_handles else None
+		scatter = _as_dict(node.get("scatter"))
+		if str(scatter.get("mode") or "").strip().lower() != "each":
+			continue
 
-	if isinstance(raw_inputs, list):
-		for item in raw_inputs:
-			if not isinstance(item, dict):
-				continue
-			record = dict(item)
-			if primary_list_handle and primary_list_handle not in record:
-				record[primary_list_handle] = _project_by_properties(item, list_properties_map.get(primary_list_handle, {}))
-			records.append(record)
-	elif isinstance(raw_inputs, dict):
-		raw_from_inputs = raw_inputs.get("inputs")
-		if raw_from_inputs is not None:
-			raw_inputs = raw_from_inputs
+		field = str(scatter.get("field") or "").strip()
+		if not field:
+			return []
+		scatter_fields.append(field)
 
-		if isinstance(raw_inputs, list):
-			for item in raw_inputs:
-				if not isinstance(item, dict):
-					continue
-				record = dict(item)
-				if primary_list_handle and primary_list_handle not in record:
-					record[primary_list_handle] = _project_by_properties(item, list_properties_map.get(primary_list_handle, {}))
-				records.append(record)
-		elif isinstance(raw_inputs, dict):
-			for handle in list_object_handles:
-				items_value = raw_inputs.get(handle)
-				if not isinstance(items_value, list):
-					continue
-				records = []
-				for item in items_value:
-					if not isinstance(item, dict):
-						continue
-					record = dict(item)
-					record[handle] = _project_by_properties(item, list_properties_map.get(handle, {}))
-					records.append(record)
-				if records:
-					break
+	unique_fields: List[str] = []
+	for field in scatter_fields:
+		if field not in unique_fields:
+			unique_fields.append(field)
 
-			if not records:
-				record = dict(raw_inputs)
-				records = [record]
+	if unique_fields:
+		# For scatter mode "each", the sample list must come from params[field].
+		if len(unique_fields) > 1:
+			return []
+		raw_samples = params.get(unique_fields[0])
+		if raw_samples is None:
+			# Compatibility path: allow a single sample object without wrapping by scatter field.
+			if isinstance(params, dict) and any(_sample_value(params, handle) is not None for handle in root_input_handles):
+				return [dict(params)]
+			return []
+		if not isinstance(raw_samples, list):
+			return []
+		return [dict(item) for item in raw_samples if isinstance(item, dict)]
 
-	if not records:
-		return []
-
-	for record in records:
-		for handle in list_object_handles:
-			existing = record.get(handle)
-			if isinstance(existing, dict):
-				record[handle] = _project_by_properties(existing, list_properties_map.get(handle, {}))
-				continue
-			projected = _project_by_properties(record, list_properties_map.get(handle, {}))
-			if projected:
-				record[handle] = projected
-
-		for handle in object_handles:
-			existing = record.get(handle)
-			if isinstance(existing, dict):
-				record[handle] = _project_by_properties(existing, object_properties_map.get(handle, {}))
-				continue
-			projected = _project_by_properties(record, object_properties_map.get(handle, {}))
-			if projected:
-				record[handle] = projected
-
-	return records
+	# Backward compatible path: no scatter "each" root node, treat params as a single sample.
+	return [dict(params)] if isinstance(params, dict) else []
 
 
 def _required_property_names(schema: Dict[str, Any]) -> List[str]:
@@ -374,23 +329,14 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 		incoming[dst].append(e)
 		outgoing[src].append(e)
 
-	source_input_schemas: Dict[str, Dict[str, Any]] = {}
 	has_sample_nodes = False
 	for node in nodes:
 		nid = _node_key(node)
 		if node_kind.get(nid) != "sample":
 			continue
 		has_sample_nodes = True
-		if incoming.get(nid):
-			continue
-		for handle, schema in _as_dict(node.get("inputs")).items():
-			source_input_schemas[str(handle)] = _as_dict(schema)
 
-	# raw_inputs = params.get("inputs")
-	# if raw_inputs is None:
-	# 	raw_inputs = params
-
-	input_params = _normalize_inputs_by_schema(params, source_input_schemas)
+	input_params = _resolve_input_params(params, nodes, node_kind, incoming)
 	if has_sample_nodes and len(input_params) == 0:
 		return {
 			"analysis_nodes": [],

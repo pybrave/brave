@@ -1,6 +1,6 @@
 {
   "group_field": "group",
-  "inputs": [
+  "reads": [
     {
       "id": 6337,
       "analysis_result_id": "5bafd42d-c74a-4f3c-be24-4c45a51d9045",
@@ -37,16 +37,16 @@
   "aligner_options": "-k 2 -w 100 -d 100 -r 1 -c 0 -D 0.5 -B 1 -O 1 -E 1 -L 20",
   "output_name": "bwa_alignment",
   "colors": {
-    "inputs": "-"
+    "reads": "-"
   },
   "groups_name": {
-    "inputs": "undefined"
+    "reads": "undefined"
   },
   "re_groups_name": {
-    "inputs": "-"
+    "reads": "-"
   },
   "groups": [
-    "inputs"
+    "reads"
   ],
   "pipeline_dir": "/opt/brave_prod/workspace/pipeline"
 }
