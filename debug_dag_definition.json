@@ -4,21 +4,13 @@
       "name": "fastqc",
       "id": "7d005aeb-0c7f-44a4-89cf-3ccaaf58316b",
       "inputs": {
-        "reads": {
-          "type": "list",
-          "items": {
-            "type": "object",
-            "properties": {
-              "fastq1": {
-                "type": "file",
-                "required": true
-              },
-              "fastq2": {
-                "type": "file",
-                "required": true
-              }
-            }
-          }
+        "fastq1": {
+          "type": "file",
+          "required": true
+        },
+        "fastq2": {
+          "type": "file",
+          "required": true
         }
       },
       "outputs": {
@@ -42,7 +34,6 @@
       "inputs": {
         "bam": {
           "type": "file",
-          "multiple": false,
           "required": true
         }
       },
@@ -51,6 +42,10 @@
           "type": "file",
           "pattern": "{sample}_trimmed.fastq.gz"
         }
+      },
+      "gather": {
+        "field": "bam",
+        "mode": "list"
       },
       "color": "lime",
       "icon": "scissors",
@@ -66,12 +61,10 @@
       "inputs": {
         "fastq1": {
           "type": "file",
-          "multiple": false,
           "required": true
         },
         "fastq2": {
           "type": "file",
-          "multiple": false,
           "required": true
         }
       },
@@ -93,21 +86,13 @@
       "name": "fastp",
       "id": "759d6899-e632-400f-9b11-6a8b7b6e2042",
       "inputs": {
-        "reads": {
-          "type": "list",
-          "items": {
-            "type": "object",
-            "properties": {
-              "fastq1": {
-                "type": "file",
-                "required": true
-              },
-              "fastq2": {
-                "type": "file",
-                "required": true
-              }
-            }
-          }
+        "fastq1": {
+          "type": "file",
+          "required": true
+        },
+        "fastq2": {
+          "type": "file",
+          "required": true
         }
       },
       "outputs": {
@@ -121,6 +106,10 @@
           "multiple": false,
           "required": true
         }
+      },
+      "scatter": {
+        "field": "reads",
+        "mode": "each"
       },
       "color": "magenta",
       "icon": "scissors",

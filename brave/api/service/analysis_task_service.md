@@ -1,7 +1,7 @@
 params 示例：
 ```json
 {
-  "inputs": [
+  "reads": [
     {
       "sample_id": "61a0c60e-a5a3-4e2b-8783-181d4b5cec89",
       "file_name": "test_s2",
@@ -10,7 +10,7 @@ params 示例：
     },
     {
       "sample_id": "7470f852-f80f-4585-8fb9-7a0c1b89a4dd",
-      "file_name": "test_s1",
+      "fireadsle_name": "test_s1",
       "r1": "/data/wangyang/NGS_TEST/test-data/test_s1_1.fastq.gz",
       "r2": "/data/wangyang/NGS_TEST/test-data/test_s1_2.fastq.gz",
    

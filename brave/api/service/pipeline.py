@@ -1291,6 +1291,10 @@ def get_script_item(script):
         io_schema =  json.loads(script["io_schema"])
         node["inputs"] = io_schema.get("inputs",{})
         node["outputs"] = io_schema.get("outputs",{})
+        if "scatter" in io_schema:
+            node["scatter"] = io_schema["scatter"]
+        if "gather" in io_schema:
+            node["gather"] = io_schema["gather"]
         if "ui" in io_schema and io_schema["ui"]:
             ui = io_schema["ui"]
             if "color" in ui:

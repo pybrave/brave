@@ -1,0 +1,37 @@
+{
+"inputs": {
+    "reads": {
+    "type": "list",
+    "items": {
+      "type": "object",
+      "properties": {
+        "fastq1": { "type": "file", "required": true },
+        "fastq2": { "type": "file", "required": true }
+      }
+    }
+  }
+},
+  "outputs": {
+  "fastq1": {
+      "type": "file",
+      "multiple": false,
+      "required": true
+    },"fastq2": {
+      "type": "file",
+      "multiple": false,
+      "required": true
+    }
+  },
+  "params": {
+    "minlen": { "type": "number", "default": 30 }
+  },
+  "resources": {
+    "cpu": 4,
+    "memory": "6GB",
+    "docker": "quay.io/biocontainers/trim-galore:0.6.7"
+  },
+  "ui": {
+    "icon": "scissors",
+    "color": "magenta"
+  }
+}
