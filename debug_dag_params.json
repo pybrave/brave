@@ -1,0 +1,52 @@
+{
+  "group_field": "group",
+  "inputs": [
+    {
+      "id": 6337,
+      "analysis_result_id": "5bafd42d-c74a-4f3c-be24-4c45a51d9045",
+      "sample_id": "61a0c60e-a5a3-4e2b-8783-181d4b5cec89",
+      "file_name": "test_s2",
+      "component_id": "fdc5fe2a-fd4e-4acc-aab1-a7bcbe6d8119",
+      "file_type": "individual",
+      "a1": "/data/wangyang/NGS_TEST/test-data/test_s2_1.fastq.gz",
+      "a2": "/data/wangyang/NGS_TEST/test-data/test_s2_2.fastq.gz",
+      "form_type": "GroupSelectSampleButton",
+      "selcted_group_name": "undefined",
+      "re_groups_name": "-"
+    },
+    {
+      "id": 6336,
+      "analysis_result_id": "cac77545-77d3-47db-97c7-7fac72d0db3d",
+      "sample_id": "7470f852-f80f-4585-8fb9-7a0c1b89a4dd",
+      "file_name": "test_s1",
+      "component_id": "fdc5fe2a-fd4e-4acc-aab1-a7bcbe6d8119",
+      "file_type": "individual",
+      "a1": "/data/wangyang/NGS_TEST/test-data/test_s1_1.fastq.gz",
+      "a2": "/data/wangyang/NGS_TEST/test-data/test_s1_2.fastq.gz",
+      "form_type": "GroupSelectSampleButton",
+      "selcted_group_name": "undefined",
+      "re_groups_name": "-"
+    }
+  ],
+  "input_fastq1": "11",
+  "input_fastq2": "11",
+  "reference_genome": "11",
+  "output_sam": "aligned.sam",
+  "threads": 4,
+  "mem_limit_gb": 8,
+  "aligner_options": "-k 2 -w 100 -d 100 -r 1 -c 0 -D 0.5 -B 1 -O 1 -E 1 -L 20",
+  "output_name": "bwa_alignment",
+  "colors": {
+    "inputs": "-"
+  },
+  "groups_name": {
+    "inputs": "undefined"
+  },
+  "re_groups_name": {
+    "inputs": "-"
+  },
+  "groups": [
+    "inputs"
+  ],
+  "pipeline_dir": "/opt/brave_prod/workspace/pipeline"
+}

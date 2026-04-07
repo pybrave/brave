@@ -1,6 +1,6 @@
-from __future__ import annotations
 
 from collections import defaultdict
+import json
 from typing import Any, Dict, List, Tuple
 import uuid
 import re
@@ -67,63 +67,139 @@ def _schema_type(schema: Dict[str, Any]) -> str:
 
 
 def _normalize_inputs_by_schema(raw_inputs: Any, source_input_schemas: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+	def _project_by_properties(payload: Any, properties: Dict[str, Any]) -> Dict[str, Any]:
+		if not isinstance(payload, dict):
+			return {}
+		return {key: payload.get(key) for key in properties.keys() if payload.get(key) is not None}
+
 	records: List[Dict[str, Any]] = []
+	list_object_handles: List[str] = []
+	object_handles: List[str] = []
+	list_properties_map: Dict[str, Dict[str, Any]] = {}
+	object_properties_map: Dict[str, Dict[str, Any]] = {}
+
+	for handle, schema in source_input_schemas.items():
+		schema_dict = _as_dict(schema)
+		schema_kind = _schema_type(schema_dict)
+		if schema_kind == "list":
+			item_schema = _as_dict(schema_dict.get("items"))
+			if _schema_type(item_schema) == "object":
+				list_object_handles.append(handle)
+				list_properties_map[handle] = _as_dict(item_schema.get("properties"))
+		elif schema_kind == "object":
+			object_handles.append(handle)
+			object_properties_map[handle] = _as_dict(schema_dict.get("properties"))
+
+	primary_list_handle = list_object_handles[0] if list_object_handles else None
 
 	if isinstance(raw_inputs, list):
-		records = [dict(item) for item in raw_inputs if isinstance(item, dict)]
+		for item in raw_inputs:
+			if not isinstance(item, dict):
+				continue
+			record = dict(item)
+			if primary_list_handle and primary_list_handle not in record:
+				record[primary_list_handle] = _project_by_properties(item, list_properties_map.get(primary_list_handle, {}))
+			records.append(record)
 	elif isinstance(raw_inputs, dict):
-		for handle, schema in source_input_schemas.items():
-			schema_dict = _as_dict(schema)
-			if _schema_type(schema_dict) != "list":
-				continue
-			item_schema = _as_dict(schema_dict.get("items"))
-			if _schema_type(item_schema) != "object":
-				continue
-			items_value = raw_inputs.get(handle)
-			if not isinstance(items_value, list):
-				continue
+		raw_from_inputs = raw_inputs.get("inputs")
+		if raw_from_inputs is not None:
+			raw_inputs = raw_from_inputs
 
-			records = []
-			for item in items_value:
+		if isinstance(raw_inputs, list):
+			for item in raw_inputs:
 				if not isinstance(item, dict):
 					continue
 				record = dict(item)
-				record[handle] = dict(item)
+				if primary_list_handle and primary_list_handle not in record:
+					record[primary_list_handle] = _project_by_properties(item, list_properties_map.get(primary_list_handle, {}))
 				records.append(record)
-			if records:
-				break
+		elif isinstance(raw_inputs, dict):
+			for handle in list_object_handles:
+				items_value = raw_inputs.get(handle)
+				if not isinstance(items_value, list):
+					continue
+				records = []
+				for item in items_value:
+					if not isinstance(item, dict):
+						continue
+					record = dict(item)
+					record[handle] = _project_by_properties(item, list_properties_map.get(handle, {}))
+					records.append(record)
+				if records:
+					break
 
-		if not records:
-			records = [dict(raw_inputs)]
+			if not records:
+				record = dict(raw_inputs)
+				records = [record]
 
 	if not records:
 		return []
 
 	for record in records:
-		for handle, schema in source_input_schemas.items():
-			schema_dict = _as_dict(schema)
-			schema_kind = _schema_type(schema_dict)
+		for handle in list_object_handles:
+			existing = record.get(handle)
+			if isinstance(existing, dict):
+				record[handle] = _project_by_properties(existing, list_properties_map.get(handle, {}))
+				continue
+			projected = _project_by_properties(record, list_properties_map.get(handle, {}))
+			if projected:
+				record[handle] = projected
 
-			if schema_kind == "object":
-				if isinstance(record.get(handle), dict):
-					continue
-				properties = _as_dict(schema_dict.get("properties"))
-				projected = {prop: record.get(prop) for prop in properties.keys() if record.get(prop) is not None}
-				if projected:
-					record[handle] = projected
-
-			if schema_kind == "list":
-				item_schema = _as_dict(schema_dict.get("items"))
-				if _schema_type(item_schema) != "object":
-					continue
-				if handle in record:
-					continue
-				properties = _as_dict(item_schema.get("properties"))
-				projected = {prop: record.get(prop) for prop in properties.keys() if record.get(prop) is not None}
-				if projected:
-					record[handle] = projected
+		for handle in object_handles:
+			existing = record.get(handle)
+			if isinstance(existing, dict):
+				record[handle] = _project_by_properties(existing, object_properties_map.get(handle, {}))
+				continue
+			projected = _project_by_properties(record, object_properties_map.get(handle, {}))
+			if projected:
+				record[handle] = projected
 
 	return records
+
+
+def _required_property_names(schema: Dict[str, Any]) -> List[str]:
+	return [
+		str(name)
+		for name, cfg in _as_dict(schema.get("properties")).items()
+		if bool(_as_dict(cfg).get("required"))
+	]
+
+
+def _collect_required_input_errors(input_handle: str, input_schema: Dict[str, Any], value: Any) -> List[str]:
+	errors: List[str] = []
+	schema_type = _schema_type(input_schema)
+
+	if schema_type == "object":
+		if not isinstance(value, dict):
+			if bool(input_schema.get("required")):
+				errors.append(f"missing required input: {input_handle}")
+			return errors
+		for prop in _required_property_names(input_schema):
+			if value.get(prop) is None:
+				errors.append(f"missing required input: {input_handle}.{prop}")
+		return errors
+
+	if schema_type == "list":
+		item_schema = _as_dict(input_schema.get("items"))
+		if _schema_type(item_schema) != "object":
+			if bool(input_schema.get("required")) and value is None:
+				errors.append(f"missing required input: {input_handle}")
+			return errors
+
+		if not isinstance(value, dict):
+			if bool(input_schema.get("required")):
+				errors.append(f"missing required input: {input_handle}")
+			return errors
+
+		for prop in _required_property_names(item_schema):
+			if value.get(prop) is None:
+				errors.append(f"missing required input: {input_handle}.{prop}")
+		return errors
+
+	if bool(input_schema.get("required")) and value is None:
+		errors.append(f"missing required input: {input_handle}")
+
+	return errors
 
 
 def _edge_value(edge: Dict[str, Any], camel: str, snake: str) -> str:
@@ -259,6 +335,11 @@ def _decorate_runtime_graph(analysis_id: str, analysis_nodes: List[Dict[str, Any
 
 
 def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+	with open("debug_dag_definition.json", "w") as f:
+		json.dump(dag_definition, f, indent=2)
+	with open("debug_dag_params.json", "w") as f:
+		json.dump(params, f, indent=2)
+		
 	nodes = dag_definition.get("nodes") or []
 	edges = dag_definition.get("edges") or []
 	node_map = {_node_key(n): n for n in nodes}
@@ -284,7 +365,11 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 		for handle, schema in _as_dict(node.get("inputs")).items():
 			source_input_schemas[str(handle)] = _as_dict(schema)
 
-	input_params = _normalize_inputs_by_schema(params.get("inputs"), source_input_schemas)
+	# raw_inputs = params.get("inputs")
+	# if raw_inputs is None:
+	# 	raw_inputs = params
+
+	input_params = _normalize_inputs_by_schema(params, source_input_schemas)
 	if has_sample_nodes and len(input_params) == 0:
 		return {
 			"analysis_nodes": [],
@@ -320,12 +405,15 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				node_instance = f"{name}_{sample_label}"
 				node_params = dict(_as_dict(node_params_defaults))
 				resolved_inputs: Dict[str, Any] = {}
+				input_validation_errors: List[str] = []
 
 				for input_handle in inputs.keys():
+					input_schema = _as_dict(inputs.get(input_handle))
 					direct_value = _sample_value(sample, input_handle)
 					if direct_value is not None:
 						node_params[input_handle] = direct_value
 						resolved_inputs[input_handle] = direct_value
+						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, direct_value))
 						continue
 
 					in_edge_match = next(
@@ -340,6 +428,10 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						resolved_value = output_cache.get((source_instance, source_handle, sample_label))
 						node_params[input_handle] = resolved_value
 						resolved_inputs[input_handle] = resolved_value
+						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, resolved_value))
+						continue
+
+					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, None))
 
 				node_resolved_outputs: Dict[str, Any] = {}
 				for output_handle, output_cfg in outputs.items():
@@ -364,6 +456,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						"output_patterns": outputs,
 						"resolved_outputs": node_resolved_outputs,
 						"params": node_params,
+						"input_validation_errors": input_validation_errors,
 						"executor": str(params.get("executor") or ""),
 						"max_retry": int(node.get("max_retry") or 3),
 					}
