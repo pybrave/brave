@@ -66,8 +66,9 @@ def _input_validation_errors(node: dict) -> list[str]:
 
     params = _as_dict(node.get("params"))
     resolved_inputs = _as_dict(node.get("resolved_inputs"))
-    existing_errors = [str(e) for e in (node.get("input_validation_errors") or []) if str(e).strip()]
-    errors: list[str] = list(existing_errors)
+    # Recompute validation errors from current inputs every time.
+    # Reusing stored errors can keep stale messages (for example, old upstream-not-finished errors).
+    errors: list[str] = []
 
     for input_key, cfg in inputs_patterns.items():
         cfg_dict = _as_dict(cfg)
