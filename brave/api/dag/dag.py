@@ -66,50 +66,45 @@ def _schema_type(schema: Dict[str, Any]) -> str:
 	return str(schema.get("type") or "").strip().lower()
 
 
-def _resolve_input_params(params: Dict[str, Any], nodes: List[Dict[str, Any]], node_kind: Dict[str, str], incoming: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
-	scatter_fields: List[str] = []
-	root_input_handles: List[str] = []
+def _scatter_field(node: Dict[str, Any]) -> str:
+	scatter = _as_dict(node.get("scatter"))
+	if str(scatter.get("mode") or "").strip().lower() != "each":
+		return ""
+	return str(scatter.get("field") or "").strip()
 
-	for node in nodes:
-		nid = _node_key(node)
-		if node_kind.get(nid) != "sample":
+
+def _derive_upstream_sample_labels(
+	nid: str,
+	incoming: Dict[str, List[Dict[str, Any]]],
+	node_kind: Dict[str, str],
+	node_labels: Dict[str, List[str]],
+) -> List[str]:
+	label_sets: List[List[str]] = []
+	for in_edge in incoming.get(nid, []):
+		src = str(in_edge.get("source"))
+		if node_kind.get(src) != "sample":
 			continue
-		if incoming.get(nid):
-			continue
+		src_labels = list(node_labels.get(src) or [])
+		if src_labels:
+			label_sets.append(src_labels)
 
-		for handle in _as_dict(node.get("inputs")).keys():
-			root_input_handles.append(str(handle))
+	if not label_sets:
+		return []
 
-		scatter = _as_dict(node.get("scatter"))
-		if str(scatter.get("mode") or "").strip().lower() != "each":
-			continue
+	ordered_base = label_sets[0]
+	for labels in label_sets[1:]:
+		allowed = set(labels)
+		ordered_base = [label for label in ordered_base if label in allowed]
 
-		field = str(scatter.get("field") or "").strip()
-		if not field:
-			return []
-		scatter_fields.append(field)
+	if ordered_base:
+		return ordered_base
 
-	unique_fields: List[str] = []
-	for field in scatter_fields:
-		if field not in unique_fields:
-			unique_fields.append(field)
-
-	if unique_fields:
-		# For scatter mode "each", the sample list must come from params[field].
-		if len(unique_fields) > 1:
-			return []
-		raw_samples = params.get(unique_fields[0])
-		if raw_samples is None:
-			# Compatibility path: allow a single sample object without wrapping by scatter field.
-			if isinstance(params, dict) and any(_sample_value(params, handle) is not None for handle in root_input_handles):
-				return [dict(params)]
-			return []
-		if not isinstance(raw_samples, list):
-			return []
-		return [dict(item) for item in raw_samples if isinstance(item, dict)]
-
-	# Backward compatible path: no scatter "each" root node, treat params as a single sample.
-	return [dict(params)] if isinstance(params, dict) else []
+	merged: List[str] = []
+	for labels in label_sets:
+		for label in labels:
+			if label not in merged:
+				merged.append(label)
+	return merged
 
 
 def _required_property_names(schema: Dict[str, Any]) -> List[str]:
@@ -329,22 +324,9 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 		incoming[dst].append(e)
 		outgoing[src].append(e)
 
-	has_sample_nodes = False
-	for node in nodes:
-		nid = _node_key(node)
-		if node_kind.get(nid) != "sample":
-			continue
-		has_sample_nodes = True
-
-	input_params = _resolve_input_params(params, nodes, node_kind, incoming)
-	if has_sample_nodes and len(input_params) == 0:
-		return {
-			"analysis_nodes": [],
-			"analysis_edges": [],
-		}
-
-	sample_labels = [_sample_label(sample, i) for i, sample in enumerate(input_params)]
 	output_cache: Dict[Tuple[str, str, str], Any] = {}
+	node_labels: Dict[str, List[str]] = {}
+	node_samples_map: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
 	analysis_nodes: List[Dict[str, Any]] = []
 	analysis_edges: List[Dict[str, Any]] = []
@@ -367,9 +349,47 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 		outputs = _as_dict(node.get("outputs"))
 
 		if node_kind.get(nid) == "sample":
-			for i, sample in enumerate(input_params):
-				sample_label = sample_labels[i]
-				node_instance = f"{name}_{sample_label}"
+			scatter_field = _scatter_field(node)
+			node_samples: List[Dict[str, Any]] = []
+			node_sample_labels: List[str] = []
+
+			if scatter_field:
+				raw_samples = params.get(scatter_field)
+				if not isinstance(raw_samples, list):
+					return {
+						"analysis_nodes": [],
+						"analysis_edges": [],
+					}
+				node_samples = [dict(item) for item in raw_samples if isinstance(item, dict)]
+				node_sample_labels = [_sample_label(sample, i) for i, sample in enumerate(node_samples)]
+			else:
+				upstream_labels = _derive_upstream_sample_labels(nid, incoming, node_kind, node_labels)
+				if upstream_labels:
+					node_sample_labels = list(upstream_labels)
+					for label in node_sample_labels:
+						sample_payload: Dict[str, Any] = dict(params) if isinstance(params, dict) else {}
+						for in_edge in incoming.get(nid, []):
+							src = str(in_edge.get("source"))
+							if node_kind.get(src) != "sample":
+								continue
+							src_samples = node_samples_map.get(src, {})
+							if label in src_samples:
+								sample_payload = dict(src_samples[label])
+								break
+						node_samples.append(sample_payload)
+				else:
+					node_samples = [dict(params)] if isinstance(params, dict) else []
+					node_sample_labels = [""] if node_samples else []
+
+			node_labels[nid] = list(node_sample_labels)
+			node_samples_map[nid] = {
+				label: dict(node_samples[idx])
+				for idx, label in enumerate(node_sample_labels)
+			}
+
+			for i, sample in enumerate(node_samples):
+				sample_label = node_sample_labels[i]
+				node_instance = f"{name}_{sample_label}" if sample_label else name
 				node_params = dict(_as_dict(node_params_defaults))
 				resolved_inputs: Dict[str, Any] = {}
 				input_validation_errors: List[str] = []
@@ -383,9 +403,14 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					if in_edge_match:
 						src = str(in_edge_match.get("source"))
 						source_name = _node_name(node_map[src])
-						source_instance = f"{source_name}_{sample_label}"
 						source_handle = _edge_value(in_edge_match, "sourceHandle", "source_handle")
+
+						resolved_value = None
+						source_instance = f"{source_name}_{sample_label}" if sample_label else source_name
 						resolved_value = output_cache.get((source_instance, source_handle, sample_label))
+						if resolved_value is None:
+							resolved_value = output_cache.get((source_name, source_handle, ""))
+
 						resolved_value = _project_input_value_by_schema(resolved_value, input_schema)
 						node_params[input_handle] = resolved_value
 						resolved_inputs[input_handle] = resolved_value
@@ -438,24 +463,47 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				target_kind = node_kind.get(target, "sample")
 				source_handle = _edge_value(e, "sourceHandle", "source_handle")
 				target_handle = _edge_value(e, "targetHandle", "target_handle")
+				target_scatter_field = _scatter_field(node_map[target])
+				target_raw_samples = params.get(target_scatter_field) if target_scatter_field else None
+				target_labels: List[str] = []
+				if isinstance(target_raw_samples, list):
+					target_labels = [_sample_label(sample, i) for i, sample in enumerate(target_raw_samples) if isinstance(sample, dict)]
+
+				current_labels = list(node_sample_labels) if node_sample_labels else [""]
 
 				if target_kind == "sample":
-					for sample_label in sample_labels:
-						analysis_edges.append(
-							{
-								"analysis_id": analysis_id,
-								"source_node": f"{name}_{sample_label}",
-								"target_node": f"{target_name}_{sample_label}",
-								"source_handle": source_handle,
-								"target_handle": target_handle,
-							}
-						)
+					for src_label in current_labels:
+						source_node_id = f"{name}_{src_label}" if src_label else name
+						if target_scatter_field:
+							candidate_target_labels = [src_label] if src_label and src_label in target_labels else target_labels
+							for dst_label in candidate_target_labels:
+								analysis_edges.append(
+									{
+										"analysis_id": analysis_id,
+										"source_node": source_node_id,
+										"target_node": f"{target_name}_{dst_label}",
+										"source_handle": source_handle,
+										"target_handle": target_handle,
+									}
+								)
+						else:
+							target_node_id = f"{target_name}_{src_label}" if src_label else target_name
+							analysis_edges.append(
+								{
+									"analysis_id": analysis_id,
+									"source_node": source_node_id,
+									"target_node": target_node_id,
+									"source_handle": source_handle,
+									"target_handle": target_handle,
+								}
+							)
 				else:
-					for sample_label in sample_labels:
+					for src_label in current_labels:
+						source_node_id = f"{name}_{src_label}" if src_label else name
 						analysis_edges.append(
 							{
 								"analysis_id": analysis_id,
-								"source_node": f"{name}_{sample_label}",
+								"source_node": source_node_id,
 								"target_node": target_name,
 								"source_handle": source_handle,
 								"target_handle": target_handle,
@@ -480,8 +528,11 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					source_handle = _edge_value(in_edge, "sourceHandle", "source_handle")
 
 					if source_kind == "sample":
-						for sample_label in sample_labels:
-							source_instance = f"{source_name}_{sample_label}"
+						source_labels = node_labels.get(src)
+						if source_labels is None:
+							source_labels = [""]
+						for sample_label in source_labels:
+							source_instance = f"{source_name}_{sample_label}" if sample_label else source_name
 							values.append(output_cache.get((source_instance, source_handle, sample_label)))
 					else:
 						values.append(output_cache.get((source_name, source_handle, "aggregate")))

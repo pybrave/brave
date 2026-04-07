@@ -20,6 +20,10 @@
           "required": true
         }
       },
+      "scatter": {
+        "field": "reads",
+        "mode": "each"
+      },
       "color": "magenta",
       "icon": "scissors",
       "script_id": "7d005aeb-0c7f-44a4-89cf-3ccaaf58316b",
