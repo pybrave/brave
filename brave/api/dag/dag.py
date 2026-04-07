@@ -430,14 +430,6 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 
 				for input_handle in inputs.keys():
 					input_schema = _as_dict(inputs.get(input_handle))
-					direct_value = _sample_value(sample, input_handle)
-					if direct_value is not None:
-						direct_value = _project_input_value_by_schema(direct_value, input_schema)
-						node_params[input_handle] = direct_value
-						resolved_inputs[input_handle] = direct_value
-						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, direct_value))
-						continue
-
 					in_edge_match = next(
 						(e for e in incoming[nid] if _edge_value(e, "targetHandle", "target_handle") == input_handle),
 						None,
@@ -454,14 +446,23 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, resolved_value))
 						continue
 
+					direct_value = _sample_value(sample, input_handle)
+					if direct_value is not None:
+						direct_value = _project_input_value_by_schema(direct_value, input_schema)
+						node_params[input_handle] = direct_value
+						resolved_inputs[input_handle] = direct_value
+						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, direct_value))
+						continue
+
 					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, None))
 
 				node_resolved_outputs: Dict[str, Any] = {}
+				has_input_errors = len(input_validation_errors) > 0
 				for output_handle, output_cfg in outputs.items():
-					output_value = node_params.get(output_handle)
-					if output_value is None:
-						output_value = _sample_value(sample, output_handle)
-					if isinstance(output_cfg, dict):
+					output_value = None
+					if not has_input_errors:
+						output_value = node_params.get(output_handle)
+					if not has_input_errors and isinstance(output_cfg, dict):
 						pattern = output_cfg.get("pattern")
 						if isinstance(pattern, str) and pattern:
 							output_value = _render_output_pattern(pattern, sample, sample_label)
@@ -519,9 +520,11 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 			node_instance = name
 			node_params = dict(_as_dict(node_params_defaults))
 			resolved_inputs: Dict[str, Any] = {}
+			input_validation_errors: List[str] = []
 
 			for input_handle in inputs.keys():
 				values: List[Any] = []
+				input_schema = _as_dict(inputs.get(input_handle))
 				for in_edge in incoming[nid]:
 					if _edge_value(in_edge, "targetHandle", "target_handle") != input_handle:
 						continue
@@ -543,14 +546,21 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				if is_list:
 					node_params[input_handle] = values
 					resolved_inputs[input_handle] = values
+					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, values))
 				elif values:
 					node_params[input_handle] = values[0]
 					resolved_inputs[input_handle] = values[0]
+					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, values[0]))
+				else:
+					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, None))
 
 			node_resolved_outputs: Dict[str, Any] = {}
+			has_input_errors = len(input_validation_errors) > 0
 			for output_handle, output_cfg in outputs.items():
-				output_value = node_params.get(output_handle)
-				if isinstance(output_cfg, dict):
+				output_value = None
+				if not has_input_errors:
+					output_value = node_params.get(output_handle)
+				if not has_input_errors and isinstance(output_cfg, dict):
 					pattern = output_cfg.get("pattern")
 					if isinstance(pattern, str) and pattern:
 						output_value = pattern.replace("{sample}", "merged")
@@ -567,6 +577,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					"output_patterns": outputs,
 					"resolved_outputs": node_resolved_outputs,
 					"params": node_params,
+					"input_validation_errors": input_validation_errors,
 					"executor": str(params.get("executor") or ""),
 					"max_retry": int(node.get("max_retry") or 3),
 				}

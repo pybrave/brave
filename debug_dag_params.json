@@ -8,8 +8,8 @@
       "file_name": "test_s2",
       "component_id": "fdc5fe2a-fd4e-4acc-aab1-a7bcbe6d8119",
       "file_type": "individual",
-      "a1": "/data/wangyang/NGS_TEST/test-data/test_s2_1.fastq.gz",
-      "a2": "/data/wangyang/NGS_TEST/test-data/test_s2_2.fastq.gz",
+      "fastq1": "/data/wangyang/NGS_TEST/test-data/test_s2_1.fastq.gz",
+      "fastq2": "/data/wangyang/NGS_TEST/test-data/test_s2_2.fastq.gz",
       "form_type": "GroupSelectSampleButton",
       "selcted_group_name": "undefined",
       "re_groups_name": "-"
@@ -21,8 +21,8 @@
       "file_name": "test_s1",
       "component_id": "fdc5fe2a-fd4e-4acc-aab1-a7bcbe6d8119",
       "file_type": "individual",
-      "a1": "/data/wangyang/NGS_TEST/test-data/test_s1_1.fastq.gz",
-      "a2": "/data/wangyang/NGS_TEST/test-data/test_s1_2.fastq.gz",
+      "fastq1": "/data/wangyang/NGS_TEST/test-data/test_s1_1.fastq.gz",
+      "fastq2": "/data/wangyang/NGS_TEST/test-data/test_s1_2.fastq.gz",
       "form_type": "GroupSelectSampleButton",
       "selcted_group_name": "undefined",
       "re_groups_name": "-"

@@ -9,11 +9,11 @@
           "items": {
             "type": "object",
             "properties": {
-              "fastq1": {
+              "fastq11": {
                 "type": "file",
                 "required": true
               },
-              "fastq2": {
+              "fastq22": {
                 "type": "file",
                 "required": true
               }
@@ -64,12 +64,12 @@
       "name": "bwa",
       "id": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
       "inputs": {
-        "r1": {
+        "fastq1": {
           "type": "file",
           "multiple": false,
           "required": true
         },
-        "r2": {
+        "fastq2": {
           "type": "file",
           "multiple": false,
           "required": true
@@ -85,8 +85,8 @@
       "icon": "scissors",
       "script_id": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
       "position": {
-        "x": 253.92399080499268,
-        "y": 71.33757277590387
+        "x": 215.42399080499268,
+        "y": 74.33757277590387
       }
     },
     {
@@ -98,11 +98,11 @@
           "items": {
             "type": "object",
             "properties": {
-              "a1": {
+              "fastq1": {
                 "type": "file",
                 "required": true
               },
-              "a2": {
+              "fastq2": {
                 "type": "file",
                 "required": true
               }
@@ -111,12 +111,12 @@
         }
       },
       "outputs": {
-        "r1": {
+        "fastq1": {
           "type": "file",
           "multiple": false,
           "required": true
         },
-        "r2": {
+        "fastq2": {
           "type": "file",
           "multiple": false,
           "required": true
@@ -126,8 +126,8 @@
       "icon": "scissors",
       "script_id": "759d6899-e632-400f-9b11-6a8b7b6e2042",
       "position": {
-        "x": 8.988764044944006,
-        "y": 97.19101123595505
+        "x": 6.988764044944006,
+        "y": 78.69101123595505
       }
     }
   ],
@@ -152,6 +152,20 @@
       "target": "e3d00582-2a99-4b02-a687-65e556f7aefa",
       "targetHandle": "bam",
       "id": "xy-edge__cbd1a1cc-ca62-46da-8713-b0e868a2d44fbam-e3d00582-2a99-4b02-a687-65e556f7aefabam"
+    },
+    {
+      "source": "759d6899-e632-400f-9b11-6a8b7b6e2042",
+      "sourceHandle": "fastq1",
+      "target": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
+      "targetHandle": "fastq1",
+      "id": "xy-edge__759d6899-e632-400f-9b11-6a8b7b6e2042fastq1-cbd1a1cc-ca62-46da-8713-b0e868a2d44ffastq1"
+    },
+    {
+      "source": "759d6899-e632-400f-9b11-6a8b7b6e2042",
+      "sourceHandle": "fastq2",
+      "target": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
+      "targetHandle": "fastq2",
+      "id": "xy-edge__759d6899-e632-400f-9b11-6a8b7b6e2042fastq2-cbd1a1cc-ca62-46da-8713-b0e868a2d44ffastq2"
     }
   ]
 }
