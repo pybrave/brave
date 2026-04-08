@@ -61,6 +61,8 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
                 payload.run_type = "tools"
             elif run_id.startswith("node-"):
                 payload.run_type = "node"
+            elif run_id.startswith("nserver-"):
+                payload.run_type = "nserver"
             else:
                 raise ValueError(f"Invalid run_id format: {run_id}")
             

@@ -525,7 +525,7 @@ def update_used(conn,analysis_id):
     #     conn.execute(stmt)
 
 
-def create_analysis_node_runtime(conn, analysis_node, analysis_params_path, script_path):
+def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_params_path, script_path):
     workspace_dir = Path(analysis_node["workspace_dir"])
     workspace_dir.mkdir(parents=True, exist_ok=True)
     output_dir =Path(analysis_node["output_dir"])
@@ -537,8 +537,10 @@ def create_analysis_node_runtime(conn, analysis_node, analysis_params_path, scri
         analysis_params = json.load(f)
     with open(params_path,"w") as f:
         json.dump(analysis_params,f)
-    with open(command_path,"w") as f:
-        f.write("sleep 5\n")
+    
+    if script_type == "r":
+        with open(command_path,"w") as f:
+            f.write(f"Rscript {script_path} {params_path} {output_dir}")
 
     
    
@@ -589,7 +591,8 @@ async def run_analysis_node(conn,analysis_node,run_type):
     analysis_id = analysis_node["analysis_id"]
     find_analysis = find_analysis_by_id(conn, analysis_id)
     params_path = find_analysis["params_path"]
-    create_analysis_node_runtime(conn, analysis_node, params_path, component_script)
+    script_type = component["script_type"]
+    create_analysis_node_runtime(conn, analysis_node,script_type, params_path, component_script)
     analysis_node["script_path"] = component_script
 
     analysis_node["analysis_id"] = analysis_node_id

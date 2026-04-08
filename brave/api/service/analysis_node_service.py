@@ -395,7 +395,7 @@ def finished_analysis_node(conn,analysis_node_id,run_type,status):
             .where(analysis_nodes.c.analysis_node_id == analysis_node_id)
             .values(status = status)
         )
-    elif run_type == "server":
+    elif run_type == "nserver":
         stmt = (
             update(analysis_nodes)
             .where(analysis_nodes.c.analysis_node_id == analysis_node_id)

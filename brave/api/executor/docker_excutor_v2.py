@@ -153,7 +153,7 @@ class DockerExecutorV2(JobExecutor):
         labels ={}
         network = None
         url_predix = f"container/{job.run_id}"
-        if job.run_id.startswith("server-") or job.run_id.startswith("retry-") or job.run_id.startswith("tools-"):
+        if job.run_id.startswith("server-") or job.run_id.startswith("retry-") or job.run_id.startswith("tools-") or job.run_id.startswith("nserver-"):
             command = find_container["command"] or  ""
             command = command.replace("$SCRIPT_DIR",script_dir)
             command = command.replace("$URL_PREFIX",url_predix)
@@ -192,6 +192,19 @@ class DockerExecutorV2(JobExecutor):
                 if os.path.exists(k):
                     volumes.update({ k: v})
 
+        if job.run_id.startswith("node-") or job.run_id.startswith("nserver-"):
+            #  job.workspace_dir:{
+            #             "bind": job.workspace_dir,
+            #             "mode": "rw"
+            #         },
+            volumes.update({
+                job.workspace_dir: {
+                    "bind": job.workspace_dir,
+                    "mode": "rw"
+                }
+            })
+
+
         # if os.path.exists("/data"):
         #     volumes.update({ "/data": {
         #                 "bind": "/data",
@@ -210,10 +223,7 @@ class DockerExecutorV2(JobExecutor):
                 network=network,
                 entrypoint=entrypoint,
                 volumes={
-                    job.workspace_dir:{
-                        "bind": job.workspace_dir,
-                        "mode": "rw"
-                    },
+                   
                     job.output_dir: {
                         "bind": job.output_dir,
                         "mode": "rw"

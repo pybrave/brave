@@ -117,7 +117,7 @@ async def run_container(
         analysis_id=container_id,
         container_id=container_id,
         output_dir=base_dir,
-        pipeline_script=f"{base_dir}/run.sh",
+        script_path=f"{base_dir}/run.sh",
         run_id=run_id
     )
     # try:
