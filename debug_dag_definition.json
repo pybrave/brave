@@ -12,11 +12,11 @@
       "outputs": {
         "boxplot": {
           "type": "file",
-          "pattern": "output/*_boxplot.tsv"
+          "pattern": "*_boxplot.tsv"
         },
         "heatmap": {
           "type": "file",
-          "pattern": "output/*_heatmap.tsv"
+          "pattern": "*_heatmap.tsv"
         }
       },
       "color": "green",

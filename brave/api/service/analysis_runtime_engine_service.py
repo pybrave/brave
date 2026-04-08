@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
+import glob
 import random
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from brave.api.config.config import get_settings
 from brave.api.config.db import get_engine
@@ -62,6 +63,96 @@ def _build_simulated_outputs(node: Dict[str, Any]) -> Dict[str, Any]:
     return outputs
 
 
+def _resolve_node_output_dir(node: Dict[str, Any]) -> Optional[Path]:
+    """返回节点输出目录（优先 output_dir，回退 workspace_dir/output）。"""
+    output_dir = str(node.get("output_dir") or "").strip()
+    if output_dir:
+        return Path(output_dir)
+
+    workspace_dir = str(node.get("workspace_dir") or "").strip()
+    if workspace_dir:
+        return Path(workspace_dir) / "output"
+
+    return None
+
+
+def _glob_files(output_dir: Path, pattern: str) -> List[str]:
+    """在 output_dir 下按 pattern 匹配真实文件，支持通配符。"""
+    pattern_path = Path(pattern)
+    if pattern_path.is_absolute():
+        search_pattern = pattern
+    else:
+        search_pattern = str(output_dir / pattern)
+
+    matches = []
+    for item in glob.glob(search_pattern):
+        p = Path(item)
+        if p.exists() and p.is_file():
+            matches.append(str(p.resolve()))
+    return sorted(list(dict.fromkeys(matches)))
+
+
+def _resolve_verified_outputs(
+    node: Dict[str, Any],
+    candidate_outputs: Dict[str, Any],
+) -> Tuple[Dict[str, Any], List[str]]:
+    """根据 output_patterns 校验真实输出文件，仅返回已落盘的输出值。"""
+    output_patterns = _as_dict(node.get("output_patterns"))
+    output_dir = _resolve_node_output_dir(node)
+    verified: Dict[str, Any] = {}
+    errors: List[str] = []
+
+    for handle, cfg in output_patterns.items():
+        if not isinstance(cfg, dict):
+            if handle in candidate_outputs:
+                verified[handle] = candidate_outputs[handle]
+            continue
+
+        out_type = str(cfg.get("type") or "").strip().lower()
+        pattern = cfg.get("pattern")
+        multiple = bool(cfg.get("multiple"))
+        required = bool(cfg.get("required", True))
+
+        if out_type != "file":
+            if handle in candidate_outputs:
+                verified[handle] = candidate_outputs[handle]
+            continue
+
+        if not isinstance(pattern, str) or not pattern.strip():
+            if handle in candidate_outputs:
+                verified[handle] = candidate_outputs[handle]
+            elif required:
+                errors.append(f"missing output pattern: {handle}")
+            continue
+
+        rendered_pattern = _render_pattern(pattern.strip(), node)
+        if output_dir is None:
+            errors.append(f"missing output_dir for handle: {handle}")
+            continue
+
+        if not output_dir.exists():
+            errors.append(f"output_dir not found: {output_dir}")
+            continue
+
+        matches = _glob_files(output_dir, rendered_pattern)
+        if not matches:
+            if required:
+                errors.append(f"missing output file: {handle} pattern={rendered_pattern}")
+            continue
+
+        if multiple:
+            verified[handle] = matches
+        else:
+            verified[handle] = matches[0]
+
+    # 保留未声明在 output_patterns 的回传值（例如脚本主动上报的指标）。
+    for handle, value in candidate_outputs.items():
+        if handle not in verified and handle not in output_patterns:
+            verified[handle] = value
+
+    return verified, errors
+
+
 def _propagate_outputs(conn, analysis_id: str, source_node_id: str, outputs: Dict[str, Any]) -> None:
     """将上游节点输出按边映射写入下游节点的 params/resolved_inputs。"""
     edges = analysis_edge_service.find_by_analysis_id(conn, analysis_id)
@@ -90,16 +181,19 @@ def _propagate_outputs(conn, analysis_id: str, source_node_id: str, outputs: Dic
         target_inputs_patterns = _as_dict(target_node.get("inputs_patterns"))
         target_input_cfg = _as_dict(target_inputs_patterns.get(target_handle))
         is_multiple = bool(target_input_cfg.get("multiple"))
+        current = params.get(target_handle)
+        resolved_current = resolved_inputs.get(target_handle)
 
-        if is_multiple:
+        # 若目标侧当前值已经是 list（例如 gather 聚合输入），持续追加。
+        should_append_list = is_multiple or isinstance(current, list) or isinstance(resolved_current, list)
+
+        if should_append_list:
             # multiple=true 时，下游输入聚合为列表。
-            current = params.get(target_handle)
             if not isinstance(current, list):
                 current = [] if current is None else [current]
             current.append(value)
             params[target_handle] = current
 
-            resolved_current = resolved_inputs.get(target_handle)
             if not isinstance(resolved_current, list):
                 resolved_current = [] if resolved_current is None else [resolved_current]
             resolved_current.append(value)
@@ -285,21 +379,31 @@ def complete_node(
     max_retry = int(node.get("max_retry") or 0)
 
     if status in SUCCESS_STATUS:
-        final_outputs = resolved_outputs or _build_simulated_outputs(node)
-        analysis_node_service.update_node(
-            conn,
-            analysis_id=analysis_id,
-            node_id=node_id,
-            values={
-                "status": status,
-                "resolved_outputs": final_outputs,
-                "exit_code": exit_code,
-                "error_message": None,
-                "finished_at": datetime.now(),
-            },
-        )
-        _propagate_outputs(conn, analysis_id=analysis_id, source_node_id=node_id, outputs=final_outputs)
-    elif status == "failed":
+        candidate_outputs = resolved_outputs or _build_simulated_outputs(node)
+        final_outputs, output_errors = _resolve_verified_outputs(node, _as_dict(candidate_outputs))
+
+        if output_errors:
+            # 仅当真实文件存在时才允许 done/cached；否则按失败处理。
+            status = "failed"
+            if exit_code in (None, 0):
+                exit_code = 1
+            merged_error = "; ".join(output_errors)
+            error_message = f"output validation failed: {merged_error}"
+        else:
+            analysis_node_service.update_node(
+                conn,
+                analysis_id=analysis_id,
+                node_id=node_id,
+                values={
+                    "status": status,
+                    "resolved_outputs": final_outputs,
+                    "exit_code": exit_code,
+                    "error_message": None,
+                    "finished_at": datetime.now(),
+                },
+            )
+            _propagate_outputs(conn, analysis_id=analysis_id, source_node_id=node_id, outputs=final_outputs)
+    if status == "failed":
         # 失败自动重试：未超限则重置为 pending，等待再次调度。
         should_retry = current_retry < max_retry
         if should_retry:
@@ -326,7 +430,7 @@ def complete_node(
                     "finished_at": datetime.now(),
                 },
             )
-    else:
+    elif status not in SUCCESS_STATUS:
         analysis_node_service.update_node(
             conn,
             analysis_id=analysis_id,
