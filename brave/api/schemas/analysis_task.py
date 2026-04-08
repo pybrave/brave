@@ -48,3 +48,7 @@ class RuntimeNodeReport(BaseModel):
 class RuntimeAutoRunQuery(BaseModel):
     analysis_id: str
     max_steps: Optional[int] = 10000
+    max_concurrency: Optional[int] = 1
+    queue_size: Optional[int] = 64
+    poll_interval_ms: Optional[int] = 500
+    timeout_seconds: Optional[int] = None

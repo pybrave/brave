@@ -409,67 +409,7 @@ def finished_analysis_node(conn,analysis_node_id,run_type,status):
     print(f"Analysis {analysis_node_id} {status}")
 
 
-def create_analysis_node_runtime(analysis_node):
-    workspace_dir = Path(analysis_node["workspace_dir"])
-    workspace_dir.mkdir(parents=True, exist_ok=True)
-    output_dir =Path(analysis_node["output_dir"])
-    output_dir.mkdir(parents=True, exist_ok=True)
 
-    command_path = Path(analysis_node["command_path"])
-    command_path.touch(exist_ok=True)
-    params_path = Path(analysis_node["params_path"])
-    params_path.touch(exist_ok=True)
-
-
-
-
-async def run_analysis_node(conn,analysis_node,run_type):
-    analysis_node_id = analysis_node['analysis_node_id']
-    create_analysis_node_runtime(analysis_node)
-    if run_type=="node":
-        output_dir = f"{analysis_node['output_dir']}"
-        delete_all_in_dir(output_dir)
-    
-    
-    component = conn.execute(select(t_pipeline_components).where(t_pipeline_components.c.component_id==analysis_node['script_id'])).mappings().first()
-
-    if   not component["container_id"]:
-        raise HTTPException(status_code=500, detail=f"please config container id") 
-
-    # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
-    analysis_node = dict(analysis_node)
-    analysis_node["run_id"] = f"{run_type}-{analysis_node_id}"
-
-
-    analysis_node["container_id"] =component["container_id"]
-    # if run_type == "node":
-    #     analysis_node["container_id"] =component["container_id"]
-    # # elif run_type == "tools":
-    # #     analysis_["container_id"] = tool_container_id
-    # #     analysis_["run_id"] = f"{run_type}-{analysis_id}-{tool_container_id}"
-    # else:
-    #     # if component_type=="script":
-    #     analysis_node["container_id"] =component["container_id"]
-        # else: 
-        #     if not component["sub_container_id"]:
-        #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
-        #     analysis_node["container_id"] = component["sub_container_id"]
-
-    # settings = get_settings()
-    # pipeline_dir = str(settings.PIPELINE_DIR)
-    component_script = pipeline_service.find_component_module(component,ScriptName.main)['path']
-    analysis_node["script_path"] = component_script
-
-    analysis_node["analysis_id"] = analysis_node_id
-    # analysis_node["log_path"] = analysis_node["command_log_path"]
-    # analysis_node["output_dir"] = analysis_node['output_dir']
-    # analysis_["image"] = find_container["image"]
-    analysis_executer_modal = AnalysisExecuterModal(**analysis_node)
-    # analysis_.image = find_container["image"]
-    finished_analysis_node(conn,analysis_node_id,run_type,"running")
-    return analysis_executer_modal
-    # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
-    # conn.execute(stmt)
 
 def add_run_id(item):
     item= dict(item)
@@ -515,3 +455,28 @@ def init_node_path(analysis, node_list):
 
         
     return node_list
+
+
+def invalidate_cache(conn, analysis_id: str):
+    now = datetime.now()
+    conn.execute(
+        analysis_nodes.update()
+        .where(analysis_nodes.c.analysis_id == analysis_id)
+        .values(
+            status="pending",
+            retry=0,
+            cache_hit=False,
+            input_hash=None,
+            resolved_inputs={},
+            resolved_outputs={},
+            input_validation_errors=[],
+            started_at=None,
+            finished_at=None,
+            exit_code=None,
+            error_message=None,
+            pid=None,
+            job_id=None,
+            updated_at=now,
+        )
+    )
+    refresh_ready_status(conn, analysis_id)

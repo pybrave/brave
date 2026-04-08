@@ -7,6 +7,7 @@ from sqlalchemy import select,update,func
 from fastapi import HTTPException
 import json
 from brave.api.schemas.analysis import AnalysisExecuterModal, QueryAnalysis
+from brave.api.service import analysis_node_service
 import  brave.api.service.pipeline as pipeline_service
 import importlib
 import hashlib
@@ -17,6 +18,7 @@ from sqlalchemy.orm import aliased
 from sqlalchemy import or_, and_
 from brave.api.utils.file_utils import delete_all_in_dir
 from brave.api.core.evenet_bus import EventBus
+from pathlib import Path
 
 def get_parse_analysis_result_params(conn,analysis_id):
     stmt = select(t_analysis).where(t_analysis.c.analysis_id == analysis_id)
@@ -521,3 +523,82 @@ def update_used(conn,analysis_id):
     #         .values(used = False)
     #     )
     #     conn.execute(stmt)
+
+
+def create_analysis_node_runtime(conn, analysis_node, analysis_params_path, script_path):
+    workspace_dir = Path(analysis_node["workspace_dir"])
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    output_dir =Path(analysis_node["output_dir"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    command_path = Path(analysis_node["command_path"])
+    params_path = Path(analysis_node["params_path"])
+    with open(analysis_params_path,"r") as f:
+        analysis_params = json.load(f)
+    with open(params_path,"w") as f:
+        json.dump(analysis_params,f)
+    with open(command_path,"w") as f:
+        f.write("sleep 5\n")
+
+    
+   
+    
+    
+
+    
+
+
+
+
+
+async def run_analysis_node(conn,analysis_node,run_type):
+    analysis_node_id = analysis_node['analysis_node_id']
+    
+    if run_type=="node":
+        output_dir = f"{analysis_node['output_dir']}"
+        delete_all_in_dir(output_dir)
+    
+    
+    component = conn.execute(select(t_pipeline_components).where(t_pipeline_components.c.component_id==analysis_node['script_id'])).mappings().first()
+
+    if   not component["container_id"]:
+        raise HTTPException(status_code=500, detail=f"please config container id") 
+
+    # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
+    analysis_node = dict(analysis_node)
+    analysis_node["run_id"] = f"{run_type}-{analysis_node_id}"
+
+
+    analysis_node["container_id"] =component["container_id"]
+    # if run_type == "node":
+    #     analysis_node["container_id"] =component["container_id"]
+    # # elif run_type == "tools":
+    # #     analysis_["container_id"] = tool_container_id
+    # #     analysis_["run_id"] = f"{run_type}-{analysis_id}-{tool_container_id}"
+    # else:
+    #     # if component_type=="script":
+    #     analysis_node["container_id"] =component["container_id"]
+        # else: 
+        #     if not component["sub_container_id"]:
+        #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
+        #     analysis_node["container_id"] = component["sub_container_id"]
+
+    # settings = get_settings()
+    # pipeline_dir = str(settings.PIPELINE_DIR)
+    component_script = pipeline_service.find_component_module(component,ScriptName.main)['path']
+    analysis_id = analysis_node["analysis_id"]
+    find_analysis = find_analysis_by_id(conn, analysis_id)
+    params_path = find_analysis["params_path"]
+    create_analysis_node_runtime(conn, analysis_node, params_path, component_script)
+    analysis_node["script_path"] = component_script
+
+    analysis_node["analysis_id"] = analysis_node_id
+    # analysis_node["log_path"] = analysis_node["command_log_path"]
+    # analysis_node["output_dir"] = analysis_node['output_dir']
+    # analysis_["image"] = find_container["image"]
+    analysis_executer_modal = AnalysisExecuterModal(**analysis_node)
+    # analysis_.image = find_container["image"]
+    analysis_node_service.finished_analysis_node(conn,analysis_node_id,run_type,"running")
+    return analysis_executer_modal
+    # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
+    # conn.execute(stmt)

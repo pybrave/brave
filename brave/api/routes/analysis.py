@@ -6,6 +6,8 @@ from fastapi import APIRouter,Depends,HTTPException, Request
 from sqlalchemy.orm import Session
 # from brave.api.config.db import conn
 from brave.api.core.evenet_bus import EventBus
+from brave.api.dag.runtime_dag_queue_scheduler import RuntimeDagQueueScheduler
+from brave.api.enum.component_script import ScriptName
 from brave.api.executor.models import LocalJobSpec
 from brave.api.schemas.analysis_result import AnalysisResultQuery
 from brave.api.schemas.bio_database import QueryBiodatabase
@@ -528,15 +530,29 @@ async def save_script_analysis(
         save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report)
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
         dag_definition = component["dag_definition"]
-        if dag_definition:
-            dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
-            dag_runtime_generate(conn,save_analysis["analysis_id"],parse_analysis_result, dag_definition)
+        # if dag_definition:
+        #     dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
+        #     dag_runtime_generate(conn,save_analysis["analysis_id"],parse_analysis_result, dag_definition)
 
         if is_submit:
-            analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
-
-    if is_submit:
-        await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
+            if not dag_definition:
+                analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
+                await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
+            else:
+                analsyis_id = save_analysis["analysis_id"]
+                scheduler = RuntimeDagQueueScheduler(
+                    analysis_id=analsyis_id,
+                    event_bus=evenet_bus,
+                    max_steps=10000,
+                    max_concurrency=1,
+                    queue_size= 64,
+                    poll_interval_seconds= 500 / 1000.0,
+                    timeout_seconds=None,
+                )
+                # submit to background task and return immediately use asyncio.create_task, so that client can receive the response without waiting for the whole run to complete.
+                asyncio.create_task(scheduler.run())
+    # if is_submit:
+       
 
     return {
         **parse_analysis_result,
@@ -544,25 +560,7 @@ async def save_script_analysis(
         "analysis_id": save_analysis["analysis_id"],   
     }
     
-def dag_runtime_generate(conn, analysis_id,params, dag_definition):
-    runtime = build_runtime_tasks(
-        analysis_id=analysis_id,
-        params=params,
-        dag_definition=dag_definition,
-    )
 
-    analysis_nodes = runtime.get("analysis_nodes", [])
-    # init node path
-    find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
-    analysis_nodes = analysis_node_service.init_node_path(find_analysis, analysis_nodes)
-
-    analysis_edges = runtime.get("analysis_edges", [])
-
-    analysis_node_service.replace_by_analysis_id(conn, analysis_id, analysis_nodes)
-    analysis_edge_service.replace_by_analysis_id(conn, analysis_id, analysis_edges)
-    analysis_node_service.refresh_ready_status(conn, analysis_id)
-
-    return runtime
 
 
 @analysis_api.post("/fast-api/analysis-controller-old")
@@ -1179,7 +1177,8 @@ async def run_analysis_node(
         if analysis_node is None:
             raise HTTPException(status_code=404, detail="Analysis Node not found")
         # await analysis_service.run_analysis(conn,analysis_,run_type,evenet_bus)
-        analysis_executer_modal = await analysis_node_service.run_analysis_node(conn,analysis_node,run_type)
+        analysis_executer_modal = await analysis_service.run_analysis_node(conn,analysis_node,run_type)
     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED,analysis_executer_modal)
 
     return {"msg":"success"}
+

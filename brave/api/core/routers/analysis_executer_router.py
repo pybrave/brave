@@ -19,50 +19,50 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
         # if  expected_type:
         #     if not isinstance(payload, expected_type):
         #         raise TypeError(f"[EventRouter] Expected payload type {expected_type}, got {type(payload)}")
-        if payload.run_id is None:
-            raise ValueError("run_id is required in payload")
+        if isinstance(payload, AnalysisId) or isinstance(payload, AnalysisExecuterModal):
+            # raise ValueError("run_id is required in payload")
       
-        run_type = payload.run_id.split("-")[0]
-        analysis_id = payload.run_id.replace(f"{run_type}-","")
+            run_type = payload.run_id.split("-")[0]
+            analysis_id = payload.run_id.replace(f"{run_type}-","")
 
-        if event == AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE or event == AnalysisExecutorEvent.ON_ANALYSIS_FAILED:    
-            if isinstance(payload, AnalysisId):
-                # if payload.run_type =="retry":
-                #     payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type=payload.run_type)
-                # else:
-                # with get_engine().begin() as conn:
-                    
-                #     analysis =  analysis_service.find_analysis_by_id(conn,analysis_id)
-                #     if analysis:
-                #         payload = AnalysisExecuterModal(run_id=payload.run_id,**analysis)
-                #     else:
-                       
-                payload = AnalysisExecuterModal(run_id=payload.run_id,analysis_id=analysis_id)
+            if event == AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE or event == AnalysisExecutorEvent.ON_ANALYSIS_FAILED:    
+                if isinstance(payload, AnalysisId):
+                    # if payload.run_type =="retry":
+                    #     payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type=payload.run_type)
+                    # else:
+                    # with get_engine().begin() as conn:
+                        
+                    #     analysis =  analysis_service.find_analysis_by_id(conn,analysis_id)
+                    #     if analysis:
+                    #         payload = AnalysisExecuterModal(run_id=payload.run_id,**analysis)
+                    #     else:
+                        
+                    payload = AnalysisExecuterModal(run_id=payload.run_id,analysis_id=analysis_id)
 
-                # payload = AnalysisExecuterModal(analysis_id=payload.analysis_id)
-        elif event == AnalysisExecutorEvent.ON_CONTAINER_PULLED:
-            payload = AnalysisExecuterModal(run_id=payload.run_id, analysis_id=analysis_id)
+                    # payload = AnalysisExecuterModal(analysis_id=payload.analysis_id)
+            elif event == AnalysisExecutorEvent.ON_CONTAINER_PULLED:
+                payload = AnalysisExecuterModal(run_id=payload.run_id, analysis_id=analysis_id)
 
-            
-        if   not isinstance(payload, AnalysisExecuterModal):
-            raise TypeError(f"[EventRouter] Expected payload type {AnalysisExecuterModal}, got {type(payload)}")
-    
+                
+            if   not isinstance(payload, AnalysisExecuterModal):
+                raise TypeError(f"[EventRouter] Expected payload type {AnalysisExecuterModal}, got {type(payload)}")
+        
 
-        run_id = payload.run_id
-        if run_id.startswith("job-"):
-            payload.run_type = "job"
-        elif run_id.startswith("server-"):
-            payload.run_type = "server"
-        elif run_id.startswith("retry-"):
-            payload.run_type = "retry"
-        elif run_id.startswith("nxf-"):
-            payload.run_type = "nxf"
-        elif run_id.startswith("tools-"):
-            payload.run_type = "tools"
-        elif run_id.startswith("node-"):
-            payload.run_type = "node"
-        else:
-            raise ValueError(f"Invalid run_id format: {run_id}")
+            run_id = payload.run_id
+            if run_id.startswith("job-"):
+                payload.run_type = "job"
+            elif run_id.startswith("server-"):
+                payload.run_type = "server"
+            elif run_id.startswith("retry-"):
+                payload.run_type = "retry"
+            elif run_id.startswith("nxf-"):
+                payload.run_type = "nxf"
+            elif run_id.startswith("tools-"):
+                payload.run_type = "tools"
+            elif run_id.startswith("node-"):
+                payload.run_type = "node"
+            else:
+                raise ValueError(f"Invalid run_id format: {run_id}")
             
 
         if handlers:

@@ -39,6 +39,12 @@ def setup_handlers(
         print(f"🚀 [on_analysis_node_submitted] {payload.analysis_id}")
         await job_executor.submit_job(payload)
 
+    @router.on_event(AnalysisExecutorEvent.ON_DAG_COMPLETE)
+    async def on_dag_complete(payload:dict):
+        print(f"🚀 [on_dag_complete] {payload.get('analysis_id')}")
+        pass
+
+
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STOPED)
     async def on_analysis_stoped(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_stoped] {payload.analysis_id}")

@@ -25,6 +25,8 @@ from brave.api.utils.get_db_utils import get_colors, get_ids,get_group, get_re_g
 from brave.api.core.routers_name import RoutersName
 from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.service import namespace_service, project_service, sample_service
+from brave.api.dag.dag import build_runtime_tasks
+from brave.api.service import analysis_node_service, analysis_edge_service
 
 
 def merge_columns_by_name(form_json):
@@ -49,6 +51,28 @@ def merge_columns_by_name(form_json):
             sample_columns.extend(node.get("columns", []))
 
     return result
+
+def dag_runtime_generate(conn, find_analysis, params, dag_definition):
+    analysis_id = find_analysis["analysis_id"]
+    runtime = build_runtime_tasks(
+        analysis_id= analysis_id,
+        params=params,
+        dag_definition=dag_definition,
+    )
+
+    analysis_nodes = runtime.get("analysis_nodes", [])
+    # init node path
+    # find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+    analysis_nodes = analysis_node_service.init_node_path(find_analysis, analysis_nodes)
+
+    analysis_edges = runtime.get("analysis_edges", [])
+
+    analysis_node_service.replace_by_analysis_id(conn, analysis_id, analysis_nodes)
+    analysis_edge_service.replace_by_analysis_id(conn, analysis_id, analysis_edges)
+    analysis_node_service.refresh_ready_status(conn, analysis_id)
+
+    return runtime
+
 class BaseAnalysis(ABC):
     def __init__(self, event_bus:EventBus) -> None:
         self.event_bus = event_bus
@@ -149,6 +173,7 @@ class BaseAnalysis(ABC):
             result = conn.execute(stmt).mappings().first()
         if result:
             print("update analysis")
+
             output_dir = result.output_dir
             work_dir = result.work_dir
             if not os.path.exists(output_dir):
@@ -183,6 +208,8 @@ class BaseAnalysis(ABC):
             pieline_dir = settings.PIPELINE_DIR
             str_uuid = str(uuid.uuid4())
             pieline_dir_with_namespace = f"{pieline_dir}"
+           
+
             # /ssd1/wy/workspace2/nextflow_workspace
             # wrap_analysis_pipline = ""
             # if 'wrap_analysis_pipeline' in request_param:
@@ -196,7 +223,7 @@ class BaseAnalysis(ABC):
             #     pipeline_id = request_param['pipeline_id']
             #     output_dir = f"{project_dir}/{pipeline_id}/{component['component_id']}/{str_uuid}"
             # else:
-            output_dir = f"{project_dir}/{relation_id}/{str_uuid}"
+            output_dir = f"{project_dir}/{str_uuid}"
             # /data/wangyang/nf_work/
             work_dir = f"{work_dir}/{request_param['project']}/{relation_id}/{str_uuid}"
             params_path = f"{output_dir}/params.json"
@@ -263,6 +290,12 @@ class BaseAnalysis(ABC):
                 json.dump(parse_analysis_result,f)
             stmt = t_analysis.insert().values(new_analysis)
             conn.execute(stmt)
+
+            dag_definition = component["dag_definition"]
+            if dag_definition:
+                dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
+                dag_runtime_generate(conn, new_analysis, parse_analysis_result, dag_definition)
+
         # if is_submit:
             # await self.submit_analysis(new_analysis)
         return new_analysis

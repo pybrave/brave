@@ -1,11 +1,14 @@
 import asyncio
+import time
+from dataclasses import dataclass
+from typing import Optional
 
 from fastapi import APIRouter, Depends
 from fastapi import HTTPException
 from brave.api.core.evenet_bus import EventBus
 from brave.api.core.event import AnalysisExecutorEvent
-from brave.api.service import analysis_service
 from brave.api.config.db import get_engine
+from brave.api.dag.runtime_dag_queue_scheduler import RuntimeDagQueueScheduler
 from brave.api.schemas.analysis_task import (
     PageAnalysisNodeQuery,
     PageAnalysisEdgeQuery,
@@ -13,7 +16,7 @@ from brave.api.schemas.analysis_task import (
     RuntimeNodeReport,
     RuntimeAutoRunQuery,
 )
-from brave.api.service import analysis_node_service, analysis_edge_service, analysis_runtime_engine_service
+from brave.api.service import analysis_node_service, analysis_edge_service, analysis_runtime_engine_service, analysis_service
 from brave.api.core.routers_name import RoutersName
 from brave.app_container import AppContainer
 from dependency_injector.wiring import Provide, inject
@@ -57,7 +60,7 @@ async def schedule_next_runtime_node(query: RuntimeScheduleQuery,
                 #         analysis_node_id=analysis_node_id,
                 #     )
                 # )
-                analysis_executer_modal = await analysis_node_service.run_analysis_node(conn,node,"node")
+                analysis_executer_modal = await analysis_service.run_analysis_node(conn,node,"node")
                 await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED,analysis_executer_modal)
 
 
@@ -85,13 +88,37 @@ async def report_runtime_node(report: RuntimeNodeReport):
 
 
 @analysis_runtime_api.post("/auto-run")
-async def auto_run_runtime(query: RuntimeAutoRunQuery):
+@inject
+async def auto_run_runtime(
+    query: RuntimeAutoRunQuery,
+    evenet_bus: EventBus = Depends(Provide[AppContainer.event_bus]),
+):
+    
+    scheduler = RuntimeDagQueueScheduler(
+        analysis_id=query.analysis_id,
+        event_bus=evenet_bus,
+        max_steps=query.max_steps or 10000,
+        max_concurrency=query.max_concurrency or 4,
+        queue_size=query.queue_size or 64,
+        poll_interval_seconds=(query.poll_interval_ms or 500) / 1000.0,
+        timeout_seconds=query.timeout_seconds,
+    )
+    # submit to background task and return immediately use asyncio.create_task, so that client can receive the response without waiting for the whole run to complete.
+    asyncio.create_task(scheduler.run())
+    # scheduler.run()
+    
+    return {
+        "message": "Auto-run started",
+    }
+
+
+
+
+
+# 取消缓存
+@analysis_runtime_api.post("/invalidate-cache/{analysis_id}")
+async def invalidate_cache(analysis_id: str):
     with get_engine().begin() as conn:
-        return analysis_runtime_engine_service.auto_run(
-            conn,
-            analysis_id=query.analysis_id,
-            max_steps=query.max_steps or 10000,
-        )
-
-
-
+        analysis_node_service.invalidate_cache(conn, analysis_id)
+    return {"message": f"Cache invalidated for node {analysis_id}"}
+   
