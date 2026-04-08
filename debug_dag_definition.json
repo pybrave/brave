@@ -1,150 +1,93 @@
 {
   "nodes": [
     {
-      "name": "fastqc",
-      "id": "7d005aeb-0c7f-44a4-89cf-3ccaaf58316b",
+      "name": "\u4e0b\u6e38\u5206\u6790\u4e00",
+      "id": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
       "inputs": {
-        "fastq1": {
+        "x_input": {
           "type": "file",
           "required": true
+        }
+      },
+      "outputs": {
+        "boxplot": {
+          "type": "file",
+          "pattern": "output/*_boxplot.tsv"
         },
-        "fastq2": {
+        "heatmap": {
           "type": "file",
-          "required": true
-        }
-      },
-      "outputs": {
-        "html": {
-          "type": "file",
-          "multiple": false,
-          "required": true
-        }
-      },
-      "scatter": {
-        "field": "reads",
-        "mode": "each"
-      },
-      "color": "magenta",
-      "icon": "scissors",
-      "script_id": "7d005aeb-0c7f-44a4-89cf-3ccaaf58316b",
-      "position": {
-        "x": 33.54082969901404,
-        "y": -17.894815992437707
-      }
-    },
-    {
-      "name": "joint_calling",
-      "id": "e3d00582-2a99-4b02-a687-65e556f7aefa",
-      "inputs": {
-        "bam": {
-          "type": "file",
-          "required": true
-        }
-      },
-      "outputs": {
-        "vcf": {
-          "type": "file",
-          "pattern": "all.vcf"
-        }
-      },
-      "gather": {
-        "field": "bam",
-        "mode": "list"
-      },
-      "color": "lime",
-      "icon": "scissors",
-      "script_id": "e3d00582-2a99-4b02-a687-65e556f7aefa",
-      "position": {
-        "x": 419.126903989516,
-        "y": 34.863686166670256
-      }
-    },
-    {
-      "name": "bwa",
-      "id": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
-      "inputs": {
-        "fastq1": {
-          "type": "file",
-          "required": true
-        },
-        "fastq2": {
-          "type": "file",
-          "required": true
-        }
-      },
-      "outputs": {
-        "bam": {
-          "type": "file",
-          "pattern": "{sample}_trimmed.bam"
+          "pattern": "output/*_heatmap.tsv"
         }
       },
       "color": "green",
       "icon": "scissors",
-      "script_id": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
+      "script_id": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
       "position": {
-        "x": 229.42399080499268,
-        "y": 39.337572775903865
+        "x": 26.04082969901404,
+        "y": -48.39481599243771
       }
     },
     {
-      "name": "fastp",
-      "id": "759d6899-e632-400f-9b11-6a8b7b6e2042",
+      "name": "\u4e0b\u6e38\u5206\u6790\u4e8cboxplot",
+      "id": "1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1ae",
       "inputs": {
-        "fastq1": {
-          "type": "file",
-          "required": true
-        },
-        "fastq2": {
+        "tsv": {
           "type": "file",
           "required": true
         }
       },
       "outputs": {
-        "fastq1": {
+        "png": {
           "type": "file",
-          "pattern": "{sample}_trimmed.fastq1.gz",
-          "required": true
-        },
-        "fastq2": {
+          "pattern": "{sample}_boxplot.png"
+        }
+      },
+      "color": "green",
+      "icon": "scissors",
+      "script_id": "1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1ae",
+      "position": {
+        "x": 233.126903989516,
+        "y": 9.863686166670256
+      }
+    },
+    {
+      "name": "\u4e0b\u6e38\u5206\u6790\u4e09heatmap",
+      "id": "c3cf7d40-bb70-4cce-a91f-25f204407935",
+      "inputs": {
+        "tsv": {
           "type": "file",
-          "pattern": "{sample}_trimmed.fastq2.gz",
           "required": true
         }
       },
-      "scatter": {
-        "field": "reads",
-        "mode": "each"
+      "outputs": {
+        "png": {
+          "type": "file",
+          "pattern": "{sample}_heatmap.png"
+        }
       },
-      "color": "magenta",
+      "color": "green",
       "icon": "scissors",
-      "script_id": "759d6899-e632-400f-9b11-6a8b7b6e2042",
+      "script_id": "c3cf7d40-bb70-4cce-a91f-25f204407935",
       "position": {
-        "x": 6.988764044944006,
-        "y": 78.69101123595505
+        "x": 247.626903989516,
+        "y": -97.63631383332975
       }
     }
   ],
   "edges": [
     {
-      "source": "759d6899-e632-400f-9b11-6a8b7b6e2042",
-      "sourceHandle": "fastq1",
-      "target": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
-      "targetHandle": "fastq1",
-      "id": "xy-edge__759d6899-e632-400f-9b11-6a8b7b6e2042fastq1-cbd1a1cc-ca62-46da-8713-b0e868a2d44ffastq1"
+      "source": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
+      "sourceHandle": "boxplot",
+      "target": "c3cf7d40-bb70-4cce-a91f-25f204407935",
+      "targetHandle": "tsv",
+      "id": "xy-edge__5edaf74f-f859-456d-8194-e33a6d0dfdd5boxplot-c3cf7d40-bb70-4cce-a91f-25f204407935tsv"
     },
     {
-      "source": "759d6899-e632-400f-9b11-6a8b7b6e2042",
-      "sourceHandle": "fastq2",
-      "target": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
-      "targetHandle": "fastq2",
-      "id": "xy-edge__759d6899-e632-400f-9b11-6a8b7b6e2042fastq2-cbd1a1cc-ca62-46da-8713-b0e868a2d44ffastq2"
-    },
-    {
-      "source": "cbd1a1cc-ca62-46da-8713-b0e868a2d44f",
-      "sourceHandle": "bam",
-      "target": "e3d00582-2a99-4b02-a687-65e556f7aefa",
-      "targetHandle": "bam",
-      "id": "xy-edge__cbd1a1cc-ca62-46da-8713-b0e868a2d44fbam-e3d00582-2a99-4b02-a687-65e556f7aefabam"
+      "source": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
+      "sourceHandle": "heatmap",
+      "target": "1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1ae",
+      "targetHandle": "tsv",
+      "id": "xy-edge__5edaf74f-f859-456d-8194-e33a6d0dfdd5heatmap-1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1aetsv"
     }
   ]
 }

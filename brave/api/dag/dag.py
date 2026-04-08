@@ -87,6 +87,14 @@ def _scatter_field(node: Dict[str, Any]) -> str:
 	return str(scatter.get("field") or "").strip()
 
 
+def _gather_field(node: Dict[str, Any]) -> str:
+	"""解析节点 gather 配置，仅支持 mode=list。"""
+	gather = _as_dict(node.get("gather"))
+	if str(gather.get("mode") or "").strip().lower() != "list":
+		return ""
+	return str(gather.get("field") or "").strip()
+
+
 def _derive_upstream_sample_labels(
 	nid: str,
 	incoming: Dict[str, List[Dict[str, Any]]],
@@ -236,57 +244,13 @@ def _classify_nodes(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) ->
 	"""将节点分类为 sample 或 aggregate。
 
 	规则摘要：
-	- 无入边节点 -> sample
-	- 存在 multiple 输入 -> aggregate
-	- 无下游节点 -> aggregate
-	- 否则根据父节点类别推导
+	- 仅由 gather 决定：配置 gather(mode=list) 的节点 -> aggregate
+	- 其他节点 -> sample
 	"""
-	incoming = defaultdict(list)
-	outgoing = defaultdict(list)
 	node_map = {_node_key(n): n for n in nodes}
-
-	for e in edges:
-		src = str(e.get("source", ""))
-		dst = str(e.get("target", ""))
-		incoming[dst].append(e)
-		outgoing[src].append(e)
-
 	kind: Dict[str, str] = {}
-	for nid in node_map:
-		if len(incoming[nid]) == 0:
-			kind[nid] = "sample"
-
-	order = _topology(nodes, edges)
-	for nid in order:
-		if nid in kind:
-			continue
-		node = node_map[nid]
-		inputs = _as_dict(node.get("inputs"))
-		in_edges = incoming[nid]
-
-		has_multiple_input = False
-		for ie in in_edges:
-			target_handle = _edge_value(ie, "targetHandle", "target_handle")
-			target_cfg = _as_dict(inputs.get(target_handle))
-			if bool(target_cfg.get("multiple")):
-				has_multiple_input = True
-				break
-
-		if has_multiple_input:
-			kind[nid] = "aggregate"
-			continue
-
-		has_outgoing = len(outgoing[nid]) > 0
-		if not has_outgoing:
-			kind[nid] = "aggregate"
-			continue
-
-		parent_kinds = {kind.get(str(ie.get("source")), "sample") for ie in in_edges}
-		if parent_kinds == {"sample"}:
-			kind[nid] = "sample"
-		else:
-			kind[nid] = "aggregate"
-
+	for nid, node in node_map.items():
+		kind[nid] = "aggregate" if _gather_field(node) else "sample"
 	return kind
 
 
@@ -569,6 +533,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 			# aggregate 节点：只生成一个实例，输入可能来自多个 sample 上游。
 			node_instance = name
 			node_params = dict(_as_dict(node_params_defaults))
+			gather_field = _gather_field(node)
 			resolved_inputs: Dict[str, Any] = {}
 			input_validation_errors: List[str] = []
 
@@ -595,8 +560,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						values.append(output_cache.get((source_name, source_handle, "aggregate")))
 
 				values = [v for v in values if v is not None]
-				input_cfg = _as_dict(inputs.get(input_handle))
-				is_list = bool(input_cfg.get("multiple")) or len(values) > 1
+				is_list = bool(gather_field) and input_handle == gather_field
 				if is_list:
 					node_params[input_handle] = values
 					resolved_inputs[input_handle] = values

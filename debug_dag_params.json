@@ -1,52 +1,56 @@
 {
-  "group_field": "group",
-  "reads": [
-    {
-      "id": 6337,
-      "analysis_result_id": "5bafd42d-c74a-4f3c-be24-4c45a51d9045",
-      "sample_id": "61a0c60e-a5a3-4e2b-8783-181d4b5cec89",
-      "file_name": "test_s2",
-      "component_id": "fdc5fe2a-fd4e-4acc-aab1-a7bcbe6d8119",
-      "file_type": "individual",
-      "fastq1": "/data/wangyang/NGS_TEST/test-data/test_s2_1.fastq.gz",
-      "fastq2": "/data/wangyang/NGS_TEST/test-data/test_s2_2.fastq.gz",
-      "form_type": "GroupSelectSampleButton",
-      "selcted_group_name": "undefined",
-      "re_groups_name": "-"
+  "x_input": {
+    "id": 7010,
+    "analysis_result_id": "7adc55ba-098c-45a4-b653-d60d05e29b60",
+    "sample_id": null,
+    "file_name": "example",
+    "component_id": "75087620-2ff8-4045-8694-a0c19aac12fc",
+    "file_type": "collected",
+    "content": "/opt/brave_prod/workspace/pipeline/file/75087620-2ff8-4045-8694-a0c19aac12fc/example_1774937915.txt",
+    "file": 7010,
+    "sample_vars": [
+      {
+        "id": 7010,
+        "sample_name": "sample_id",
+        "analysis_result_id": "7adc55ba-098c-45a4-b653-d60d05e29b60",
+        "columns_name": "sample_id"
+      },
+      {
+        "id": 7010,
+        "sample_name": "gene2",
+        "analysis_result_id": "7adc55ba-098c-45a4-b653-d60d05e29b60",
+        "columns_name": "gene2"
+      },
+      {
+        "id": 7010,
+        "sample_name": "gene3",
+        "analysis_result_id": "7adc55ba-098c-45a4-b653-d60d05e29b60",
+        "columns_name": "gene3"
+      }
+    ],
+    "feature_var": {
+      "id": 7010,
+      "sample_name": "gene1",
+      "analysis_result_id": "7adc55ba-098c-45a4-b653-d60d05e29b60",
+      "columns_name": "gene1"
     },
-    {
-      "id": 6336,
-      "analysis_result_id": "cac77545-77d3-47db-97c7-7fac72d0db3d",
-      "sample_id": "7470f852-f80f-4585-8fb9-7a0c1b89a4dd",
-      "file_name": "test_s1",
-      "component_id": "fdc5fe2a-fd4e-4acc-aab1-a7bcbe6d8119",
-      "file_type": "individual",
-      "fastq1": "/data/wangyang/NGS_TEST/test-data/test_s1_1.fastq.gz",
-      "fastq2": "/data/wangyang/NGS_TEST/test-data/test_s1_2.fastq.gz",
-      "form_type": "GroupSelectSampleButton",
-      "selcted_group_name": "undefined",
-      "re_groups_name": "-"
-    }
-  ],
-  "input_fastq1": "11",
-  "input_fastq2": "11",
-  "reference_genome": "11",
-  "output_sam": "aligned.sam",
-  "threads": 4,
-  "mem_limit_gb": 8,
-  "aligner_options": "-k 2 -w 100 -d 100 -r 1 -c 0 -D 0.5 -B 1 -O 1 -E 1 -L 20",
-  "output_name": "bwa_alignment",
+    "form_type": "CollectedSampleSelect",
+    "groups": [
+      "sample_vars",
+      "feature_var"
+    ]
+  },
   "colors": {
-    "reads": "-"
+    "x_input": "-"
   },
   "groups_name": {
-    "reads": "undefined"
+    "x_input": "-"
   },
   "re_groups_name": {
-    "reads": "-"
+    "x_input": "-"
   },
   "groups": [
-    "reads"
+    "x_input"
   ],
   "pipeline_dir": "/opt/brave_prod/workspace/pipeline"
 }
