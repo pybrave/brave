@@ -1,8 +1,10 @@
 import asyncio
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi import HTTPException
-
+from brave.api.core.evenet_bus import EventBus
+from brave.api.core.event import AnalysisExecutorEvent
+from brave.api.service import analysis_service
 from brave.api.config.db import get_engine
 from brave.api.schemas.analysis_task import (
     PageAnalysisNodeQuery,
@@ -12,6 +14,9 @@ from brave.api.schemas.analysis_task import (
     RuntimeAutoRunQuery,
 )
 from brave.api.service import analysis_node_service, analysis_edge_service, analysis_runtime_engine_service
+from brave.api.core.routers_name import RoutersName
+from brave.app_container import AppContainer
+from dependency_injector.wiring import Provide, inject
 
 
 analysis_runtime_api = APIRouter(prefix="/analysis-runtime")
@@ -36,20 +41,25 @@ async def get_runtime_snapshot(query: RuntimeScheduleQuery):
 
 
 @analysis_runtime_api.post("/schedule-next")
-async def schedule_next_runtime_node(query: RuntimeScheduleQuery):
+@inject
+async def schedule_next_runtime_node(query: RuntimeScheduleQuery,
+                                     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) ):
     with get_engine().begin() as conn:
+        # analysis = analysis_service.find_analysis_by_id(conn, query.analysis_id)  # check analysis existence
         node = analysis_runtime_engine_service.schedule_next(conn, analysis_id=query.analysis_id)
         snapshot = analysis_runtime_engine_service.get_runtime_snapshot(conn, analysis_id=query.analysis_id)
 
-    if node:
-        node_id = str(node.get("node_id") or "")
-        if node_id:
-            asyncio.create_task(
-                analysis_runtime_engine_service.run_simulated_executor(
-                    analysis_id=query.analysis_id,
-                    node_id=node_id,
-                )
-            )
+        if node:
+            analysis_node_id = str(node.get("analysis_node_id") or "")
+            if analysis_node_id:
+                # asyncio.create_task(
+                #     analysis_runtime_engine_service.run_simulated_executor(
+                #         analysis_node_id=analysis_node_id,
+                #     )
+                # )
+                analysis_executer_modal = await analysis_node_service.run_analysis_node(conn,node,"node")
+                await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED,analysis_executer_modal)
+
 
     return {
         "scheduled": node,
@@ -82,3 +92,6 @@ async def auto_run_runtime(query: RuntimeAutoRunQuery):
             analysis_id=query.analysis_id,
             max_steps=query.max_steps or 10000,
         )
+
+
+

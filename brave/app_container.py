@@ -7,6 +7,7 @@ from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
 from brave.api.core.workflow_queue import WorkflowQueueManager
 from brave.api.core.pubsub import PubSubManager
 from brave.api.core.routers.ingress_event_router import IngressEventRouter
+from brave.api.executor.docker_excutor_v2 import DockerExecutorV2
 from brave.api.ingress.manager import IngressManager
 from brave.api.core.workflow_sse import WorkflowSSEManager
 from brave.api.llm.tool_manager import ToolManager
@@ -95,14 +96,16 @@ class AppContainer(containers.DeclarativeContainer):
     result_parse_manage= providers.Singleton(AnalysisManage, event_bus=event_bus)
     
  
+    docker_executor_v2 = providers.Singleton(DockerExecutorV2,event_bus=event_bus)
     docker_executor = providers.Singleton(DockerExecutor,event_bus=event_bus)
+
     k8s_executor = providers.Singleton(K8sExecutor,event_bus=event_bus)
     slurm_executor = providers.Singleton(SlurmExecutor,event_bus=event_bus)
     local_executor = providers.Singleton(LocalExecutor,event_bus=event_bus)
     job_executor_selector = providers.Selector(
         config.executer_type,
         local=local_executor,
-        docker=docker_executor,
+        docker=docker_executor_v2,
         k8s=k8s_executor,
         slurm=slurm_executor
     )

@@ -137,6 +137,7 @@ analysis_nodes = Table(
     Column("gpu", Integer),
 
     Column("status", String(64)),       # pending/running/done/failed/cached
+    Column("server_status", String(64)),
     Column("pid", Integer),
     Column("job_id", String(255)),
     Column("executor", String(64)),
@@ -159,6 +160,9 @@ analysis_nodes = Table(
     # 日志与目录
     Column("log_path", String(255)),
     Column("workspace_dir", String(255)),
+    Column("output_dir", String(255)),
+    Column("command_path", String(255)),
+    Column("params_path", String(255)),
 
     # 时间
     Column("started_at", DateTime),

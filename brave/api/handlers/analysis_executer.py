@@ -3,13 +3,14 @@ import asyncio
 import json
 from dependency_injector.wiring import inject
 from fastapi import HTTPException
+from brave.api.config.db import get_engine
 from brave.api.core.evenet_bus import EventBus
 from brave.api.core.routers.analysis_executer_router import AnalysisExecutorRouter
 from dependency_injector.wiring import inject, Provide
 from brave.api.core.routers_name import RoutersName
 from brave.api.executor.base import JobExecutor
 from brave.api.schemas.analysis import AnalysisExecuterModal
-from brave.api.service import analysis_service
+from brave.api.service import analysis_node_service, analysis_runtime_engine_service, analysis_service
 from brave.app_container import AppContainer
 from brave.api.core.event import WorkflowEvent
 from brave.api.core.event import AnalysisExecutorEvent
@@ -32,7 +33,11 @@ def setup_handlers(
     async def on_analysis_submitted(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_submitted] {payload.analysis_id}")
         await job_executor.submit_job(payload)
-
+        
+    @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED)
+    async def on_analysis_node_submitted(payload:AnalysisExecuterModal):
+        print(f"🚀 [on_analysis_node_submitted] {payload.analysis_id}")
+        await job_executor.submit_job(payload)
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STOPED)
     async def on_analysis_stoped(payload:AnalysisExecuterModal):
@@ -53,6 +58,9 @@ def setup_handlers(
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"finished"))
         elif payload.run_type =="server":
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"stopped"))
+        elif payload.run_type =="node":
+            asyncio.create_task(analysis_runtime_engine_service.complete_node_conn(payload.analysis_id,"done"))
+
         # if payload.run_type !="retry":
         #     if payload.run_type =="job":
         #         asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
@@ -89,7 +97,9 @@ def setup_handlers(
         print(f"🚀 [on_analysis_failed] {payload.analysis_id}")
         if payload.run_type =="server":
             await analysis_service.update_url(payload.analysis_id,None )
-        if payload.run_type !="retry":
+        elif payload.run_type =="node":
+            asyncio.create_task(analysis_runtime_engine_service.complete_node_conn(payload.analysis_id,"failed"))
+        elif payload.run_type !="retry":
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"failed"))
         await sse_service.push_message({"group": "default", "data": json.dumps({
             "analysis_id": payload.analysis_id,

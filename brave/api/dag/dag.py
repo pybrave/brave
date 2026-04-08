@@ -5,26 +5,37 @@ from typing import Any, Dict, List, Tuple
 import uuid
 import re
 
+# 本文件负责把前端 DAG 定义 + 运行参数，展开为可调度的 runtime 节点与边：
+# 1) 节点分类（sample / aggregate）
+# 2) 按 sample 维度实例化节点
+# 3) 计算输入、预填输出、构建边映射
+# 4) 生成 analysis_nodes / analysis_edges 入库结构
+
 
 def _as_dict(value: Any) -> Dict[str, Any]:
+	"""确保值为 dict，统一处理 None / 非 dict 场景。"""
 	if isinstance(value, dict):
 		return value
 	return {}
 
 
 def _node_key(node: Dict[str, Any]) -> str:
+	"""返回 DAG 节点唯一键（优先 id，回退 name）。"""
 	return str(node.get("id") or node.get("name") or "")
 
 
 def _node_name(node: Dict[str, Any]) -> str:
+	"""返回节点展示名，用于 runtime node_id 的前缀。"""
 	return str(node.get("name") or node.get("id") or "node")
 
 
 def _script_id(node: Dict[str, Any]) -> str:
+	"""返回脚本标识，用于运行时和默认参数匹配。"""
 	return str(node.get("script_id") or node.get("name") or node.get("id") or "")
 
 
 def _sample_label(sample: Dict[str, Any], index: int) -> str:
+	"""为 sample 生成稳定标签（例如 S1/S2），用于 sample 节点实例命名。"""
 	file_name = str(sample.get("file_name") or "").strip()
 	if file_name:
 		if "_" in file_name:
@@ -44,6 +55,7 @@ def _sample_label(sample: Dict[str, Any], index: int) -> str:
 
 
 def _sample_value(sample: Dict[str, Any], handle: str) -> Any:
+	"""从 sample 数据中按 handle 取值，支持弱规范化键名匹配。"""
 	def _norm_key(key: str) -> str:
 		return re.sub(r"[^a-z0-9]", "", key.lower())
 
@@ -63,10 +75,12 @@ def _sample_value(sample: Dict[str, Any], handle: str) -> Any:
 
 
 def _schema_type(schema: Dict[str, Any]) -> str:
+	"""读取 schema 的 type 字段并标准化。"""
 	return str(schema.get("type") or "").strip().lower()
 
 
 def _scatter_field(node: Dict[str, Any]) -> str:
+	"""解析节点 scatter 配置，仅支持 mode=each。"""
 	scatter = _as_dict(node.get("scatter"))
 	if str(scatter.get("mode") or "").strip().lower() != "each":
 		return ""
@@ -79,6 +93,10 @@ def _derive_upstream_sample_labels(
 	node_kind: Dict[str, str],
 	node_labels: Dict[str, List[str]],
 ) -> List[str]:
+	"""推导当前节点应实例化的 sample 标签集合。
+
+	策略：优先取所有 sample 上游标签交集；若交集为空，回退并集。
+	"""
 	label_sets: List[List[str]] = []
 	for in_edge in incoming.get(nid, []):
 		src = str(in_edge.get("source"))
@@ -108,6 +126,7 @@ def _derive_upstream_sample_labels(
 
 
 def _required_property_names(schema: Dict[str, Any]) -> List[str]:
+	"""提取 object schema 内标记 required=true 的属性名。"""
 	return [
 		str(name)
 		for name, cfg in _as_dict(schema.get("properties")).items()
@@ -116,6 +135,7 @@ def _required_property_names(schema: Dict[str, Any]) -> List[str]:
 
 
 def _collect_required_input_errors(input_handle: str, input_schema: Dict[str, Any], value: Any) -> List[str]:
+	"""基于 schema 校验 required 输入，返回错误列表。"""
 	errors: List[str] = []
 	schema_type = _schema_type(input_schema)
 
@@ -153,6 +173,7 @@ def _collect_required_input_errors(input_handle: str, input_schema: Dict[str, An
 
 
 def _project_input_value_by_schema(value: Any, input_schema: Dict[str, Any]) -> Any:
+	"""按输入 schema 投影字段，避免把无关字段注入 params/resolved_inputs。"""
 	schema_type = _schema_type(input_schema)
 
 	if schema_type == "object":
@@ -174,15 +195,18 @@ def _project_input_value_by_schema(value: Any, input_schema: Dict[str, Any]) -> 
 
 
 def _edge_value(edge: Dict[str, Any], camel: str, snake: str) -> str:
+	"""兼容 camelCase/snake_case 两种 edge 字段风格。"""
 	return str(edge.get(camel) or edge.get(snake) or "")
 
 
 def _render_output_pattern(pattern: str, sample: Dict[str, Any], sample_label: str) -> str:
+	"""渲染输出路径模板中的 {sample}。"""
 	sample_name = str(sample.get("file_name") or sample.get("sample_id") or sample_label)
 	return pattern.replace("{sample}", sample_name)
 
 
 def _topology(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> List[str]:
+	"""返回拓扑顺序；若图中存在环，则回退原始节点顺序。"""
 	node_ids = [_node_key(n) for n in nodes]
 	indegree = {nid: 0 for nid in node_ids}
 	graph = defaultdict(list)
@@ -209,6 +233,14 @@ def _topology(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> List[
 
 
 def _classify_nodes(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> Dict[str, str]:
+	"""将节点分类为 sample 或 aggregate。
+
+	规则摘要：
+	- 无入边节点 -> sample
+	- 存在 multiple 输入 -> aggregate
+	- 无下游节点 -> aggregate
+	- 否则根据父节点类别推导
+	"""
 	incoming = defaultdict(list)
 	outgoing = defaultdict(list)
 	node_map = {_node_key(n): n for n in nodes}
@@ -259,10 +291,16 @@ def _classify_nodes(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) ->
 
 
 def _decorate_runtime_graph(analysis_id: str, analysis_nodes: List[Dict[str, Any]], analysis_edges: List[Dict[str, Any]]) -> None:
+	"""补齐入库前 runtime 字段：
+	- 为边规范化 handle 字段命名
+	- 为节点补 analysis_id、analysis_node_id、默认状态
+	- 计算 upstream_ids/downstream_ids
+	"""
 	upstream = defaultdict(set)
 	downstream = defaultdict(set)
 
 	for idx, edge in enumerate(analysis_edges):
+		# 每条边写回 analysis 归属和稳定主键。
 		source_node = str(edge.get("source_node") or "")
 		target_node = str(edge.get("target_node") or "")
 		edge["analysis_id"] = analysis_id
@@ -293,6 +331,7 @@ def _decorate_runtime_graph(analysis_id: str, analysis_nodes: List[Dict[str, Any
 	}
 
 	for node in analysis_nodes:
+		# 节点入库前统一补默认字段，避免后续调度判断缺字段。
 		node_id = str(node.get("node_id") or "")
 		node["analysis_id"] = analysis_id
 		node["analysis_node_id"] = node.get("analysis_node_id") or str(uuid.uuid4())
@@ -306,6 +345,14 @@ def _decorate_runtime_graph(analysis_id: str, analysis_nodes: List[Dict[str, Any
 
 
 def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+	"""将 DAG 定义展开成 runtime 节点/边。
+
+	核心阶段：
+	1) 拓扑排序 + 节点分类
+	2) sample 节点按样本实例化，aggregate 节点按汇总实例化
+	3) 解析输入、预渲染输出、构建输出缓存
+	4) 生成边并做最终图装饰
+	"""
 	with open("debug_dag_definition.json", "w") as f:
 		json.dump(dag_definition, f, indent=2)
 	with open("debug_dag_params.json", "w") as f:
@@ -349,11 +396,13 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 		outputs = _as_dict(node.get("outputs"))
 
 		if node_kind.get(nid) == "sample":
+			# sample 节点：一份样本对应一个 runtime 节点实例（例如 fastp_S1）。
 			scatter_field = _scatter_field(node)
 			node_samples: List[Dict[str, Any]] = []
 			node_sample_labels: List[str] = []
 
 			if scatter_field:
+				# 显式 scatter：直接按 params[scatter_field] 展开。
 				raw_samples = params.get(scatter_field)
 				if not isinstance(raw_samples, list):
 					return {
@@ -363,6 +412,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				node_samples = [dict(item) for item in raw_samples if isinstance(item, dict)]
 				node_sample_labels = [_sample_label(sample, i) for i, sample in enumerate(node_samples)]
 			else:
+				# 非显式 scatter：优先继承 sample 上游标签，保证样本链路连续。
 				upstream_labels = _derive_upstream_sample_labels(nid, incoming, node_kind, node_labels)
 				if upstream_labels:
 					node_sample_labels = list(upstream_labels)
@@ -395,6 +445,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				input_validation_errors: List[str] = []
 
 				for input_handle in inputs.keys():
+					# 优先从入边上游输出缓存取值；取不到时回退到样本直传值。
 					input_schema = _as_dict(inputs.get(input_handle))
 					in_edge_match = next(
 						(e for e in incoming[nid] if _edge_value(e, "targetHandle", "target_handle") == input_handle),
@@ -430,6 +481,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				node_resolved_outputs: Dict[str, Any] = {}
 				has_input_errors = len(input_validation_errors) > 0
 				for output_handle, output_cfg in outputs.items():
+					# 输入有错误时输出保持 None，避免错误数据继续传播。
 					output_value = None
 					if not has_input_errors:
 						output_value = node_params.get(output_handle)
@@ -458,6 +510,9 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				)
 
 			for e in outgoing[nid]:
+				# 展开 sample 出边：
+				# - 目标是 sample 节点时，按 label 对齐连边
+				# - 目标是 aggregate 节点时，所有 sample 实例汇聚到目标节点
 				target = str(e.get("target"))
 				target_name = _node_name(node_map[target])
 				target_kind = node_kind.get(target, "sample")
@@ -511,12 +566,14 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						)
 
 		else:
+			# aggregate 节点：只生成一个实例，输入可能来自多个 sample 上游。
 			node_instance = name
 			node_params = dict(_as_dict(node_params_defaults))
 			resolved_inputs: Dict[str, Any] = {}
 			input_validation_errors: List[str] = []
 
 			for input_handle in inputs.keys():
+				# 收集所有匹配入边值；multiple 或多值时按 list 写入。
 				values: List[Any] = []
 				input_schema = _as_dict(inputs.get(input_handle))
 				for in_edge in incoming[nid]:
@@ -554,6 +611,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 			node_resolved_outputs: Dict[str, Any] = {}
 			has_input_errors = len(input_validation_errors) > 0
 			for output_handle, output_cfg in outputs.items():
+				# aggregate 输出中的 {sample} 固定渲染为 merged。
 				output_value = None
 				if not has_input_errors:
 					output_value = node_params.get(output_handle)

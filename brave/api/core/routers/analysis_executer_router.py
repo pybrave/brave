@@ -30,14 +30,14 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
                 # if payload.run_type =="retry":
                 #     payload = AnalysisExecuterModal(analysis_id=payload.analysis_id,run_type=payload.run_type)
                 # else:
-                with get_engine().begin() as conn:
+                # with get_engine().begin() as conn:
                     
-                    analysis =  analysis_service.find_analysis_by_id(conn,analysis_id)
-                    if analysis:
-                        payload = AnalysisExecuterModal(run_id=payload.run_id,**analysis)
-                    else:
+                #     analysis =  analysis_service.find_analysis_by_id(conn,analysis_id)
+                #     if analysis:
+                #         payload = AnalysisExecuterModal(run_id=payload.run_id,**analysis)
+                #     else:
                        
-                        payload = AnalysisExecuterModal(run_id=payload.run_id,analysis_id=analysis_id)
+                payload = AnalysisExecuterModal(run_id=payload.run_id,analysis_id=analysis_id)
 
                 # payload = AnalysisExecuterModal(analysis_id=payload.analysis_id)
         elif event == AnalysisExecutorEvent.ON_CONTAINER_PULLED:
@@ -59,6 +59,8 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
             payload.run_type = "nxf"
         elif run_id.startswith("tools-"):
             payload.run_type = "tools"
+        elif run_id.startswith("node-"):
+            payload.run_type = "node"
         else:
             raise ValueError(f"Invalid run_id format: {run_id}")
             

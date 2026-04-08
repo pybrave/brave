@@ -1,9 +1,21 @@
+from fastapi import HTTPException
+
+from brave.api.config.config import get_settings
+from brave.api.config.db import get_engine
+from brave.api.enum.component_script import ScriptName
 from brave.api.models.core import analysis_nodes
+from brave.api.schemas.analysis import AnalysisExecuterModal
 from brave.api.schemas.analysis_task import PageAnalysisNodeQuery
-from sqlalchemy import and_, desc, select, or_, func
+from sqlalchemy import and_, desc, select, or_, func, update
 from collections import defaultdict
 from datetime import datetime
 import uuid
+from brave.api.models.core import t_pipeline_components,t_container
+from brave.api.utils.file_utils import delete_all_in_dir
+import  brave.api.service.pipeline as   pipeline_service
+from pathlib import Path
+from brave.api.service import analysis_edge_service
+
 
 
 def _as_dict(value):
@@ -123,6 +135,9 @@ def create_many(conn, rows: list[dict]):
                 "resolved_inputs": row.get("resolved_inputs"),
                 "output_patterns": row.get("output_patterns"),
                 "resolved_outputs": row.get("resolved_outputs"),
+                "output_dir": row.get("output_dir"),
+                "params_path": row.get("params_path"),
+                "command_path": row.get("command_path"),
                 "params": row.get("params"),
                 "cpu": row.get("cpu"),
                 "memory": row.get("memory"),
@@ -145,6 +160,7 @@ def create_many(conn, rows: list[dict]):
                 "workspace_dir": row.get("workspace_dir"),
                 "started_at": row.get("started_at"),
                 "finished_at": row.get("finished_at"),
+
             }
         )
 
@@ -160,6 +176,12 @@ def replace_by_analysis_id(conn, analysis_id: str, rows: list[dict]):
 def find_by_analysis_id(conn, analysis_id: str):
     stmt = analysis_nodes.select().where(analysis_nodes.c.analysis_id == analysis_id)
     return conn.execute(stmt).mappings().all()
+
+def find_by_analysis_node_id(conn,  node_id: str):
+    stmt = analysis_nodes.select().where(
+       analysis_nodes.c.analysis_node_id == node_id
+    )
+    return conn.execute(stmt).mappings().first()
 
 
 def find_node(conn, analysis_id: str, node_id: str):
@@ -234,7 +256,6 @@ def refresh_ready_status(conn, analysis_id: str):
     nodes = [dict(n) for n in find_by_analysis_id(conn, analysis_id)]
     node_map = {str(n.get("node_id") or ""): n for n in nodes}
 
-    from brave.api.service import analysis_edge_service
     edges = analysis_edge_service.find_by_analysis_id(conn, analysis_id)
 
     incoming = defaultdict(list)
@@ -320,7 +341,18 @@ def page_analysis_nodes(conn, query: PageAnalysisNodeQuery):
     if not query.page_number or query.page_number < 1:
         query.page_number = 1
 
-    stmt = select(analysis_nodes)
+    stmt = select(analysis_nodes,
+                    t_pipeline_components.c.component_name.label("component_name"),
+                    t_container.c.name.label("container_name"),
+                    t_container.c.image.label("container_image"),
+                    t_container.c.container_id.label("container_id"),
+                    t_container.c.image_status.label("image_status"),
+                    t_container.c.image_id.label("image_id"),
+                  )
+    stmt = stmt.select_from(
+            analysis_nodes.outerjoin(t_pipeline_components, analysis_nodes.c.script_id==t_pipeline_components.c.component_id)
+            .outerjoin(t_container,t_pipeline_components.c.container_id==t_container.c.container_id)
+    )
     conditions = []
 
     if query.analysis_id:
@@ -348,3 +380,138 @@ def page_analysis_nodes(conn, query: PageAnalysisNodeQuery):
         "page_number": query.page_number,
         "page_size": query.page_size,
     }
+
+async def finished_analysis_node_conn(analysis_id,run_type,status):
+    with get_engine().begin() as conn:  
+        finished_analysis_node(conn,analysis_id,run_type,status)
+  
+
+def finished_analysis_node(conn,analysis_node_id,run_type,status):
+    if run_type =="tools":
+        return
+    if run_type == "node":
+        stmt = (
+            update(analysis_nodes)
+            .where(analysis_nodes.c.analysis_node_id == analysis_node_id)
+            .values(status = status)
+        )
+    elif run_type == "server":
+        stmt = (
+            update(analysis_nodes)
+            .where(analysis_nodes.c.analysis_node_id == analysis_node_id)
+            .values(server_status = status)
+        )
+    else:
+        raise ValueError(f"Invalid run_type: {run_type}")
+    
+    conn.execute(stmt)
+    # conn.commit()
+    print(f"Analysis {analysis_node_id} {status}")
+
+
+def create_analysis_node_runtime(analysis_node):
+    workspace_dir = Path(analysis_node["workspace_dir"])
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    output_dir =Path(analysis_node["output_dir"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    command_path = Path(analysis_node["command_path"])
+    command_path.touch(exist_ok=True)
+    params_path = Path(analysis_node["params_path"])
+    params_path.touch(exist_ok=True)
+
+
+
+
+async def run_analysis_node(conn,analysis_node,run_type):
+    analysis_node_id = analysis_node['analysis_node_id']
+    create_analysis_node_runtime(analysis_node)
+    if run_type=="node":
+        output_dir = f"{analysis_node['output_dir']}"
+        delete_all_in_dir(output_dir)
+    
+    
+    component = conn.execute(select(t_pipeline_components).where(t_pipeline_components.c.component_id==analysis_node['script_id'])).mappings().first()
+
+    if   not component["container_id"]:
+        raise HTTPException(status_code=500, detail=f"please config container id") 
+
+    # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
+    analysis_node = dict(analysis_node)
+    analysis_node["run_id"] = f"{run_type}-{analysis_node_id}"
+
+
+    analysis_node["container_id"] =component["container_id"]
+    # if run_type == "node":
+    #     analysis_node["container_id"] =component["container_id"]
+    # # elif run_type == "tools":
+    # #     analysis_["container_id"] = tool_container_id
+    # #     analysis_["run_id"] = f"{run_type}-{analysis_id}-{tool_container_id}"
+    # else:
+    #     # if component_type=="script":
+    #     analysis_node["container_id"] =component["container_id"]
+        # else: 
+        #     if not component["sub_container_id"]:
+        #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
+        #     analysis_node["container_id"] = component["sub_container_id"]
+
+    # settings = get_settings()
+    # pipeline_dir = str(settings.PIPELINE_DIR)
+    component_script = pipeline_service.find_component_module(component,ScriptName.main)['path']
+    analysis_node["script_path"] = component_script
+
+    analysis_node["analysis_id"] = analysis_node_id
+    # analysis_node["log_path"] = analysis_node["command_log_path"]
+    # analysis_node["output_dir"] = analysis_node['output_dir']
+    # analysis_["image"] = find_container["image"]
+    analysis_executer_modal = AnalysisExecuterModal(**analysis_node)
+    # analysis_.image = find_container["image"]
+    finished_analysis_node(conn,analysis_node_id,run_type,"running")
+    return analysis_executer_modal
+    # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
+    # conn.execute(stmt)
+
+def add_run_id(item):
+    item= dict(item)
+    if item['status'] == "running":
+        item['run_id'] = f"node-{item['analysis_node_id']}"
+        item['run_type'] = "node"
+    elif item['server_status'] == "running" or item['server_status'] == "stopping":
+        item['run_id'] = f"server-{item['analysis_node_id']}"
+        item['run_type'] = "server"
+    return item
+
+def find_running_analysis_node(conn):
+    stmt = select(analysis_nodes).where(or_(
+        analysis_nodes.c.status == "running",
+        analysis_nodes.c.server_status == "running",
+        analysis_nodes.c.server_status == "stopping"))
+    result = conn.execute(stmt).mappings().all()
+    result = [add_run_id(item) for item in result]
+    return result
+
+def _build_workspace_dir(project_id: str, analysis_id: str, node_id: str) -> Path:
+    settings = get_settings()
+    return Path(settings.ANALYSIS_DIR) / project_id / analysis_id / node_id
+
+
+def init_node_path(analysis, node_list):
+
+
+    for node in node_list:
+        analysis_node_id = str(uuid.uuid4())
+        workspace_dir = _build_workspace_dir(analysis['project'], analysis['analysis_id'], analysis_node_id)
+        output_dir = workspace_dir / "output"
+        params_path = f"{workspace_dir}/params.json"
+        command_path= f"{workspace_dir}/run.sh"
+        node['analysis_node_id'] = analysis_node_id
+        node['workspace_dir'] = str(workspace_dir)
+        node['output_dir'] = str(output_dir)
+        node["log_path"] = str(workspace_dir / "command.log")
+        node["params_path"] = params_path
+        node["command_path"] = command_path
+
+
+
+        
+    return node_list

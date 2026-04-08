@@ -46,7 +46,8 @@ class Analysis(BaseModel):
 class AnalysisExecuterModal(BaseModel):
     id: Optional[int]=None
     project: Optional[str]=None
-    analysis_id: str
+    analysis_id: Optional[str]=None
+    analysis_node_id: Optional[str]=None
     run_id:str
     component_id: Optional[str]=None
     analysis_method: Optional[str]=None
@@ -68,6 +69,9 @@ class AnalysisExecuterModal(BaseModel):
     container_id: Optional[str]=None
     # change_uid: Optional[str]=None
     ports: Optional[Any]=None
+    log_path: Optional[str]=None
+    script_path: Optional[str]=None
+    workspace_dir: Optional[str]=None
 
 class AnalysisId(BaseModel):
     run_id: str

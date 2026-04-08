@@ -4,7 +4,15 @@ import os
 
 import pandas as pd
 
+from brave.api.config.config import get_settings
+
 def delete_all_in_dir(path):
+    settings = get_settings()
+    analysis_dir = settings.ANALYSIS_DIR
+    if not path.startswith(str(analysis_dir)):
+        print(f"{path} 不在分析目录中，无法删除")
+        return
+
     print(f"delete file: {path}")
     if not os.path.exists(path):
         print(f"{path} 不存在")

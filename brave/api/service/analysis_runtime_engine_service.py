@@ -11,6 +11,10 @@ from brave.api.config.db import get_engine
 from brave.api.service import analysis_edge_service, analysis_node_service
 
 
+# Runtime 状态约定：
+# - TERMINAL_STATUS: 节点进入这些状态后，调度器视为“已结束”
+# - SUCCESS_STATUS: 会触发输出传播到下游输入
+
 TERMINAL_STATUS = {"done", "failed", "cached", "skipped"}
 SUCCESS_STATUS = {"done", "cached"}
 SIMULATED_MIN_SLEEP_SECONDS = 0.5
@@ -18,17 +22,26 @@ SIMULATED_MAX_SLEEP_SECONDS = 2.0
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
+    """保证返回 dict，避免 JSON 字段为空或类型异常时出现 KeyError。"""
     if isinstance(value, dict):
         return value
     return {}
 
 
 def _render_pattern(pattern: str, node: Dict[str, Any]) -> str:
+    """将输出 pattern 中的 {sample} 替换为节点样本标识。"""
     sample_token = str(node.get("sample_id") or node.get("node_id") or "sample")
     return pattern.replace("{sample}", sample_token)
 
 
 def _build_simulated_outputs(node: Dict[str, Any]) -> Dict[str, Any]:
+    """为模拟执行生成输出。
+
+    优先级：
+    1) output_patterns 中声明的 pattern
+    2) params 中同名 handle 的值
+    3) 已存在的 resolved_outputs（兜底）
+    """
     output_patterns = _as_dict(node.get("output_patterns"))
     outputs: Dict[str, Any] = {}
 
@@ -50,6 +63,7 @@ def _build_simulated_outputs(node: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _propagate_outputs(conn, analysis_id: str, source_node_id: str, outputs: Dict[str, Any]) -> None:
+    """将上游节点输出按边映射写入下游节点的 params/resolved_inputs。"""
     edges = analysis_edge_service.find_by_analysis_id(conn, analysis_id)
 
     for edge in edges:
@@ -78,6 +92,7 @@ def _propagate_outputs(conn, analysis_id: str, source_node_id: str, outputs: Dic
         is_multiple = bool(target_input_cfg.get("multiple"))
 
         if is_multiple:
+            # multiple=true 时，下游输入聚合为列表。
             current = params.get(target_handle)
             if not isinstance(current, list):
                 current = [] if current is None else [current]
@@ -90,6 +105,7 @@ def _propagate_outputs(conn, analysis_id: str, source_node_id: str, outputs: Dic
             resolved_current.append(value)
             resolved_inputs[target_handle] = resolved_current
         else:
+            # 非 multiple 输入：覆盖同名 handle。
             params[target_handle] = value
             resolved_inputs[target_handle] = value
 
@@ -105,6 +121,7 @@ def _propagate_outputs(conn, analysis_id: str, source_node_id: str, outputs: Dic
 
 
 def get_runtime_snapshot(conn, analysis_id: str) -> Dict[str, Any]:
+    """返回运行时快照：节点状态分布、ready 列表和流程是否结束。"""
     analysis_node_service.refresh_ready_status(conn, analysis_id)
     nodes = [dict(row) for row in analysis_node_service.find_by_analysis_id(conn, analysis_id)]
     ready_nodes = [n for n in nodes if str(n.get("status") or "") == "ready"]
@@ -127,36 +144,53 @@ def get_runtime_snapshot(conn, analysis_id: str) -> Dict[str, Any]:
 
 
 def schedule_next(conn, analysis_id: str) -> Optional[Dict[str, Any]]:
+    """领取一个可执行节点（ready -> running）。"""
 
     return analysis_node_service.claim_next_ready_node(conn, analysis_id)
 
-def _build_workspace_dir(analysis_id: str, node_id: str) -> Path:
+def _build_workspace_dir(project_id: str, analysis_id: str, node_id: str) -> Path:
+    """构造模拟执行工作目录。"""
     settings = get_settings()
-    return Path(settings.WORK_DIR) / "analysis-runtime" / analysis_id / node_id
+    return Path(settings.ANALYSIS_DIR) / project_id / analysis_id / node_id
 
 
-async def run_simulated_executor(
-    analysis_id: str,
-    node_id: str,
+async def  run_simulated_executor(
+    analysis_node_id: str,
     sleep_seconds: Optional[float] = None,
 ) -> Dict[str, Any]:
+    """模拟节点执行。
+
+    行为：
+    1) 创建工作目录并写回 workspace_dir
+    2) 随机 sleep（模拟执行耗时）
+    3) 若节点仍处于 running，则自动 complete 为 done
+    4) 执行异常时，自动标记 failed
+    """
     delay = float(
         sleep_seconds
         if sleep_seconds is not None
         else random.uniform(SIMULATED_MIN_SLEEP_SECONDS, SIMULATED_MAX_SLEEP_SECONDS)
     )
-    workspace_dir = _build_workspace_dir(analysis_id=analysis_id, node_id=node_id)
-    workspace_dir.mkdir(parents=True, exist_ok=True)
-
     with get_engine().begin() as conn:
-        analysis_node_service.update_node(
-            conn,
-            analysis_id=analysis_id,
-            node_id=node_id,
-            values={
-                "workspace_dir": str(workspace_dir),
-            },
-        )
+        analsyis_node = analysis_node_service.find_by_analysis_node_id(conn, analysis_node_id)
+    workspace_dir = Path(analsyis_node["workspace_dir"]) #_build_workspace_dir(project_id=project_id, analysis_id=analysis_id, node_id=node_id)
+    output_dir = workspace_dir / "output"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    analysis_id = str(analsyis_node.get("analysis_id") or "")
+    node_id = str(analsyis_node.get("node_id") or "")
+
+    # with get_engine().begin() as conn:
+    #     analysis_node_service.update_node(
+    #         conn,
+    #         analysis_id=analysis_id,
+    #         node_id=node_id,
+    #         values={
+    #             "workspace_dir": str(workspace_dir),
+    #             "output_dir": str(output_dir),
+    #         },
+    #     )
 
     await asyncio.sleep(max(delay, 0.0))
 
@@ -174,6 +208,7 @@ async def run_simulated_executor(
 
             latest_status = str(latest_node.get("status") or "")
             if latest_status != "running":
+                # 避免重复完成：如果节点已被外部上报成 done/failed，则忽略本次模拟回写。
                 return {
                     "analysis_id": analysis_id,
                     "node_id": node_id,
@@ -198,6 +233,7 @@ async def run_simulated_executor(
                 "result": complete_result,
             }
     except Exception as exc:
+        # 保底失败回写：若异常发生且节点仍在 running，则转 failed 防止卡死。
         with get_engine().begin() as conn:
             latest_node = analysis_node_service.find_node(conn, analysis_id, node_id)
             if latest_node and str(latest_node.get("status") or "") == "running":
@@ -217,6 +253,13 @@ async def run_simulated_executor(
             "workspace_dir": str(workspace_dir),
             "error": str(exc),
         }
+    
+async def complete_node_conn(analysis_node_id, status):
+    with get_engine().begin() as conn:  
+        analysis_node = analysis_node_service.find_by_analysis_node_id(conn, analysis_node_id)
+        analysis_id = str(analysis_node.get("analysis_id") or "")
+        node_id = str(analysis_node.get("node_id") or "")
+        complete_node(conn,analysis_id=analysis_id,node_id=node_id,status=status)
 
 
 def complete_node(
@@ -228,6 +271,12 @@ def complete_node(
     exit_code: Optional[int] = 0,
     error_message: Optional[str] = None,
 ) -> Dict[str, Any]:
+    """节点完结入口。
+
+    - done/cached: 写输出并传播到下游
+    - failed: 按 retry/max_retry 自动回退到 pending 或最终 failed
+    - 其他状态：直接写状态
+    """
     node = analysis_node_service.find_node(conn, analysis_id, node_id)
     if not node:
         raise ValueError(f"node not found: analysis_id={analysis_id}, node_id={node_id}")
@@ -251,6 +300,7 @@ def complete_node(
         )
         _propagate_outputs(conn, analysis_id=analysis_id, source_node_id=node_id, outputs=final_outputs)
     elif status == "failed":
+        # 失败自动重试：未超限则重置为 pending，等待再次调度。
         should_retry = current_retry < max_retry
         if should_retry:
             analysis_node_service.update_node(
@@ -303,6 +353,7 @@ def complete_node(
 
 
 def auto_run(conn, analysis_id: str, max_steps: int = 10000) -> Dict[str, Any]:
+    """同步自动跑完整个 DAG（测试/调试用途，不模拟耗时）。"""
     analysis_node_service.refresh_ready_status(conn, analysis_id)
     executed = []
     for _ in range(max_steps):

@@ -552,6 +552,10 @@ def dag_runtime_generate(conn, analysis_id,params, dag_definition):
     )
 
     analysis_nodes = runtime.get("analysis_nodes", [])
+    # init node path
+    find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+    analysis_nodes = analysis_node_service.init_node_path(find_analysis, analysis_nodes)
+
     analysis_edges = runtime.get("analysis_edges", [])
 
     analysis_node_service.replace_by_analysis_id(conn, analysis_id, analysis_nodes)
@@ -1124,3 +1128,58 @@ async def list_analysis(project_id):
 
 
 
+
+
+
+
+
+# stop analysis node
+@analysis_api.post("/analysis/stop-analysis-node/{analysis_node_id}")
+@inject
+async def stop_analysis_node(
+    analysis_node_id,
+    run_type,
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+
+
+    with get_engine().begin() as conn:
+        analysis_node = analysis_node_service.find_by_analysis_node_id(conn,analysis_node_id)
+
+        if  analysis_node is None:
+            raise HTTPException(status_code=404, detail="Analysis Node not found")
+        
+        analysis_node_service.finished_analysis_node(conn,analysis_node_id,run_type,"stopping")
+
+        run_id = f"{run_type}-{analysis_node_id}"
+        analysis_executer_modal = AnalysisExecuterModal(run_id=run_id,analysis_id=analysis_node_id)
+
+
+        asyncio.create_task(evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_STOPED,analysis_executer_modal))
+        
+    
+        return {"msg":"success"}
+
+# run analysis node
+@analysis_api.post("/run-analysis-node/{analysis_node_id}")
+@inject
+async def run_analysis_node(
+    analysis_node_id,
+    run_type:str="job",
+    tool_container_id:Optional[str]=None,
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+
+
+    with get_engine().begin() as conn:
+        # stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        # result = conn.execute(stmt)
+        # analysis_ = result.mappings().first()
+        analysis_node = analysis_node_service.find_by_analysis_node_id(conn,analysis_node_id)
+        if analysis_node is None:
+            raise HTTPException(status_code=404, detail="Analysis Node not found")
+        # await analysis_service.run_analysis(conn,analysis_,run_type,evenet_bus)
+        analysis_executer_modal = await analysis_node_service.run_analysis_node(conn,analysis_node,run_type)
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED,analysis_executer_modal)
+
+    return {"msg":"success"}

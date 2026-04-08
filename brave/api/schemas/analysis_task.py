@@ -33,6 +33,7 @@ class PageAnalysisEdgeQuery(BaseModel):
 
 class RuntimeScheduleQuery(BaseModel):
     analysis_id: str
+    
 
 
 class RuntimeNodeReport(BaseModel):
