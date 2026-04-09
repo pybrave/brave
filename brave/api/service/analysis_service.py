@@ -533,10 +533,13 @@ def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_param
 
     command_path = Path(analysis_node["command_path"])
     params_path = Path(analysis_node["params_path"])
+    resolved_inputs = analysis_node.get("resolved_inputs",{})
     with open(analysis_params_path,"r") as f:
         analysis_params = json.load(f)
+        resolved_inputs = {**analysis_params, **resolved_inputs}
+
     with open(params_path,"w") as f:
-        json.dump(analysis_params,f)
+        json.dump(resolved_inputs,f)
     
     if script_type == "r":
         with open(command_path,"w") as f:

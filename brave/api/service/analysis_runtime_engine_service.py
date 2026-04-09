@@ -377,6 +377,10 @@ def complete_node(
 
     current_retry = int(node.get("retry") or 0)
     max_retry = int(node.get("max_retry") or 0)
+    force_terminal_failed = False
+    output_errors: List[str] = []
+    if status =="failed":
+        error_message = error_message or "node execution failed"
 
     if status in SUCCESS_STATUS:
         candidate_outputs = resolved_outputs or _build_simulated_outputs(node)
@@ -385,10 +389,11 @@ def complete_node(
         if output_errors:
             # 仅当真实文件存在时才允许 done/cached；否则按失败处理。
             status = "failed"
+            force_terminal_failed = True
             if exit_code in (None, 0):
                 exit_code = 1
-            merged_error = "; ".join(output_errors)
-            error_message = f"output validation failed: {merged_error}"
+            # merged_error = "; ".join(output_errors)
+            # error_message = f"output validation failed: {merged_error}"
         else:
             analysis_node_service.update_node(
                 conn,
@@ -397,6 +402,7 @@ def complete_node(
                 values={
                     "status": status,
                     "resolved_outputs": final_outputs,
+                    "output_validation_errors": [],
                     "exit_code": exit_code,
                     "error_message": None,
                     "finished_at": datetime.now(),
@@ -405,7 +411,7 @@ def complete_node(
             _propagate_outputs(conn, analysis_id=analysis_id, source_node_id=node_id, outputs=final_outputs)
     if status == "failed":
         # 失败自动重试：未超限则重置为 pending，等待再次调度。
-        should_retry = current_retry < max_retry
+        should_retry = (not force_terminal_failed) and current_retry < max_retry
         if should_retry:
             analysis_node_service.update_node(
                 conn,
@@ -427,6 +433,7 @@ def complete_node(
                     "status": "failed",
                     "exit_code": exit_code,
                     "error_message": error_message,
+                    "output_validation_errors": output_errors if force_terminal_failed else [],
                     "finished_at": datetime.now(),
                 },
             )
@@ -438,7 +445,7 @@ def complete_node(
             values={
                 "status": status,
                 "exit_code": exit_code,
-                "error_message": error_message,
+                "error_message": None,
                 "finished_at": datetime.now() if status in TERMINAL_STATUS else None,
             },
         )

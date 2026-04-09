@@ -156,6 +156,7 @@ analysis_nodes = Table(
     Column("upstream_ids", JSON),       # list
     Column("downstream_ids", JSON),
     Column("input_validation_errors", JSON),
+    Column("output_validation_errors", JSON),
 
     # 日志与目录
     Column("log_path", String(255)),
