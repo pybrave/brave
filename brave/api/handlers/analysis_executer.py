@@ -75,15 +75,26 @@ def setup_handlers(
         #     elif payload.run_type =="server":
         #         await analysis_service.update_ports(payload.analysis_id,None )
                 
-            
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "analysis",
+                "id":  payload.analysis_id,
+                "method": "updateFormStatus",
+                "args": {
+                    "status": "done"
+                }
+            }
+        }
 
-        await sse_service.push_message({"group": "default", "data": json.dumps({
-            "analysis_id": payload.analysis_id,
-            "event": "analysis_complete",
-             "run_id": payload.run_id,
-            "run_type":payload.run_type
+        # {
+        #     "analysis_id": payload.analysis_id,
+        #     "event": "analysis_complete",
+        #      "run_id": payload.run_id,
+        #     "run_type":payload.run_type
             
-            })})
+        #     }
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STARTED)
     async def on_analysis_started(payload:AnalysisExecuterModal):

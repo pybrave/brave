@@ -1341,7 +1341,13 @@ async def get_components_by_relation_id(relation_id):
     with get_engine().begin() as conn:
         return pipeline_service.get_components_by_relation_id(conn,relation_id)
 
+@pipeline.get("/component/get-components-v2/{relation_id}",tags=['pipeline'])
+async def get_components_by_relation_id_v2(relation_id):
+    with get_engine().begin() as conn:
+        return pipeline_service.get_components_by_relation_id_v2(conn,relation_id)
 
+
+  
   
 
 @pipeline.post("/component/save-script/{component_id}",tags=['pipeline'])
@@ -1365,3 +1371,13 @@ async def save_script_by_component_id(component_id, fileConetent:FileConetent):
 async def get_workflow(tool_id):
     with get_engine().begin() as conn:
         return pipeline_service.get_workflow_vis(conn, tool_id)
+
+@pipeline.get("/tools/get-from-json/{relation_id}",tags=['pipeline'])
+async def get_from_json_by_relation_id(relation_id):
+    with get_engine().begin() as conn:
+        formJsonWarp = pipeline_service.get_from_json_by_relation_id(conn, relation_id)
+        return {
+            "type":"tools",
+            "formJson": formJsonWarp
+        }
+                        

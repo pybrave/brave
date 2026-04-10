@@ -1280,6 +1280,68 @@ def get_components_by_relation_id(conn,relation_id):
     return result
 
 
+def get_components_by_relation_id_v2(conn,relation_id):
+    stmt = (
+        select(
+            t_pipeline_components_relation,  # 关系表所有字段
+            # t_pipeline_components.c.script_type,
+            # t_pipeline_components.c.content,
+            # t_pipeline_components.c.description.label("component_description"),
+        )
+        # .select_from(
+        #     t_pipeline_components_relation.outerjoin(
+        #         t_pipeline_components,
+        #         t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
+        #     )
+        # )
+        .where(t_pipeline_components_relation.c.relation_id == relation_id)
+    )
+
+    result = conn.execute(stmt).mappings().first()
+    result = dict(result)
+    input_component_ids = result['input_component_ids']
+    if input_component_ids:
+        # input_component_ids = json.loads(input_component_ids)
+        input_components = find_by_component_ids(conn, input_component_ids)
+        result['inputFile'] = [format_pipeline_componnet_one(dict(item)) for item in input_components]
+    
+    output_component_ids = result['output_component_ids']
+    if output_component_ids:
+        # output_component_ids = json.loads(output_component_ids)
+        output_components = find_by_component_ids(conn, output_component_ids)
+        result['outputFile'] = [format_pipeline_componnet_one(dict(item)) for item in output_components]
+    
+    # dag_definition = result.get("dag_definition")
+    # formJsonWarp = []
+    # if dag_definition:
+    #     dag_definition= json.loads(dag_definition)
+    #     if "nodes" in dag_definition:
+    #         nodes = dag_definition["nodes"]
+    #         script_ids = [ node["script_id"] for node in nodes if "script_id" in node and node["script_id"] is not None]
+    #         if script_ids:
+    #             scripts = find_by_component_ids(conn, script_ids)
+    #             for script in scripts:
+    #                 script = dict(script)
+    #                 if script["content"]:
+    #                     content = json.loads(script["content"])
+    #                     formJsonWarp.append({
+    #                         "script_id": script["component_id"],
+    #                         "scpipt_name": script["component_name"],
+    #                         "content": content,
+    #                     })
+                       
+                   
+    # result["formJson"] = formJsonWarp            
+           
+    # if result['content']:
+    #     content = json.loads(result['content'])
+    #     if "formJson" in content:
+    #         result['formJson'] = content['formJson']
+    #     if "databases" in content:
+    #         result['databases'] = content['databases']
+    return result
+
+
 
 
 
@@ -1373,3 +1435,27 @@ def get_workflow(conn, tool_id):
     dag_definition["nodes"] = nodes_res            
 
     return dag_definition
+
+
+def get_from_json_by_relation_id(conn, relation_id):
+    find_relation = find_by_relation_id(conn,relation_id)
+    dag_definition = find_relation.get("dag_definition")
+    formJsonWarp = []
+    if dag_definition:
+        # dag_definition= json.loads(dag_definition)
+        if "nodes" in dag_definition:
+            nodes = dag_definition["nodes"]
+            script_ids = [ node["script_id"] for node in nodes if "script_id" in node and node["script_id"] is not None]
+            if script_ids:
+                scripts = find_by_component_ids(conn, script_ids)
+                for script in scripts:
+                    script = dict(script)
+                    if script["content"]:
+                        content = json.loads(script["content"])
+                        # formJsonWarp.append({
+                        #     "script_id": script["component_id"],
+                        #     "scpipt_name": script["component_name"],
+                        #     "content": content,
+                        # })
+                        formJsonWarp.extend(content["formJson"])
+    return formJsonWarp

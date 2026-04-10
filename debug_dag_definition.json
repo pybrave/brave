@@ -22,6 +22,7 @@
       "color": "green",
       "icon": "scissors",
       "script_id": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
+      "report": true,
       "position": {
         "x": 26.04082969901404,
         "y": -48.39481599243771
@@ -45,6 +46,7 @@
       "color": "green",
       "icon": "scissors",
       "script_id": "1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1ae",
+      "report": true,
       "position": {
         "x": 250.126903989516,
         "y": -122.63631383332975
@@ -62,12 +64,13 @@
       "outputs": {
         "png": {
           "type": "file",
-          "pattern": "{sample}_heatmap.png"
+          "pattern": "*_heatmap.png"
         }
       },
       "color": "green",
       "icon": "scissors",
       "script_id": "c3cf7d40-bb70-4cce-a91f-25f204407935",
+      "report": true,
       "position": {
         "x": 254.626903989516,
         "y": 9.863686166670249

@@ -63,11 +63,12 @@ def dag_runtime_generate(conn, find_analysis, params, dag_definition):
     analysis_nodes = runtime.get("analysis_nodes", [])
     # init node path
     # find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
-    analysis_nodes = analysis_node_service.init_node_path(find_analysis, analysis_nodes)
+    # analysis_nodes = analysis_node_service.init_node_path(find_analysis, analysis_nodes)
 
     analysis_edges = runtime.get("analysis_edges", [])
 
-    analysis_node_service.replace_by_analysis_id(conn, analysis_id, analysis_nodes)
+    # analysis_node_service.replace_by_analysis_id(conn, analysis_id, analysis_nodes)
+    analysis_node_service.update_by_analysis_id(conn, analysis_id, analysis_nodes,find_analysis)
     analysis_edge_service.replace_by_analysis_id(conn, analysis_id, analysis_edges)
     analysis_node_service.refresh_ready_status(conn, analysis_id)
 
@@ -125,7 +126,7 @@ class BaseAnalysis(ABC):
 
 
 
-    async def save_analysis(self,conn,request_param,parse_analysis_result,component,is_report):
+    async def save_analysis(self,conn,request_param,parse_analysis_result,component,is_report,is_cache):
         # parse_analysis_result,component = self.get_parames(request_param)
 
 
@@ -199,6 +200,8 @@ class BaseAnalysis(ABC):
                 **find_analysis,
                 **new_analysis
             }
+            if is_cache:
+                analysis_node_service.update_status_ready_by_analysis_id(conn, request_param['analysis_id'])
         else:
             print("create analysis")
             settings = get_settings()
@@ -291,13 +294,17 @@ class BaseAnalysis(ABC):
             stmt = t_analysis.insert().values(new_analysis)
             conn.execute(stmt)
 
+            
+
+        # if is_submit:
+            # await self.submit_analysis(new_analysis)
+        if not is_cache:
             dag_definition = component["dag_definition"]
             if dag_definition:
                 dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
                 dag_runtime_generate(conn, new_analysis, parse_analysis_result, dag_definition)
-
-        # if is_submit:
-            # await self.submit_analysis(new_analysis)
+       
+            
         return new_analysis
 
     

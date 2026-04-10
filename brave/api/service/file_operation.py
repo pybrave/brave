@@ -194,6 +194,9 @@ async def visualization_results(path):
     # oss_utils.list_objects()
 
     path = f"{path}/output"
+    return await visualization_results_path(path)
+  
+async def visualization_results_path(path):
     images = []
     for ext in ("*.png", "*.jpg", "*.jpeg","*.pdf"):
         images.extend(glob.glob(os.path.join(path, ext)))

@@ -129,6 +129,17 @@ async def send_message2(sse_service:SSESessionService = Depends(Provide[AppConta
             }, {"action": "ui.show_message", "payload": {"type": "success", "text": "工具创建成功"}}
         ]
     }
+    data = {
+        "action": "component.invoke",
+        "payload": {
+            "category": "analysis",
+            "id": "params-form",
+            "method": "updateFormStatus",
+            "args": {
+                "status": "done"
+            }
+        }
+    }
     await sse_service.push_message({"group":"default",
                                     "data":json.dumps(data)})
     return {"message": "success"}

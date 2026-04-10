@@ -1,4 +1,4 @@
-from typing import Optional,Any
+from typing import Dict, Optional,Any
 from pydantic import BaseModel
 
 class AnalysisInput(BaseModel):
@@ -83,3 +83,15 @@ class UpdateProject(BaseModel):
     analysis_id: Optional[str]=None
 
 
+# request_param: Dict[str, Any],
+# save:Optional[bool]=False,
+# is_submit:Optional[bool]=False,
+# is_report:Optional[bool]=None,
+# analysis_node_id:Optional[str]=None,
+class RunAnalysisInput(BaseModel):
+    request_param: Dict[str, Any]
+    save: Optional[bool] = False
+    is_submit: Optional[bool] = False
+    is_report: Optional[bool] = None
+    is_cache: Optional[bool] = True
+    analysis_node_id: Optional[str] = None

@@ -59,6 +59,7 @@ class RuntimeDagQueueScheduler:
         claimed = 0
         while not self.queue.full() and self.submitted_count < self.max_steps:
             with get_engine().begin() as conn:
+                # 调用 schedule_next 的时候会顺便刷新 ready 状态，所以不需要单独调用 refresh_ready_status。
                 node = analysis_runtime_engine_service.schedule_next(conn, analysis_id=self.analysis_id)
 
             if not node:

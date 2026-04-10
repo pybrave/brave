@@ -117,52 +117,50 @@ def delete_by_analysis_id(conn, analysis_id: str):
     stmt = analysis_nodes.delete().where(analysis_nodes.c.analysis_id == analysis_id)
     conn.execute(stmt)
 
+def _normalize_node_row(row: dict, analysis_id: str | None = None) -> dict:
+    return {
+        "analysis_node_id": row.get("analysis_node_id") or str(uuid.uuid4()),
+        "analysis_id": analysis_id or row.get("analysis_id"),
+        "node_id": row.get("node_id"),
+        "sample_id": row.get("sample_id"),
+        "script_id": row.get("script_id"),
+        "inputs_patterns": row.get("inputs_patterns"),
+        "resolved_inputs": row.get("resolved_inputs"),
+        "output_patterns": row.get("output_patterns"),
+        "resolved_outputs": row.get("resolved_outputs"),
+        "output_dir": row.get("output_dir"),
+        "params_path": row.get("params_path"),
+        "command_path": row.get("command_path"),
+        "params": row.get("params"),
+        "cpu": row.get("cpu"),
+        "memory": row.get("memory"),
+        "disk": row.get("disk"),
+        "gpu": row.get("gpu"),
+        "status":  "pending",
+        "pid": row.get("pid"),
+        "job_id": row.get("job_id"),
+        "executor": row.get("executor"),
+        "retry": row.get("retry", 0),
+        "max_retry": row.get("max_retry", 3),
+        "exit_code": row.get("exit_code"),
+        "error_message": row.get("error_message"),
+        "input_hash": row.get("input_hash"),
+        "cache_hit": row.get("cache_hit", False),
+        "upstream_ids": row.get("upstream_ids") or [],
+        "downstream_ids": row.get("downstream_ids") or [],
+        "input_validation_errors": row.get("input_validation_errors") or [],
+        "log_path": row.get("log_path"),
+        "workspace_dir": row.get("workspace_dir"),
+        "started_at": row.get("started_at"),
+        "finished_at": row.get("finished_at"),
+    }
 
 def create_many(conn, rows: list[dict]):
     if not rows:
         return
-
     normalized_rows = []
     for row in rows:
-        normalized_rows.append(
-            {
-                "analysis_node_id": row.get("analysis_node_id") or str(uuid.uuid4()),
-                "analysis_id": row.get("analysis_id"),
-                "node_id": row.get("node_id"),
-                "sample_id": row.get("sample_id"),
-                "script_id": row.get("script_id"),
-                "inputs_patterns": row.get("inputs_patterns"),
-                "resolved_inputs": row.get("resolved_inputs"),
-                "output_patterns": row.get("output_patterns"),
-                "resolved_outputs": row.get("resolved_outputs"),
-                "output_dir": row.get("output_dir"),
-                "params_path": row.get("params_path"),
-                "command_path": row.get("command_path"),
-                "params": row.get("params"),
-                "cpu": row.get("cpu"),
-                "memory": row.get("memory"),
-                "disk": row.get("disk"),
-                "gpu": row.get("gpu"),
-                "status": row.get("status") or "pending",
-                "pid": row.get("pid"),
-                "job_id": row.get("job_id"),
-                "executor": row.get("executor"),
-                "retry": row.get("retry", 0),
-                "max_retry": row.get("max_retry", 3),
-                "exit_code": row.get("exit_code"),
-                "error_message": row.get("error_message"),
-                "input_hash": row.get("input_hash"),
-                "cache_hit": row.get("cache_hit", False),
-                "upstream_ids": row.get("upstream_ids") or [],
-                "downstream_ids": row.get("downstream_ids") or [],
-                "input_validation_errors": row.get("input_validation_errors") or [],
-                "log_path": row.get("log_path"),
-                "workspace_dir": row.get("workspace_dir"),
-                "started_at": row.get("started_at"),
-                "finished_at": row.get("finished_at"),
-
-            }
-        )
+        normalized_rows.append(_normalize_node_row(row))
 
     stmt = analysis_nodes.insert()
     conn.execute(stmt, normalized_rows)
@@ -172,6 +170,78 @@ def replace_by_analysis_id(conn, analysis_id: str, rows: list[dict]):
     delete_by_analysis_id(conn, analysis_id)
     create_many(conn, rows)
 
+def update_by_analysis_id(conn, analysis_id: str, rows: list[dict],find_analysis):
+
+    existing_nodes = [dict(item) for item in find_by_analysis_id(conn, analysis_id)]
+
+    if not rows:
+        delete_by_analysis_id(conn, analysis_id)
+        return
+
+    existing_by_node_id = {
+        str(item.get("node_id")): item
+        for item in existing_nodes
+        if item.get("node_id") is not None
+    }
+
+    incoming_by_node_id: dict[str, dict] = {}
+    for row in rows:
+        node_id = row.get("node_id")
+        if node_id is None:
+            continue
+        incoming_by_node_id[str(node_id)] = row
+
+    existing_ids = set(existing_by_node_id.keys())
+    incoming_ids = set(incoming_by_node_id.keys())
+
+    deleted_ids = existing_ids - incoming_ids
+    if deleted_ids:
+        conn.execute(
+            analysis_nodes.delete().where(
+                and_(
+                    analysis_nodes.c.analysis_id == analysis_id,
+                    analysis_nodes.c.node_id.in_(list(deleted_ids)),
+                )
+            )
+        )
+
+    now = datetime.now()
+    rows_to_insert = []
+    for node_id, row in incoming_by_node_id.items():
+        existed = existing_by_node_id.get(node_id)
+        if existed is None:
+            rows_to_insert.append(_normalize_node_row(row, analysis_id=analysis_id))
+            continue
+
+        merged = {
+            **existed,
+            **row,
+            "analysis_id": analysis_id,
+            # Keep stable runtime directory and run identity for unchanged node_id.
+            "analysis_node_id": existed.get("analysis_node_id") or row.get("analysis_node_id"),
+        }
+        payload = _normalize_node_row(merged, analysis_id=analysis_id)
+        # Keep existing runtime status when syncing DAG structure.
+        # if existed.get("status")  in { "failed"}:
+        #     payload["status"] = "ready"
+        # else:
+        #     payload.pop("status", None)
+        payload["updated_at"] = now
+        conn.execute(
+            analysis_nodes.update()
+            .where(
+                and_(
+                    analysis_nodes.c.analysis_id == analysis_id,
+                    analysis_nodes.c.node_id == node_id,
+                )
+            )
+            .values(**payload)
+        )
+
+    if rows_to_insert:
+        rows_to_insert = init_node_path(find_analysis, rows_to_insert)
+        create_many(conn, rows_to_insert)
+   
 
 def find_by_analysis_id(conn, analysis_id: str):
     stmt = analysis_nodes.select().where(analysis_nodes.c.analysis_id == analysis_id)
@@ -216,7 +286,6 @@ def update_node(conn, analysis_id: str, node_id: str, values: dict):
 
 
 def list_ready_nodes(conn, analysis_id: str, limit: int = 100):
-    from brave.api.service import analysis_edge_service
 
     nodes = [dict(n) for n in find_by_analysis_id(conn, analysis_id)]
     edges = analysis_edge_service.find_by_analysis_id(conn, analysis_id)
@@ -309,6 +378,7 @@ def claim_next_ready_node(conn, analysis_id: str):
             and_(
                 analysis_nodes.c.analysis_id == analysis_id,
                 analysis_nodes.c.status == "ready",
+                
             )
         )
         .order_by(analysis_nodes.c.created_at.asc(), analysis_nodes.c.node_id.asc())
@@ -440,6 +510,7 @@ def init_node_path(analysis, node_list):
 
     for node in node_list:
         analysis_node_id = str(uuid.uuid4())
+        analysis_node_id = f"node-{analysis_node_id}"
         workspace_dir = _build_workspace_dir(analysis['project'], analysis['analysis_id'], analysis_node_id)
         output_dir = workspace_dir / "output"
         params_path = f"{workspace_dir}/params.json"
@@ -480,3 +551,45 @@ def invalidate_cache(conn, analysis_id: str):
         )
     )
     refresh_ready_status(conn, analysis_id)
+
+
+def find_by_analysis_id_and_script_ids(conn, analysis_id: str, script_ids: list[str]):
+    stmt = select(
+        analysis_nodes.c.analysis_node_id,
+        analysis_nodes.c.analysis_id,
+        analysis_nodes.c.node_id,
+        analysis_nodes.c.script_id,
+        analysis_nodes.c.status,
+        analysis_nodes.c.sample_id,
+        analysis_nodes.c.output_dir,
+        t_pipeline_components.c.component_name.label("script_name"),
+    )
+ 
+    stmt = stmt.select_from(
+            analysis_nodes.outerjoin(t_pipeline_components,analysis_nodes.c.script_id==t_pipeline_components.c.component_id)
+    )
+    stmt = stmt.where(
+            and_(
+                analysis_nodes.c.analysis_id == analysis_id,
+                analysis_nodes.c.script_id.in_(script_ids),
+            )
+        )
+    return conn.execute(stmt).mappings().all()
+
+
+def update_status_ready_by_analysis_id(conn, analysis_id: str):
+    now = datetime.now()
+    stmt = (
+        analysis_nodes.update()
+        .where(
+            and_(
+                analysis_nodes.c.analysis_id == analysis_id,
+                analysis_nodes.c.status == "failed",
+            )
+        )
+        .values(
+            status="ready",
+            updated_at=now,
+        )
+    )
+    conn.execute(stmt)

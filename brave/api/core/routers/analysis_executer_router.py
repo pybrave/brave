@@ -23,7 +23,8 @@ class AnalysisExecutorRouter(BaseEventRouter[AnalysisExecutorEvent,Callback]):
             # raise ValueError("run_id is required in payload")
       
             run_type = payload.run_id.split("-")[0]
-            analysis_id = payload.run_id.replace(f"{run_type}-","")
+         
+            analysis_id = payload.run_id.replace(f"{run_type}-","",1)
 
             if event == AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE or event == AnalysisExecutorEvent.ON_ANALYSIS_FAILED:    
                 if isinstance(payload, AnalysisId):

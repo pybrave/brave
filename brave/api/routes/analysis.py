@@ -24,7 +24,7 @@ from sqlalchemy import and_,or_
 import pandas as pd
 from brave.api.models.core import samples
 from brave.api.config.db import get_engine
-from brave.api.schemas.analysis import AnalysisInput,Analysis, UpdateProject,QueryAnalysis,AnalysisExecuterModal
+from brave.api.schemas.analysis import AnalysisInput,Analysis, RunAnalysisInput, UpdateProject,QueryAnalysis,AnalysisExecuterModal
 from typing import Dict, Any
 from brave.api.models.core import analysis,t_container
 import json
@@ -405,45 +405,6 @@ def start_background( cwd,cmd):
     threading.Thread(target=proc.wait, daemon=True).start() # 处理僵尸进程
     return proc.pid
 
-@analysis_api.post("/run-analysis/{analysis_id}")
-@inject
-async def run_analysis(
-    request: Request,
-    analysis_id,
-    auto_parse:Optional[bool]=True,
-    analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])         
-    ):
-
-    manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
-    process_monitor = manager.process_monitor
-    if process_monitor is None:
-        raise HTTPException(status_code=500, detail="ProcessMonitor服务未初始化")
-    
-    with get_engine().begin() as conn:
-        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
-        result = conn.execute(stmt)
-        analysis_ = result.mappings().first()
-        process_id = analysis_.process_id
-        if process_id is not None:
-            try:
-                proc = psutil.Process(int(process_id))
-                if proc.is_running():
-                    raise Exception(f"Analysis is already running with process_id={process_id}")
-            except (psutil.NoSuchProcess, ValueError):
-                pass  # 进程不存在或 process_id 非法，继续执行
-        
-        pid = start_background(analysis_.output_dir, ["bash","run.sh"])
-        stmt = analysis.update().values({"process_id":pid,"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
-        conn.execute(stmt)
-        analysis_dict = dict(analysis_)
-
-        analysis_dict['process_id'] = pid
-        # await queue_process.put(analysis_dict)
-        await process_monitor.add_process(analysis_dict)
-        if auto_parse:
-            await analysis_result_parse_service.add_analysis_id(analysis_id)
-    return {"pid":pid}
-
 
 
 
@@ -479,15 +440,17 @@ async def run_analysis(
 @analysis_api.post("/fast-api/analysis-controller")
 @inject
 async def save_script_analysis(
-    request_param: Dict[str, Any],
-    # type:Optional[str]="nextflow",
-    save:Optional[bool]=False,
-    is_submit:Optional[bool]=False,
-    is_report:Optional[bool]=None,
+    runAnalysisInput:RunAnalysisInput,
     app_container:AppContainer = Depends(Provide[AppContainer]),
     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus])
     ): # request_param: Dict[str, Any]
     
+    request_param = runAnalysisInput.request_param
+    analysis_node_id = runAnalysisInput.analysis_node_id
+    save = runAnalysisInput.save
+    is_submit = runAnalysisInput.is_submit
+    is_report = runAnalysisInput.is_report
+    is_cache = runAnalysisInput.is_cache
 
     with get_engine().begin() as conn:
         relation_id = request_param['relation_id']
@@ -527,7 +490,8 @@ async def save_script_analysis(
         if not save:
             return parse_analysis_result
         
-        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report)
+        # save_analysis 中的dag_runtime_generate的update_by_analysis_id会将 failed 状态的节点更新为 ready
+        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report,is_cache)
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
         dag_definition = component["dag_definition"]
         # if dag_definition:
@@ -539,18 +503,28 @@ async def save_script_analysis(
                 analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
                 await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
             else:
-                analsyis_id = save_analysis["analysis_id"]
-                scheduler = RuntimeDagQueueScheduler(
-                    analysis_id=analsyis_id,
-                    event_bus=evenet_bus,
-                    max_steps=10000,
-                    max_concurrency=1,
-                    queue_size= 64,
-                    poll_interval_seconds= 500 / 1000.0,
-                    timeout_seconds=None,
-                )
-                # submit to background task and return immediately use asyncio.create_task, so that client can receive the response without waiting for the whole run to complete.
-                asyncio.create_task(scheduler.run())
+                if analysis_node_id:
+                    
+                    node = analysis_node_service.find_by_analysis_node_id(conn, analysis_node_id)
+                    if not node:
+                        raise HTTPException(status_code=404, detail=f"Analysis node with id {analysis_node_id} not found")
+                    
+                    analysis_node_service.finished_analysis_node(conn,analysis_node_id,"node","ready")
+                    analysis_executer_modal = await analysis_service.run_analysis_node(conn,node,"node")
+                    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED,analysis_executer_modal)
+                else:
+                    analsyis_id = save_analysis["analysis_id"]
+                    scheduler = RuntimeDagQueueScheduler(
+                        analysis_id=analsyis_id,
+                        event_bus=evenet_bus,
+                        max_steps=10000,
+                        max_concurrency=1,
+                        queue_size= 64,
+                        poll_interval_seconds= 500 / 1000.0,
+                        timeout_seconds=None,
+                    )
+                    # submit to background task and return immediately use asyncio.create_task, so that client can receive the response without waiting for the whole run to complete.
+                    asyncio.create_task(scheduler.run())
     # if is_submit:
        
 
@@ -628,72 +602,7 @@ def get_executor_logs(analysis_id,job_executor_selector:JobExecutor = Depends(Pr
 
 
 
-@analysis_api.post("/run-analysis-v2/{analysis_id}")
-@inject
-async def run_analysis_v2(
-    analysis_id,
-    run_type:str="job",
-    tool_container_id:Optional[str]=None,
-    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
-    ):
 
-    # manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
-    # process_monitor = manager.process_monitor
-    # if process_monitor is None:
-    #     raise HTTPException(status_code=500, detail="ProcessMonitor服务未初始化")
-    
-    with get_engine().begin() as conn:
-        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
-        result = conn.execute(stmt)
-        analysis_ = result.mappings().first()
-        if analysis_ is None:
-            raise HTTPException(status_code=404, detail="Analysis not found")
-        # await analysis_service.run_analysis(conn,analysis_,run_type,evenet_bus)
-        analysis_executer_modal = await analysis_service.run_analysis(conn,analysis_,run_type,tool_container_id)
-    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
-
-    #     # process_id = analysis_['process_id']
-    #     component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
-    #     component_type = component['component_type']
-    #     if run_type=="job" and component_type=="script":
-    #         output_dir = f"{analysis_['output_dir']}/output"
-    #         # if os.path.exists(output_dir):
-    #         delete_all_in_dir(output_dir)
-        
-    #     if not component["container_id"]:
-    #         raise HTTPException(status_code=500, detail=f"please config container id") 
-
-    #     # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
-    #     analysis_ = dict(analysis_)
-    #     analysis_["run_id"] = f"{run_type}-{analysis_id}"
-        
-    #     if run_type == "job":
-    #         analysis_["container_id"] =component["container_id"]
-    #     else:
-    #         # if component_type=="script":
-    #         analysis_["container_id"] =component["container_id"]
-    #         # else: 
-    #         #     if not component["sub_container_id"]:
-    #         #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
-    #         #     analysis_["container_id"] = component["sub_container_id"]
-
-    #     # analysis_["image"] = find_container["image"]
-    #     analysis_ = AnalysisExecuterModal(**analysis_)
-    #     # analysis_.image = find_container["image"]
-    #     await analysis_service.finished_analysis(analysis_id,run_type,"running")
-    #     # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
-    #     # conn.execute(stmt)
-    # await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
-    
-    
-    # job_id = await executor.submit_job(LocalJobSpec(
-    #     job_id=analysis_id,
-    #     command=["bash", "run.sh"],
-    #     output_dir=analysis_['output_dir'],
-    #     process_id=analysis_['process_id']
-    # ))
-
-    return {"msg":"success"}
 
 
 @analysis_api.post("/analysis/stop-analysis/{analysis_id}")
@@ -788,6 +697,63 @@ def format_form_json_item(item):
     elif item.get("db") and item.get("db")==True:
         item = None
     return item
+
+
+@analysis_api.get("/analysis/visualization-node-tree/{analysis_id}")
+async def visualization_node_results(analysis_id):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        find_relation = pipeline_service.find_relation_component_by_id(conn,find_analysis['relation_id'])
+        dag_definition = find_relation["dag_definition"]
+        nodes = dag_definition.get("nodes",[])
+        report_nodes = [item["script_id"] for item in nodes if item.get("report") == True]
+        analysis_nodes = analysis_node_service.find_by_analysis_id_and_script_ids(conn,analysis_id,report_nodes)
+        # 用script_id + script_name 作为父，实现树状结构，node 在父下面的children里
+        # {
+        #     "script_id":"xxx",
+        #     "script_name":"xxxx",
+        #     "children":[
+        #         {
+        #             "node_id":"xxxx",
+        #             "node_name":"xxxx"
+        #             ....
+        #         }
+        #     ]
+        # }
+        node_dict = defaultdict(lambda : {"children":[]})
+        for node in analysis_nodes:
+            node_dict[node.script_id]["script_id"] = node.script_id
+            node_dict[node.script_id]["script_name"] = node.script_name
+            # file_result = await file_operation_service.visualization_results_path(node["output_dir"])
+
+            node_dict[node.script_id]["children"].append(node)
+            
+
+        return {
+            "analysis_id":analysis_id,
+            "analysis_name":find_analysis["analysis_name"],
+            "result":list(node_dict.values())
+        }
+
+
+
+
+        
+@analysis_api.get("/analysis/visualization-node-file/{analysis_node_id}")
+async def visualization_node_file(analysis_node_id):
+    with get_engine().begin() as conn:
+        find_analysis_node = analysis_node_service.find_by_analysis_node_id(conn,analysis_node_id)
+        if not find_analysis_node:
+            raise HTTPException(status_code=404, detail=f"Analysis node with id {analysis_node_id} not found")
+    file_result = await file_operation_service.visualization_results_path(find_analysis_node.output_dir)
+
+    return {
+        "node":find_analysis_node,
+        "result":file_result
+    }
+
+
+
 
 @analysis_api.get("/analysis/visualization-results/{analysis_id}")
 async def visualization_results(analysis_id):
@@ -927,6 +893,111 @@ async def update_report(analysis_id):
             analysis_service.update_report(conn,analysis_id,True)
     return "success"
 
+@analysis_api.post("/analysis/edit-params-v2/{analysis_id}")
+async def edit_params(analysis_id):
+    analysis_result = {}
+    # inputFormJson = []
+    # project = editParams.project if editParams.project else []
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        # find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
+        project = json.loads(find_analysis["extra_project_ids"]) if "extra_project_ids" in  find_analysis and find_analysis["extra_project_ids"] else []
+
+        request_param = json.loads(find_analysis["request_param"])
+        if "data_component_ids" in request_param:
+            data_component_ids = request_param["data_component_ids"]
+            data_component_ids = json.loads(data_component_ids)
+            # find_analysis["project"]
+           
+            project.append(find_analysis["project"])
+            analysis_result = analysis_result_service.find_analysis_result_grouped(conn,
+                                                                                   AnalysisResultQuery(
+                                                                                       component_ids=data_component_ids,
+                                                                                       component_parent_ids_map=request_param.get("component_parent_ids_map"),
+                                                                                       projectList=project))
+        relation_id = find_analysis["relation_id"]
+        formJsonWarp = pipeline_service.get_from_json_by_relation_id(conn, relation_id)
+    result = {
+        "analysis_name":find_analysis["analysis_name"],
+        "is_report":find_analysis["is_report"],
+        "analysis_id":find_analysis["analysis_id"],
+        "status":find_analysis["job_status"],
+        "server_status":find_analysis["server_status"],
+        # "component_name":find_component["component_name"],
+        # "component_type":find_component["component_type"],
+        # "component_id":find_component["component_id"],
+        "request_param":json.loads(find_analysis["request_param"]),
+        # "content":,
+        "analysis_result":analysis_result,
+        "formJson":formJsonWarp
+        # "inputFormJson":inputFormJson
+
+    }
+   
+    # if find_component['content']:
+    #     content = json.loads(find_component['content'])
+    #     if "formJson" in content:
+    #         result['formJson'] = content['formJson']
+    #     if "databases" in content:
+    #         result['databases'] = content['databases']
+
+    return result
+
+
+@analysis_api.post("/analysis/edit-node-params/{analysis_node_id}")
+async def edit_params(analysis_node_id):
+    analysis_result = {}
+    # inputFormJson = []
+    # project = editParams.project if editParams.project else []
+    with get_engine().begin() as conn:
+        find_analsyis_node = analysis_node_service.find_by_analysis_node_id(conn,analysis_node_id)
+        analysis_id = find_analsyis_node.analysis_id
+        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        # find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
+        # project = json.loads(find_analysis["extra_project_ids"]) if "extra_project_ids" in  find_analysis and find_analysis["extra_project_ids"] else []
+
+        # request_param = json.loads(find_analysis["request_param"])
+        # if "data_component_ids" in request_param:
+        #     data_component_ids = request_param["data_component_ids"]
+        #     data_component_ids = json.loads(data_component_ids)
+        #     # find_analysis["project"]
+           
+        #     project.append(find_analysis["project"])
+        #     analysis_result = analysis_result_service.find_analysis_result_grouped(conn,
+        #                                                                            AnalysisResultQuery(
+        #                                                                                component_ids=data_component_ids,
+        #                                                                                component_parent_ids_map=request_param.get("component_parent_ids_map"),
+        #                                                                                projectList=project))
+        relation_id = find_analysis["relation_id"]
+        # formJsonWarp = pipeline_service.get_from_json_by_relation_id(conn, relation_id)
+        find_script = pipeline_service.find_component_by_id(conn,find_analsyis_node.script_id)
+        content = json.loads(find_script["content"])
+        formJson = content.get("formJson",[])
+    result = {
+        "analysis_name":find_analysis["analysis_name"],
+        "is_report":find_analysis["is_report"],
+        "analysis_id":find_analysis["analysis_id"],
+        "status":find_analsyis_node["status"],
+        "server_status":find_analysis["server_status"],
+        # "component_name":find_component["component_name"],
+        # "component_type":find_component["component_type"],
+        # "component_id":find_component["component_id"],
+        "request_param":json.loads(find_analysis["request_param"]),
+        # "content":,
+        # "analysis_result":analysis_result,
+        "formJson":formJson
+        # "inputFormJson":inputFormJson
+
+    }
+   
+    # if find_component['content']:
+    #     content = json.loads(find_component['content'])
+    #     if "formJson" in content:
+    #         result['formJson'] = content['formJson']
+    #     if "databases" in content:
+    #         result['databases'] = content['databases']
+
+    return result
 
 @analysis_api.post("/analysis/edit-params/{analysis_id}")
 async def edit_params(analysis_id):
@@ -968,7 +1039,7 @@ async def edit_params(analysis_id):
         "analysis_name":find_analysis["analysis_name"],
         "is_report":find_analysis["is_report"],
         "analysis_id":find_analysis["analysis_id"],
-        "job_status":find_analysis["job_status"],
+        "status":find_analysis["job_status"],
         "server_status":find_analysis["server_status"],
         "component_name":find_component["component_name"],
         "component_type":find_component["component_type"],
@@ -1158,6 +1229,74 @@ async def stop_analysis_node(
     
         return {"msg":"success"}
 
+
+
+@analysis_api.post("/run-analysis/{analysis_id}")
+@inject
+async def run_analysis(
+    request: Request,
+    analysis_id,
+    auto_parse:Optional[bool]=True,
+    analysis_result_parse_service:AnalysisResultParse = Depends(Provide[AppContainer.analysis_result_parse_service])         
+    ):
+
+    manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
+    process_monitor = manager.process_monitor
+    if process_monitor is None:
+        raise HTTPException(status_code=500, detail="ProcessMonitor服务未初始化")
+    
+    with get_engine().begin() as conn:
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        result = conn.execute(stmt)
+        analysis_ = result.mappings().first()
+        process_id = analysis_.process_id
+        if process_id is not None:
+            try:
+                proc = psutil.Process(int(process_id))
+                if proc.is_running():
+                    raise Exception(f"Analysis is already running with process_id={process_id}")
+            except (psutil.NoSuchProcess, ValueError):
+                pass  # 进程不存在或 process_id 非法，继续执行
+        
+        pid = start_background(analysis_.output_dir, ["bash","run.sh"])
+        stmt = analysis.update().values({"process_id":pid,"analysis_status":"running"}).where(analysis.c.analysis_id==analysis_id)
+        conn.execute(stmt)
+        analysis_dict = dict(analysis_)
+
+        analysis_dict['process_id'] = pid
+        # await queue_process.put(analysis_dict)
+        await process_monitor.add_process(analysis_dict)
+        if auto_parse:
+            await analysis_result_parse_service.add_analysis_id(analysis_id)
+    return {"pid":pid}
+
+@analysis_api.post("/run-analysis-v2/{analysis_id}")
+@inject
+async def run_analysis_v2(
+    analysis_id,
+    run_type:str="job",
+    tool_container_id:Optional[str]=None,
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+
+    # manager: AppManager = request.app.state.manager  # 从 app.state 获取实例
+    # process_monitor = manager.process_monitor
+    # if process_monitor is None:
+    #     raise HTTPException(status_code=500, detail="ProcessMonitor服务未初始化")
+    
+    with get_engine().begin() as conn:
+        stmt = select(analysis).where(analysis.c.analysis_id == analysis_id)
+        result = conn.execute(stmt)
+        analysis_ = result.mappings().first()
+        if analysis_ is None:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        # await analysis_service.run_analysis(conn,analysis_,run_type,evenet_bus)
+        analysis_executer_modal = await analysis_service.run_analysis(conn,analysis_,run_type,tool_container_id)
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
+
+
+    return {"msg":"success"}
+
 # run analysis node
 @analysis_api.post("/run-analysis-node/{analysis_node_id}")
 @inject
@@ -1174,6 +1313,7 @@ async def run_analysis_node(
         # result = conn.execute(stmt)
         # analysis_ = result.mappings().first()
         analysis_node = analysis_node_service.find_by_analysis_node_id(conn,analysis_node_id)
+        
         if analysis_node is None:
             raise HTTPException(status_code=404, detail="Analysis Node not found")
         # await analysis_service.run_analysis(conn,analysis_,run_type,evenet_bus)

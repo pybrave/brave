@@ -410,15 +410,16 @@ def complete_node(
             )
             _propagate_outputs(conn, analysis_id=analysis_id, source_node_id=node_id, outputs=final_outputs)
     if status == "failed":
-        # 失败自动重试：未超限则重置为 pending，等待再次调度。
-        should_retry = (not force_terminal_failed) and current_retry < max_retry
+        # 失败自动重试：未超限则重置为 retrying，等待再次调度。
+        # TODO 单节点运行不需要 状态变成 pending, pending后会在  refresh_ready_status 变成 ready 
+        should_retry =False # (not force_terminal_failed) and current_retry < max_retry
         if should_retry:
             analysis_node_service.update_node(
                 conn,
                 analysis_id=analysis_id,
                 node_id=node_id,
                 values={
-                    "status": "pending",
+                    "status": "retrying",
                     "retry": current_retry + 1,
                     "exit_code": exit_code,
                     "error_message": error_message,

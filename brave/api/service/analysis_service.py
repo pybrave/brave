@@ -446,49 +446,6 @@ def update_extra_project(conn,analysis_id,project):
     conn.execute(stmt)
 
 
-async def run_analysis(conn,analysis_,run_type,tool_container_id=None):
-    analysis_id = analysis_['analysis_id']
-    pipeline_script = analysis_['pipeline_script']
-    pipeline_dir = pipeline_service.get_pipeline_dir()
-    pipeline_dir = str(pipeline_dir)
-    if not pipeline_script.startswith(pipeline_dir):
-        raise HTTPException(status_code=500, detail=f"Pipeline script {pipeline_script} is not in pipeline dir {pipeline_dir}")
-    component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
-    component_type = component['component_type']
-    if run_type=="job" and component.get("script_type")!="nextflow":
-        output_dir = f"{analysis_['output_dir']}/output"
-        # if os.path.exists(output_dir):
-        delete_all_in_dir(output_dir)
-
-    if not tool_container_id and not component["container_id"]:
-        raise HTTPException(status_code=500, detail=f"please config container id") 
-
-    # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
-    analysis_ = dict(analysis_)
-    analysis_["run_id"] = f"{run_type}-{analysis_id}"
-
-
-
-    if run_type == "job":
-        analysis_["container_id"] =component["container_id"]
-    elif run_type == "tools":
-        analysis_["container_id"] = tool_container_id
-        analysis_["run_id"] = f"{run_type}-{analysis_id}-{tool_container_id}"
-    else:
-        # if component_type=="script":
-        analysis_["container_id"] =component["container_id"]
-        # else: 
-        #     if not component["sub_container_id"]:
-        #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
-        #     analysis_["container_id"] = component["sub_container_id"]
-
-    # analysis_["image"] = find_container["image"]
-    analysis_ = AnalysisExecuterModal(**analysis_)
-    # analysis_.image = find_container["image"]
-    finished_analysis_(conn,analysis_id,run_type,"running")
-    return analysis_
-    # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
-    # conn.execute(stmt)
 
 def find_analysis_by_component_id(conn ,component_id):
     stmt = select(t_analysis.c.analysis_id,t_analysis.c.analysis_name).where(t_analysis.c.component_id == component_id)
@@ -555,6 +512,49 @@ def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_param
 
 
 
+async def run_analysis(conn,analysis_,run_type,tool_container_id=None):
+    analysis_id = analysis_['analysis_id']
+    pipeline_script = analysis_['pipeline_script']
+    pipeline_dir = pipeline_service.get_pipeline_dir()
+    pipeline_dir = str(pipeline_dir)
+    if not pipeline_script.startswith(pipeline_dir):
+        raise HTTPException(status_code=500, detail=f"Pipeline script {pipeline_script} is not in pipeline dir {pipeline_dir}")
+    component = pipeline_service.find_component_by_id(conn,analysis_["component_id"])
+    component_type = component['component_type']
+    if run_type=="job" and component.get("script_type")!="nextflow":
+        output_dir = f"{analysis_['output_dir']}/output"
+        # if os.path.exists(output_dir):
+        delete_all_in_dir(output_dir)
+
+    if not tool_container_id and not component["container_id"]:
+        raise HTTPException(status_code=500, detail=f"please config container id") 
+
+    # find_container = container_service.find_container_by_id(conn,analysis_["container_id"])
+    analysis_ = dict(analysis_)
+    analysis_["run_id"] = f"{run_type}-{analysis_id}"
+
+
+
+    if run_type == "job":
+        analysis_["container_id"] =component["container_id"]
+    elif run_type == "tools":
+        analysis_["container_id"] = tool_container_id
+        analysis_["run_id"] = f"{run_type}-{analysis_id}-{tool_container_id}"
+    else:
+        # if component_type=="script":
+        analysis_["container_id"] =component["container_id"]
+        # else: 
+        #     if not component["sub_container_id"]:
+        #         raise HTTPException(status_code=500, detail=f"please config sub_container_id id") 
+        #     analysis_["container_id"] = component["sub_container_id"]
+
+    # analysis_["image"] = find_container["image"]
+    analysis_ = AnalysisExecuterModal(**analysis_)
+    # analysis_.image = find_container["image"]
+    finished_analysis_(conn,analysis_id,run_type,"running")
+    return analysis_
+    # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
+    # conn.execute(stmt)
 
 async def run_analysis_node(conn,analysis_node,run_type):
     analysis_node_id = analysis_node['analysis_node_id']
@@ -606,5 +606,3 @@ async def run_analysis_node(conn,analysis_node,run_type):
     # analysis_.image = find_container["image"]
     analysis_node_service.finished_analysis_node(conn,analysis_node_id,run_type,"running")
     return analysis_executer_modal
-    # stmt = analysis.update().values({"analysis_status":"running","run_type":run_type}).where(analysis.c.analysis_id==analysis_id)
-    # conn.execute(stmt)
