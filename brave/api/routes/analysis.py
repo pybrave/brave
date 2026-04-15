@@ -508,9 +508,7 @@ async def save_script_analysis(
                 await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
             else:
                 
-                await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,
-                                          AnalysisExecutorEvent.ON_DAG_SUBMITTED,
-                                          AnalysisExecuterModal(run_id=f"job-{analysis_id}",analysis_id=analysis_id,run_type="job"))
+                
                 if analysis_node_id:
                     node = analysis_node_service.find_by_analysis_node_id(conn, analysis_node_id)
                     if not node:
@@ -521,6 +519,9 @@ async def save_script_analysis(
                     analysis_executer_modal = await analysis_service.run_analysis_node(conn,node,"node")
                     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED,analysis_executer_modal)
                 else:
+                    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,
+                                          AnalysisExecutorEvent.ON_DAG_SUBMITTED,
+                                          AnalysisExecuterModal(run_id=f"job-{analysis_id}",analysis_id=analysis_id,run_type="job"))
                     analsyis_id = save_analysis["analysis_id"]
                     scheduler = RuntimeDagQueueScheduler(
                         analysis_id=analsyis_id,

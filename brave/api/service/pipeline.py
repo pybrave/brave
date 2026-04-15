@@ -1366,8 +1366,15 @@ def get_script_item(script):
     else:
         node["inputs"] = {}
         node["outputs"] = {}
+    node["script_id"] = script["component_id"]
     
     return node
+def script_to_node(conn, component_id):
+    find_component = find_component_by_id(conn, component_id)
+    if not find_component:
+        raise HTTPException(status_code=404, detail=f"Component {component_id} not found")
+    return get_script_item(find_component)
+
 
 
 def get_workflow_vis(conn, tool_id):
@@ -1379,7 +1386,7 @@ def get_workflow_vis(conn, tool_id):
     
     dag_definition = find_tool.get("dag_definition", {})
     nodes_res = []
-    if "nodes" in dag_definition:
+    if dag_definition and "nodes" in dag_definition:
         nodes = dag_definition["nodes"] 
         script_ids = [ node["script_id"] for node in nodes]
         scripts = find_by_component_ids(conn, script_ids)
@@ -1398,7 +1405,7 @@ def get_workflow_vis(conn, tool_id):
                     **node,
                     "name": "unknown",
                 })
-    dag_definition["nodes"] = nodes_res            
+        dag_definition["nodes"] = nodes_res            
 
     return dag_definition
 

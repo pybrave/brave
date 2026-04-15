@@ -1372,6 +1372,13 @@ async def get_workflow(tool_id):
     with get_engine().begin() as conn:
         return pipeline_service.get_workflow_vis(conn, tool_id)
 
+
+@pipeline.get("/tools/script-to-node/{component_id}",tags=['pipeline'])
+async def script_to_node(component_id):
+    with get_engine().begin() as conn:
+        return pipeline_service.script_to_node(conn, component_id)
+
+
 @pipeline.get("/tools/get-from-json/{relation_id}",tags=['pipeline'])
 async def get_from_json_by_relation_id(relation_id):
     with get_engine().begin() as conn:
