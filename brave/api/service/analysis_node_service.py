@@ -355,7 +355,8 @@ def refresh_ready_status(conn, analysis_id: str):
     for node in nodes:
         node_id = str(node.get("node_id") or "")
         status = str(node.get("status") or "pending")
-        if status in {"running", "done", "failed", "cached", "skipped"}:
+        # submitted/running are both in-flight states and must not be recalculated to ready.
+        if status in {"submitted", "running", "done", "failed", "cached", "skipped"}:
             continue
 
         errors = _input_validation_errors(node)
@@ -408,17 +409,25 @@ def claim_next_ready_node(conn, analysis_id: str):
 
     node = ready_nodes[0]
     node_id = str(node.get("node_id") or "")
-    updated = update_node(
-        conn,
-        analysis_id=analysis_id,
-        node_id=node_id,
-        values={
-            "status": "running",
-            "started_at": node.get("started_at") or datetime.now(),
-            "error_message": None,
-        },
+    now = datetime.now()
+    claim_stmt = (
+        analysis_nodes.update()
+        .where(
+            and_(
+                analysis_nodes.c.analysis_id == analysis_id,
+                analysis_nodes.c.node_id == node_id,
+                analysis_nodes.c.status == "ready",
+            )
+        )
+        .values(
+            status="running",
+            started_at=node.get("started_at") or now,
+            error_message=None,
+            updated_at=now,
+        )
     )
-    if not updated:
+    updated = conn.execute(claim_stmt).rowcount
+    if updated <= 0:
         return None
 
     return find_node(conn, analysis_id=analysis_id, node_id=node_id)
