@@ -229,7 +229,7 @@ def finished_analysis_(conn,analysis_id,run_type,status):
         raise ValueError(f"Invalid run_type: {run_type}")
     
     conn.execute(stmt)
-    conn.commit()
+    # conn.commit()
     print(f"Analysis {analysis_id} {status}")
 
 async def update_ports(analysis_id,ports):
@@ -481,6 +481,8 @@ def update_used(conn,analysis_id):
     #     )
     #     conn.execute(stmt)
 
+def build_analysis_node_params(analysis_params,analysis_node_params):
+    return {**analysis_params, **analysis_node_params}
 
 def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_params_path, script_path):
     workspace_dir = Path(analysis_node["workspace_dir"])
@@ -493,7 +495,9 @@ def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_param
     resolved_inputs = analysis_node.get("resolved_inputs",{})
     with open(analysis_params_path,"r") as f:
         analysis_params = json.load(f)
-        resolved_inputs = {**analysis_params, **resolved_inputs}
+        
+    resolved_inputs = build_analysis_node_params(analysis_params, resolved_inputs)
+ 
 
     with open(params_path,"w") as f:
         json.dump(resolved_inputs,f)
@@ -604,5 +608,4 @@ async def run_analysis_node(conn,analysis_node,run_type):
     # analysis_["image"] = find_container["image"]
     analysis_executer_modal = AnalysisExecuterModal(**analysis_node)
     # analysis_.image = find_container["image"]
-    analysis_node_service.finished_analysis_node(conn,analysis_node_id,run_type,"running")
     return analysis_executer_modal

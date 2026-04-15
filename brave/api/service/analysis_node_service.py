@@ -254,6 +254,23 @@ def find_by_analysis_node_id(conn,  node_id: str):
     return conn.execute(stmt).mappings().first()
 
 
+def find_container_by_analysis_node_id(conn,  node_id: str):
+    stmt = select(analysis_nodes,
+                    t_container.c.container_id.label("container_id"),
+                    t_container.c.image.label("container_image"),
+                    t_container.c.image_status.label("image_status"),
+                  )
+    stmt = stmt.select_from(
+            analysis_nodes.outerjoin(t_pipeline_components,analysis_nodes.c.script_id==t_pipeline_components.c.component_id)
+            .outerjoin(t_container,t_pipeline_components.c.container_id==t_container.c.container_id)
+    )
+    stmt = stmt.where(
+       analysis_nodes.c.analysis_node_id == node_id
+    )
+    
+    return conn.execute(stmt).mappings().first()
+
+
 def find_node(conn, analysis_id: str, node_id: str):
     stmt = analysis_nodes.select().where(
         and_(
@@ -476,7 +493,7 @@ def finished_analysis_node(conn,analysis_node_id,run_type,status):
     
     conn.execute(stmt)
     # conn.commit()
-    print(f"Analysis {analysis_node_id} {status}")
+    print(f"Analysis None {analysis_node_id} {status}")
 
 
 
@@ -487,8 +504,8 @@ def add_run_id(item):
         item['run_id'] = f"node-{item['analysis_node_id']}"
         item['run_type'] = "node"
     elif item['server_status'] == "running" or item['server_status'] == "stopping":
-        item['run_id'] = f"server-{item['analysis_node_id']}"
-        item['run_type'] = "server"
+        item['run_id'] = f"nserver-{item['analysis_node_id']}"
+        item['run_type'] = "nserver"
     return item
 
 def find_running_analysis_node(conn):

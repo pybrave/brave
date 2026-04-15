@@ -2,6 +2,7 @@
 import asyncio
 import json
 from dependency_injector.wiring import inject
+from django.db import router
 from fastapi import HTTPException
 from brave.api.config.db import get_engine
 from brave.api.core.evenet_bus import EventBus
@@ -33,16 +34,88 @@ def setup_handlers(
     async def on_analysis_submitted(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_submitted] {payload.analysis_id}")
         await job_executor.submit_job(payload)
+
+    @router.on_event(AnalysisExecutorEvent.ON_DAG_SUBMITTED)
+    async def on_dag_submitted(payload:AnalysisExecuterModal):
+        print(f"🚀 [on_dag_submitted] {payload.analysis_id}")
+        # await job_executor.submit_job(payload)
+        asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"job","running"))
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "analysis",
+                "id":  payload.analysis_id,
+                "method": "analysisStarted",
+                "args": {
+                    "status": "running",
+                    "id": payload.analysis_id
+                }
+            }
+        }
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
+
+    @router.on_event(AnalysisExecutorEvent.ON_DAG_COMPLETE)
+    async def on_dag_complete(payload:dict):
+        analysis_id = payload.get('analysis_id')
+        print(f"🚀 [on_dag_complete] {analysis_id}")
+        asyncio.create_task(analysis_service.finished_analysis(analysis_id,"job","done"))
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "analysis",
+                "id":  analysis_id,
+                "method": "analysisDone",
+                "args": {
+                    "status": "done",
+                    "id": analysis_id
+                }
+            }
+        }
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
+
+
         
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED)
     async def on_analysis_node_submitted(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_node_submitted] {payload.analysis_id}")
+        if  payload.run_type =="node":
+            asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"submitted"))
+
         await job_executor.submit_job(payload)
 
-    @router.on_event(AnalysisExecutorEvent.ON_DAG_COMPLETE)
-    async def on_dag_complete(payload:dict):
-        print(f"🚀 [on_dag_complete] {payload.get('analysis_id')}")
-        pass
+
+    @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STARTED)
+    async def on_analysis_started(payload:AnalysisExecuterModal):
+        print(f"🚀 [on_analysis_started] {payload.analysis_id} {payload.run_type}")
+        if  payload.run_type =="node":
+            asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"running"))
+
+        # if payload.run_type =="server":
+        #     await analysis_service.update_url(payload.analysis_id,f"http://10.110.1.11:5003/container/{payload.analysis_id}")
+
+                 
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "analysis",
+                "id":  payload.analysis_id,
+                "method": "analysisStarted",
+                "args": {
+                    "status": "running",
+                    "id": payload.analysis_id
+                }
+            }
+        }
+        # {
+        #     "analysis_id": payload.analysis_id,
+        #     "event": "analysis_started",
+        #      "run_id": payload.run_id,
+        #     "run_type":payload.run_type
+        #     }
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
+  
+
+
 
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STOPED)
@@ -64,6 +137,8 @@ def setup_handlers(
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"finished"))
         elif payload.run_type =="server":
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"stopped"))
+        elif payload.run_type =="nserver":
+             asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"stopped"))
         elif payload.run_type =="node":
             asyncio.create_task(analysis_runtime_engine_service.complete_node_conn(payload.analysis_id,"done"))
 
@@ -80,9 +155,10 @@ def setup_handlers(
             "payload": {
                 "category": "analysis",
                 "id":  payload.analysis_id,
-                "method": "updateFormStatus",
+                "method": "analysisDone",
                 "args": {
-                    "status": "done"
+                    "status": "done",
+                     "id": payload.analysis_id
                 }
             }
         }
@@ -96,34 +172,38 @@ def setup_handlers(
         #     }
         await sse_service.push_message({"group": "default", "data": json.dumps(data)})
 
-    @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STARTED)
-    async def on_analysis_started(payload:AnalysisExecuterModal):
-        print(f"🚀 [on_analysis_started] {payload.analysis_id} {payload.run_type}")
-        if payload.run_type =="server":
-            await analysis_service.update_url(payload.analysis_id,f"http://10.110.1.11:5003/container/{payload.analysis_id}")
-        await sse_service.push_message({"group": "default", "data": json.dumps({
-            "analysis_id": payload.analysis_id,
-            "event": "analysis_started",
-             "run_id": payload.run_id,
-            "run_type":payload.run_type
-            })})
-  
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_FAILED)
     async def on_analysis_failed(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_failed] {payload.analysis_id}")
         if payload.run_type =="server":
             await analysis_service.update_url(payload.analysis_id,None )
+        elif payload.run_type =="nserver":
+            asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"stopped"))
         elif payload.run_type =="node":
             asyncio.create_task(analysis_runtime_engine_service.complete_node_conn(payload.analysis_id,"failed"))
         elif payload.run_type !="retry":
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"failed"))
-        await sse_service.push_message({"group": "default", "data": json.dumps({
-            "analysis_id": payload.analysis_id,
-            "event": "analysis_failed",
-             "run_id": payload.run_id,
-            "run_type":payload.run_type
-            })})
+
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "analysis",
+                "id":  payload.analysis_id,
+                "method": "analysisDone",
+                "args": {
+                    "status": "done",
+                     "id": payload.analysis_id
+                }
+            }
+        }
+        # {
+        #     "analysis_id": payload.analysis_id,
+        #     "event": "analysis_failed",
+        #      "run_id": payload.run_id,
+        #     "run_type":payload.run_type
+        #     }
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
  
 
     @router.on_event(AnalysisExecutorEvent.ON_CONTAINER_PULLED)

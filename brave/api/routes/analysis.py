@@ -494,22 +494,30 @@ async def save_script_analysis(
         save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report,is_cache)
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
         dag_definition = component["dag_definition"]
+        analysis_id = save_analysis["analysis_id"]
         # if dag_definition:
         #     dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
         #     dag_runtime_generate(conn,save_analysis["analysis_id"],parse_analysis_result, dag_definition)
+        
+        
 
         if is_submit:
+            
             if not dag_definition:
                 analysis_executer_modal = await analysis_service.run_analysis(conn,save_analysis,"job")
                 await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_executer_modal)
             else:
+                
+                await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,
+                                          AnalysisExecutorEvent.ON_DAG_SUBMITTED,
+                                          AnalysisExecuterModal(run_id=f"job-{analysis_id}",analysis_id=analysis_id,run_type="job"))
                 if analysis_node_id:
-                    
                     node = analysis_node_service.find_by_analysis_node_id(conn, analysis_node_id)
                     if not node:
                         raise HTTPException(status_code=404, detail=f"Analysis node with id {analysis_node_id} not found")
                     
-                    analysis_node_service.finished_analysis_node(conn,analysis_node_id,"node","ready")
+                    # save_analysis中已经更新为ready状态了
+                    # analysis_node_service.finished_analysis_node(conn,analysis_node_id,"node","ready")
                     analysis_executer_modal = await analysis_service.run_analysis_node(conn,node,"node")
                     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED,analysis_executer_modal)
                 else:
@@ -533,6 +541,24 @@ async def save_script_analysis(
         "dag_definition":dag_definition,
         "analysis_id": save_analysis["analysis_id"],   
     }
+    
+@analysis_api.get("/analysis/node-params/{analysis_node_id}")
+def get_analysis_node_params(analysis_node_id):
+    with get_engine().begin() as conn:
+        node = analysis_node_service.find_by_analysis_node_id(conn, analysis_node_id)
+        if not node:
+            raise HTTPException(status_code=404, detail=f"Analysis node with id {analysis_node_id} not found")
+        analysis_id = node.analysis_id
+        analysis = analysis_service.find_analysis_by_id(conn, analysis_id)
+        params_path = analysis["params_path"]
+        with open(params_path, "r") as f:
+            params = json.load(f)
+
+        resolved_inputs = node.get("resolved_inputs",{})
+        params = analysis_service.build_analysis_node_params(params,resolved_inputs)
+        return params
+        
+
     
 
 
@@ -742,14 +768,17 @@ async def visualization_node_results(analysis_id):
 @analysis_api.get("/analysis/visualization-node-file/{analysis_node_id}")
 async def visualization_node_file(analysis_node_id):
     with get_engine().begin() as conn:
-        find_analysis_node = analysis_node_service.find_by_analysis_node_id(conn,analysis_node_id)
+        find_analysis_node = analysis_node_service.find_container_by_analysis_node_id(conn,analysis_node_id)
         if not find_analysis_node:
             raise HTTPException(status_code=404, detail=f"Analysis node with id {analysis_node_id} not found")
     file_result = await file_operation_service.visualization_results_path(find_analysis_node.output_dir)
-
+    status = find_analysis_node["status"]
+    server_status = find_analysis_node["server_status"]
     return {
         "node":find_analysis_node,
-        "result":file_result
+        "result":file_result,
+        "status":status,
+        "server_status":server_status
     }
 
 
