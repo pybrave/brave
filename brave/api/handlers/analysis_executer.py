@@ -2,7 +2,6 @@
 import asyncio
 import json
 from dependency_injector.wiring import inject
-from django.db import router
 from fastapi import HTTPException
 from brave.api.config.db import get_engine
 from brave.api.core.evenet_bus import EventBus
