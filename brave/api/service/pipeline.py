@@ -1349,6 +1349,70 @@ def get_components_by_relation_id_v2(conn,relation_id):
 
 
 
+# {
+#   "inputs": {
+#      "fastq1": {
+#       "type": "file",
+#       "required": true
+#     },"fastq2": {
+#       "type": "file",
+#       "required": true
+#     }
+#   },
+#   "outputs": {
+#     "bam": {
+#       "type": "file",
+#       "pattern": "{sample}_trimmed.bam"
+#     }
+#   },
+#   "params": {
+#     "minlen": { "type": "number", "default": 30 }
+#   },
+#   "resources": {
+#     "cpu": 4,
+#     "memory": "6GB",
+#     "docker": "quay.io/biocontainers/trim-galore:0.6.7"
+#   },
+#   "ui": {
+#     "icon": "scissors",
+#     "color": "green"
+#   }
+# }
+
+        
+
+#   "inputs": [
+#     {
+#       "name": "fastq1",
+#       "type": "file"
+#     },
+#     {
+#       "name": "fastq2",
+#       "type": "file"
+#     }
+#   ],
+
+#   "outputs": [
+#     {
+#       "name": "trimmed_fastq1",
+#       "type": "file",
+#       "pattern": "{sample}_trimmed.bam"
+#     },
+#     {
+#       "name": "trimmed_fastq2",
+#       "type": "file",
+#       "pattern": "{sample}_trimmed.bam"
+#     }
+#   ],
+def format_io_schema(data):
+    result = {}
+    for item in data:
+        name = item.get("name")
+        if name:
+            result[name] = {k:v for k,v in item.items() if k!="name"}
+    return result
+  
+
 
 def get_script_item(script):
     node = {}
@@ -1356,8 +1420,11 @@ def get_script_item(script):
     node["id"] = script["component_id"]
     if "io_schema" in script and script["io_schema"]:
         io_schema =  json.loads(script["io_schema"])
-        node["inputs"] = io_schema.get("inputs",{})
-        node["outputs"] = io_schema.get("outputs",{})
+        
+        node["inputs"] = format_io_schema(io_schema.get("inputs",[]))
+        node["outputs"] = format_io_schema(io_schema.get("outputs",[]))
+
+
         if "scatter" in io_schema:
             node["scatter"] = io_schema["scatter"]
         if "gather" in io_schema:
@@ -1372,8 +1439,8 @@ def get_script_item(script):
         node["inputs"] = {}
         node["outputs"] = {}
     node["script_id"] = script["component_id"]
-    
     return node
+
 def script_to_node(conn, component_id):
     find_component = find_component_by_id(conn, component_id)
     if not find_component:

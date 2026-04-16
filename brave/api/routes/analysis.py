@@ -832,18 +832,6 @@ async def visualization_results(analysis_id):
 
     file_result['command_log_path'] = find_analysis["command_log_path"]
 
-    # file_result['request_param'] =  json.loads(find_analysis["request_param"])
-    
-    # component_content = json.loads(find_relation["content"])
-    # if "formJson" in component_content:
-    #     form_json = component_content["formJson"]
-        
-    #     # if not  item.get("db")
-    #     file_result['form_json'] =  [format_form_json_item(item)  for item in form_json  if item.get("quickShow")!=False and  item.get("name")!="group_field"]
-    # else:
-    #     file_result['form_json'] = []
-
-    # file_result['form_json'] = [item for item in file_result['form_json'] if item is not None]
 
 
     return file_result
