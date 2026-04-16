@@ -58,6 +58,7 @@ def main(
     
     # os.environ["DB_TYPE"] = db_type
     os.environ["EXECUTER_TYPE"] = executer_type
+    os.environ["PORT"] = str(port)
 
     if aliyun_oss_endpoint:
         os.environ["ALIYUN_OSS_ENDPOINT"] = aliyun_oss_endpoint
