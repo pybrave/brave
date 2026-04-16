@@ -1526,12 +1526,29 @@ def get_from_json_by_relation_id(conn, relation_id):
         # dag_definition= json.loads(dag_definition)
         if "nodes" in dag_definition:
             nodes = dag_definition["nodes"]
+            input_script_ids = set()
+            edges = dag_definition.get("edges") or []
+            target_node_ids = {
+                edge.get("target")
+                for edge in edges
+                if isinstance(edge, dict) and edge.get("target")
+            }
+            for node in nodes:
+                if not isinstance(node, dict):
+                    continue
+                # node_id = node.get("id")
+                script_id = node.get("script_id")
+                if script_id is None:
+                    continue
+                if script_id is None or script_id not in target_node_ids:
+                    input_script_ids.add(script_id)
             script_ids = [ node["script_id"] for node in nodes if "script_id" in node and node["script_id"] is not None]
             if script_ids:
                 scripts = find_by_component_ids(conn, script_ids)
                 for script in scripts:
                     script = dict(script)
-                    if script["io_schema"]:
+                    script_id = script.get("component_id")
+                    if script_id in input_script_ids and script["io_schema"]:
                         io_schema = json.loads(script["io_schema"])
                         if "inputs" in io_schema:
                             formJsonWarp.extend(io_schema["inputs"])  
