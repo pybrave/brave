@@ -155,6 +155,39 @@ def _normalize_node_row(row: dict, analysis_id: str | None = None) -> dict:
         "finished_at": row.get("finished_at"),
     }
 
+def _normalize_update_node_row(row: dict, analysis_id: str | None = None) -> dict:
+    return {
+        "node_id": row.get("node_id"),
+        "sample_id": row.get("sample_id"),
+        "script_id": row.get("script_id"),
+        "inputs_patterns": row.get("inputs_patterns"),
+        "output_patterns": row.get("output_patterns"),
+        "output_dir": row.get("output_dir"),
+        "params_path": row.get("params_path"),
+        "command_path": row.get("command_path"),
+        "params": row.get("params"),
+        "cpu": row.get("cpu"),
+        "memory": row.get("memory"),
+        "disk": row.get("disk"),
+        "gpu": row.get("gpu"),
+        "status":  "pending",
+        "pid": row.get("pid"),
+        "job_id": row.get("job_id"),
+        "executor": row.get("executor"),
+        "retry": row.get("retry", 0),
+        "max_retry": row.get("max_retry", 3),
+        "exit_code": row.get("exit_code"),
+        "error_message": row.get("error_message"),
+        "input_hash": row.get("input_hash"),
+        "cache_hit": row.get("cache_hit", False),
+        "upstream_ids": row.get("upstream_ids") or [],
+        "downstream_ids": row.get("downstream_ids") or [],
+        "input_validation_errors": row.get("input_validation_errors") or [],
+        "log_path": row.get("log_path"),
+        "workspace_dir": row.get("workspace_dir"),
+        "started_at": row.get("started_at"),
+        "finished_at": row.get("finished_at"),
+    }
 def create_many(conn, rows: list[dict]):
     if not rows:
         return
@@ -220,7 +253,7 @@ def update_by_analysis_id(conn, analysis_id: str, rows: list[dict],find_analysis
             # Keep stable runtime directory and run identity for unchanged node_id.
             "analysis_node_id": existed.get("analysis_node_id") or row.get("analysis_node_id"),
         }
-        payload = _normalize_node_row(merged, analysis_id=analysis_id)
+        payload = _normalize_update_node_row(merged, analysis_id=analysis_id)
         # Keep existing runtime status when syncing DAG structure.
         # if existed.get("status")  in { "failed"}:
         #     payload["status"] = "ready"

@@ -455,45 +455,53 @@ async def save_script_analysis(
     with get_engine().begin() as conn:
         relation_id = request_param['relation_id']
 
-        component = pipeline_service.find_relation_component_by_id(conn, relation_id)
-
+        # component = pipeline_service.find_relation_component_by_id(conn, relation_id)
+        relation = pipeline_service.find_by_relation_id(conn, relation_id)
         # pipeline_id = request_param['pipeline_id']
-        if component["component_id"] is None:
-            raise HTTPException(status_code=500, detail=f"component_id is None")
+        # if component["component_id"] is None:
+        #     raise HTTPException(status_code=500, detail=f"component_id is None")
         # component = pipeline_service.find_pipeline_by_id(conn, component_id)
         # if component["component_type"] == "pipeline":
         #     component = pipeline_service.get_pipeline_v2(conn,component_id)
-        if component is None:
-            raise HTTPException(status_code=404, detail=f"Component with id {relation_id} not found")
-        if component is None or "content" not in component:
-            raise HTTPException(status_code=404, detail=f"Component with id {relation_id} not found or missing content.")
+        if relation is None:
+            raise HTTPException(status_code=404, detail=f"Relation with id {relation_id} not found")
+        # if component is None or "content" not in component:
+        #     raise HTTPException(status_code=404, detail=f"Component with id {relation_id} not found or missing content.")
 
         # component_content = 
-        component_obj = {
-            **{ k:v for k,v in component.items() if k != "content"},
-            **json.loads(component['content'])
-        }
+        # component_obj = {
+        #     **{ k:v for k,v in component.items() if k != "content"},
+        #     **json.loads(component['content'])
+        # }
 
-        script_type = component_obj['script_type']   
+        # script_type = component_obj['script_type']   
         # if  script_type=="nextflow":
         #     analysis_controller = app_container.nextflow_analysis()
         # else:
         #     analysis_controller = app_container.script_analysis()
-        
+        dag_definition = relation["dag_definition"] 
 
-        if script_type == "python" or script_type == "shell" or script_type == "r" or script_type == "jupyter":
-            analysis_controller = app_container.script_analysis()
-        else:
-            analysis_controller = app_container.nextflow_analysis()
-
-        parse_analysis_result = analysis_controller.get_parames(conn,request_param,component_obj)
+        analysis_controller = app_container.script_analysis()
+        # if script_type == "python" or script_type == "shell" or script_type == "r" or script_type == "jupyter":
+        #     analysis_controller = app_container.script_analysis()
+        # else:
+        #     analysis_controller = app_container.nextflow_analysis()
+        # formJson = []
+        formJson = pipeline_service.get_from_json_by_relation_id(conn, relation_id)
+        databases = []
+        parse_analysis_result = analysis_controller.get_parames(conn,request_param,formJson,databases)
         if not save:
             return parse_analysis_result
         
         # save_analysis 中的dag_runtime_generate的update_by_analysis_id会将 failed 状态的节点更新为 ready
-        save_analysis = await analysis_controller.save_analysis(conn,request_param,parse_analysis_result,component_obj,is_report,is_cache)
+        save_analysis = await analysis_controller.save_analysis(conn,
+                                                                request_param,
+                                                                parse_analysis_result,
+                                                                relation_id,
+                                                                dag_definition,
+                                                                is_report,is_cache)
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
-        dag_definition = component["dag_definition"]
+        # dag_definition = component["dag_definition"]
         analysis_id = save_analysis["analysis_id"]
         # if dag_definition:
         #     dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
@@ -730,10 +738,12 @@ def format_form_json_item(item):
 async def visualization_node_results(analysis_id):
     with get_engine().begin() as conn:
         find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
-        find_relation = pipeline_service.find_relation_component_by_id(conn,find_analysis['relation_id'])
+        # find_relation = pipeline_service.find_relation_component_by_id(conn,find_analysis['relation_id'])
+        find_relation = pipeline_service.find_by_relation_id(conn,find_analysis['relation_id'])
+
         dag_definition = find_relation["dag_definition"]
         nodes = dag_definition.get("nodes",[])
-        report_nodes = [item["script_id"] for item in nodes if item.get("report") == True]
+        report_nodes = [item["script_id"] for item in nodes ]
         analysis_nodes = analysis_node_service.find_by_analysis_id_and_script_ids(conn,analysis_id,report_nodes)
         # 用script_id + script_name 作为父，实现树状结构，node 在父下面的children里
         # {

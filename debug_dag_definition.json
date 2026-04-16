@@ -1,96 +1,79 @@
 {
   "nodes": [
     {
-      "name": "\u4e0b\u6e38\u5206\u6790\u4e00",
-      "id": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
+      "name": "differential genes expression analysis",
+      "id": "4a34dad8-7ad6-4daf-9cdb-5cfb8f64d611",
       "inputs": {
-        "x_input": {
-          "type": "file",
-          "required": true
+        "count": {
+          "label": "count input",
+          "component_id": "75087620-2ff8-4045-8694-a0c19aac12fc",
+          "db": true,
+          "group": "group_field",
+          "type": "CollectedSampleSelect",
+          "columns": [
+            "feature_var",
+            "control",
+            "treatment"
+          ],
+          "modes": [
+            0,
+            1,
+            1
+          ],
+          "columns_rules": [
+            1,
+            1,
+            1
+          ],
+          "rules": [
+            {
+              "required": true,
+              "message": "This field cannot be empty!"
+            }
+          ]
         }
       },
       "outputs": {
-        "boxplot": {
+        "degs": {
           "type": "file",
-          "pattern": "*_boxplot.tsv"
-        },
-        "heatmap": {
-          "type": "file",
-          "pattern": "*_heatmap.tsv"
+          "pattern": "*deg.tsv",
+          "required": true
         }
       },
-      "color": "green",
+      "color": "magenta",
       "icon": "scissors",
-      "script_id": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
-      "report": true,
+      "script_id": "4a34dad8-7ad6-4daf-9cdb-5cfb8f64d611",
       "position": {
-        "x": 26.04082969901404,
-        "y": -48.39481599243771
+        "x": -229.5,
+        "y": -21.821884155273438
       }
     },
     {
-      "name": "\u4e0b\u6e38\u5206\u6790\u4e8cboxplot",
-      "id": "1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1ae",
+      "name": "enrichment analysis",
+      "id": "953575ee-acd4-4ff9-b050-ee0e0ba8bfcb",
       "inputs": {
-        "tsv": {
+        "deg": {
           "type": "file",
           "required": true
         }
       },
-      "outputs": {
-        "png": {
-          "type": "file",
-          "pattern": "{sample}_boxplot.png"
-        }
-      },
-      "color": "green",
+      "outputs": {},
+      "color": "magenta",
       "icon": "scissors",
-      "script_id": "1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1ae",
-      "report": true,
+      "script_id": "953575ee-acd4-4ff9-b050-ee0e0ba8bfcb",
       "position": {
-        "x": 250.126903989516,
-        "y": -122.63631383332975
-      }
-    },
-    {
-      "name": "\u4e0b\u6e38\u5206\u6790\u4e09heatmap",
-      "id": "c3cf7d40-bb70-4cce-a91f-25f204407935",
-      "inputs": {
-        "tsv": {
-          "type": "file",
-          "required": true
-        }
-      },
-      "outputs": {
-        "png": {
-          "type": "file",
-          "pattern": "*_heatmap.png"
-        }
-      },
-      "color": "green",
-      "icon": "scissors",
-      "script_id": "c3cf7d40-bb70-4cce-a91f-25f204407935",
-      "report": true,
-      "position": {
-        "x": 254.626903989516,
-        "y": 9.863686166670249
+        "x": 132.5,
+        "y": -41.5
       }
     }
   ],
   "edges": [
     {
-      "source": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
-      "sourceHandle": "boxplot",
-      "target": "1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1ae",
-      "targetHandle": "tsv",
-      "id": "xy-edge__5edaf74f-f859-456d-8194-e33a6d0dfdd5boxplot-1ff7fc2b-4eca-4ca7-8a4f-4c8641c2b1aetsv"
-    },
-    {
-      "source": "5edaf74f-f859-456d-8194-e33a6d0dfdd5",
-      "sourceHandle": "heatmap",
-      "target": "c3cf7d40-bb70-4cce-a91f-25f204407935",
-      "targetHandle": "tsv",
-      "id": "xy-edge__5edaf74f-f859-456d-8194-e33a6d0dfdd5heatmap-c3cf7d40-bb70-4cce-a91f-25f204407935tsv"
+      "source": "4a34dad8-7ad6-4daf-9cdb-5cfb8f64d611",
+      "sourceHandle": "degs",
+      "target": "953575ee-acd4-4ff9-b050-ee0e0ba8bfcb",
+      "targetHandle": "deg",
+      "id": "xy-edge__4a34dad8-7ad6-4daf-9cdb-5cfb8f64d611degs-953575ee-acd4-4ff9-b050-ee0e0ba8bfcbdeg"
     }
   ]
 }

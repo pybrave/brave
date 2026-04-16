@@ -191,7 +191,8 @@ def create_file(component_id,component_type,file_type):
             content_text = f.read()
     # if component_type == "pipeline":
     # analysis_file = f"{pipeline_dir}/{component_type}/{component_id}/main.{file_type}"
-    analysis_file = get_script_dir(component_type, component_id)
+    analysis_dir  = get_script_dir(component_type, component_id)
+    analysis_file = f"{analysis_dir}/main.{file_type}"
     if not os.path.exists(analysis_file):
         dir_ = os.path.dirname(analysis_file)
         if not os.path.exists(dir_):
@@ -316,6 +317,7 @@ def find_relation_component_by_id(conn,relation_id):
             t_pipeline_components.c.container_id == t_container.c.container_id
         )
     ).where(t_pipeline_components_relation.c.relation_id == relation_id)
+    
     find_component = conn.execute(stmt).mappings().first()
     if find_component and find_component["dag_definition"]:
         find_component = dict(find_component)
@@ -1529,6 +1531,11 @@ def get_from_json_by_relation_id(conn, relation_id):
                 scripts = find_by_component_ids(conn, script_ids)
                 for script in scripts:
                     script = dict(script)
+                    if script["io_schema"]:
+                        io_schema = json.loads(script["io_schema"])
+                        if "inputs" in io_schema:
+                            formJsonWarp.extend(io_schema["inputs"])  
+
                     if script["content"]:
                         content = json.loads(script["content"])
                         # formJsonWarp.append({

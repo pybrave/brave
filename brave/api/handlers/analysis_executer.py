@@ -88,6 +88,8 @@ def setup_handlers(
         print(f"🚀 [on_analysis_started] {payload.analysis_id} {payload.run_type}")
         if  payload.run_type =="node":
             asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"running"))
+        elif payload.run_type =="nserver":
+            asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"running"))
 
         # if payload.run_type =="server":
         #     await analysis_service.update_url(payload.analysis_id,f"http://10.110.1.11:5003/container/{payload.analysis_id}")
