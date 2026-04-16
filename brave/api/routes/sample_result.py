@@ -25,6 +25,7 @@ from brave.api.models.core import samples,analysis_result
 from brave.api.config.db import get_engine
 import inspect
 from fastapi import HTTPException
+from brave.api.schemas.file import AddToFile
 from brave.api.service.pipeline  import get_default_module, get_all_module,get_pipeline_dir
 import threading
 import brave.api.service.analysis_result_service as analysis_result_service
@@ -545,6 +546,43 @@ def get_unique_filename(upload_dir: str, filename: str) -> str:
         counter += 1
 
     return new_filename
+
+@sample_result.post("/analysis-result/add-to-file",tags=['analysis_result'])
+async def add_to_file(addToFile: AddToFile):
+    project_id = addToFile.project
+    component_id = addToFile.component_id
+
+    settings = get_settings()
+    if addToFile.type=="analysis":
+        real_path = f"{settings.ANALYSIS_DIR}/{project_id}"
+    else:
+        real_path = f"{settings.DATA_DIR}/{project_id}"
+    real_file_path = f"{real_path}/{addToFile.path}"
+    if not os.path.exists(real_file_path):
+        raise HTTPException(status_code=500, detail=f"文件{real_file_path}不存在!")
+    
+    file_name = os.path.basename(real_file_path)
+    with get_engine().begin() as conn:
+        component = pipeline_service.find_component_by_id(conn,component_id)
+    file_type = component.get("file_type","collected")
+    
+    import_data_list =[
+        ImportData(
+            component_id= component_id,
+            project= project_id,
+            content= real_file_path,
+            file_type= file_type,
+            file_name= file_name,
+            # sample_source= "source",
+        )
+    ]
+    await import_data(import_data_list)
+
+
+    return {
+        "file_path": real_file_path,
+    }
+
 
 
 @sample_result.post("/analysis-result/upload",tags=['analysis_result'])

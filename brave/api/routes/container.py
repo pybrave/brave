@@ -106,17 +106,21 @@ async def delete_by_container_id(container_id:str):
 @inject
 async def run_container(
     container_id,
+    project_id=None,
     # executor: JobExecutor = Depends(get_executor_dep),
     evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
     ):
     settings = get_settings()
 
-    base_dir = str(settings.BASE_DIR)
+    base_dir = str(settings.DATA_DIR)
+    if project_id:
+        base_dir = f"{base_dir}/{project_id}"
     run_id = f"retry-{container_id}"
     analysis_ =  AnalysisExecuterModal(
         analysis_id=container_id,
         container_id=container_id,
         output_dir=base_dir,
+        workspace_dir=f"{base_dir}",
         script_path=f"{base_dir}/run.sh",
         run_id=run_id
     )

@@ -170,10 +170,14 @@ def delete_wrap_pipeline_dir(pipeline_key):
     # for item in dir_list:
     #     if not os.path.exists(item):
     #         os.makedirs(item) 
+def get_script_dir(component_type, component_id):
+    pipeline_dir = get_pipeline_dir()
+    return f"{pipeline_dir}/{component_type}/{component_id}"
+
 
 def create_file(component_id,component_type,file_type):
-    pipeline_dir = get_pipeline_dir()
-    pipeline_dir = f"{pipeline_dir}"
+    # pipeline_dir = get_pipeline_dir()
+    # pipeline_dir = f"{pipeline_dir}"
 
     content_text = ""
     if file_type == "py":
@@ -186,7 +190,8 @@ def create_file(component_id,component_type,file_type):
         with resources.files("brave.templete").joinpath("py_plot.R").open("r") as f:
             content_text = f.read()
     # if component_type == "pipeline":
-    analysis_file = f"{pipeline_dir}/{component_type}/{component_id}/main.{file_type}"
+    # analysis_file = f"{pipeline_dir}/{component_type}/{component_id}/main.{file_type}"
+    analysis_file = get_script_dir(component_type, component_id)
     if not os.path.exists(analysis_file):
         dir_ = os.path.dirname(analysis_file)
         if not os.path.exists(dir_):
@@ -1466,3 +1471,10 @@ def get_from_json_by_relation_id(conn, relation_id):
                         # })
                         formJsonWarp.extend(content["formJson"])
     return formJsonWarp
+
+
+
+def list_all_relation(conn):
+    stmt = select(t_pipeline_components_relation)
+    relations = conn.execute(stmt).mappings().all()
+    return relations

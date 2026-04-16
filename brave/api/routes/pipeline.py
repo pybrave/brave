@@ -638,6 +638,7 @@ async def save_pipeline_relation(conn,savePipelineRelation:SavePipelineRelation)
         save_pipeline_relation_dict['order_index'] = child_component_count + 1
         stmt = t_pipeline_components_relation.insert().values(save_pipeline_relation_dict)
         conn.execute(stmt)
+        
     return relation_id
     # stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id ==savePipelineRelation.component_id)
     # find_pipeine = conn.execute(stmt).fetchone()
@@ -648,8 +649,15 @@ async def save_pipeline_relation(conn,savePipelineRelation:SavePipelineRelation)
 
 
 async def update_or_save_components(savePipeline:SavePipeline):
+    script_dir = pipeline_service.get_script_dir(savePipeline.component_type, savePipeline.component_id)
+    if not os.path.exists(script_dir):
+        os.makedirs(script_dir, exist_ok=True)
     try:
-        json.loads(savePipeline.content)
+        data = json.loads(savePipeline.content)
+        with open(f"{script_dir}/form.json","w") as f:
+            json.dump(data,f,indent=4)
+            print(f"write form json to {script_dir}/form.json")
+        
     except Exception as e:
         # print("component content json error",json.dumps(savePipeline,indent=4))
         # raise HTTPException(status_code=500, detail=f"组件内容不是合法的json格式! 错误信息:{str(e)}")
@@ -657,7 +665,11 @@ async def update_or_save_components(savePipeline:SavePipeline):
  
     try:
         if savePipeline.io_schema:
-            json.loads(savePipeline.io_schema)
+            data = json.loads(savePipeline.io_schema)
+            with open(f"{script_dir}/io_schema.json","w") as f:
+                json.dump(data,f,indent=4)
+                print(f"write io_schema json to {script_dir}/io_schema.json")
+
     except Exception as e:
         raise ValueError(f"The io_schema is not valid JSON format! Error message:{str(e)}")
     save_pipeline_dict = savePipeline.dict()
@@ -969,7 +981,31 @@ def get_component_depends(conn,component_id: str,component_type:str):
     if component_type =="file":
         depends = pipeline_service.find_relation_component_by_file_component_id(conn,component_id)
     elif component_type =="script":
-        depends = pipeline_service.find_relation_component_by_script_component_id(conn,component_id)
+        relarions = pipeline_service.list_all_relation(conn)
+        depends = []
+        for item in relarions:
+            if  item["dag_definition"] and "nodes" in item["dag_definition"]:
+                scripts = []
+                try:
+                    scripts= json.loads(item["dag_definition"])
+                    if "nodes" in scripts:
+                        scripts = scripts["nodes"]
+                except Exception as e:
+                    print(f"Error parsing dag_definition for relation_id {item['relation_id']}: {str(e)}")
+                    continue
+
+                
+                script_ids = [script["script_id"] for script in scripts if "script_id" in script]
+                if component_id in script_ids:
+                    depends.append(item)
+
+                # nodes_list.extend(item["dag_definition"]["nodes"])
+                # if 
+        # nodes_list = [item["dag_definition"]["nodes"] for item in relarions if item["relation_type"] == "tools" and item["dag_definition"] and "nodes" in item["dag_definition"]]
+        # nodes_list = [item for sublist in nodes_list for item in sublist]
+        # depends = [item for item in nodes_list if item["script_id"] == component_id]
+        # pass
+
 
     return depends
 
@@ -995,7 +1031,7 @@ async def delete_component(component_id: str):
             find_analysis_result = analysis_result_service.find_analysis_result_by_component_id(conn,component_id)
             if find_analysis_result:
                 raise HTTPException(status_code=500, detail=f"Cannot delete because there are existing analysis results!")
-        find_relation = get_component_depends(conn,component_id, component_type)
+        find_relations = get_component_depends(conn,component_id, component_type)
 
         # if not find_component:
         #     raise HTTPException(status_code=500, detail=f"Cannot find component for {component_id}!")
@@ -1004,8 +1040,10 @@ async def delete_component(component_id: str):
         # stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.component_id ==component_id)
         # child_find_pipeine = conn.execute(stmt).fetchall()
 
-        if  find_relation:
-            raise HTTPException(status_code=500, detail=f"Cannot delete because there are existing associations!") 
+        if  find_relations:
+            deps = [{"relation_id": item.get("relation_id"),"name": item.get("name")} for item in find_relations]
+            print(f"Cannot delete component {component_id} because there are existing relations: {deps}")
+            raise HTTPException(status_code=500, detail=f"Cannot delete because there are existing associations! {deps}") 
         else:
             # find_component = pipeline_service.find_component_by_id(conn,component_id)
             stmt = t_pipeline_components.delete().where(t_pipeline_components.c.component_id == component_id)
