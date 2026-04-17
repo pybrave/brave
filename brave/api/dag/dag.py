@@ -29,6 +29,18 @@ def _node_name(node: Dict[str, Any]) -> str:
 	return str(node.get("name") or node.get("id") or "node")
 
 
+def _node_id_base(node: Dict[str, Any]) -> str:
+	"""返回用于 node_id 的基名：将空白字符规范化为下划线。"""
+	return re.sub(r"\s+", "_", _node_name(node).strip())
+
+
+def _build_node_id(node_id_base: str, sample_label: str = "") -> str:
+	"""统一生成 runtime node_id。"""
+	if sample_label:
+		sample_label = re.sub(r"\s+", "_", sample_label.strip())
+	return f"{node_id_base}_{sample_label}" if sample_label else node_id_base
+
+
 def _script_id(node: Dict[str, Any]) -> str:
 	"""返回脚本标识，用于运行时和默认参数匹配。"""
 	return str(node.get("script_id") or node.get("name") or node.get("id") or "")
@@ -230,6 +242,13 @@ def _render_output_pattern(pattern: str, sample: Dict[str, Any], sample_label: s
 	return pattern.replace("{sample}", sample_name)
 
 
+def _build_node_name(name: str, sample_label: str) -> str:
+	"""构建节点展示名，格式为 #name:sample_label。"""
+	# sym_value = str(sym or "node")
+	label_value = str(sample_label or "merged")
+	return f"{name} ({label_value})"
+
+
 def _topology(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> List[str]:
 	"""返回拓扑顺序；若图中存在环，则回退原始节点顺序。"""
 	node_ids = [_node_key(n) for n in nodes]
@@ -366,6 +385,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 			continue
 
 		name = _node_name(node)
+		node_id_base = _node_id_base(node)
 		script_id = _script_id(node)
 		node_params_defaults = _as_dict(params.get("node_params")).get(script_id)
 		if node_params_defaults is None:
@@ -421,7 +441,9 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 
 			for i, sample in enumerate(node_samples):
 				sample_label = node_sample_labels[i]
-				node_instance = f"{name}_{sample_label}" if sample_label else name
+				node_instance = _build_node_id(node_id_base, sample_label)
+				node_name = _build_node_name(name, sample_label)
+				
 				node_params = dict(_as_dict(node_params_defaults))
 				resolved_inputs: Dict[str, Any] = {}
 				input_validation_errors: List[str] = []
@@ -435,14 +457,14 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					)
 					if in_edge_match:
 						src = str(in_edge_match.get("source"))
-						source_name = _node_name(node_map[src])
+						source_id_base = _node_id_base(node_map[src])
 						source_handle = _edge_value(in_edge_match, "sourceHandle", "source_handle")
 
 						resolved_value = None
-						source_instance = f"{source_name}_{sample_label}" if sample_label else source_name
+						source_instance = _build_node_id(source_id_base, sample_label)
 						resolved_value = output_cache.get((source_instance, source_handle, sample_label))
 						if resolved_value is None:
-							resolved_value = output_cache.get((source_name, source_handle, ""))
+							resolved_value = output_cache.get((source_id_base, source_handle, ""))
 
 						resolved_value = _project_input_value_by_schema(resolved_value, input_schema)
 						node_params[input_handle] = resolved_value
@@ -483,6 +505,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						"analysis_id": analysis_id,
 						"sample_id": str(sample.get("sample_id") or ""),
 						"node_id": node_instance,
+						"node_name": node_name,
 						"script_id": script_id,
 						"inputs_patterns": inputs,
 						"resolved_inputs": resolved_inputs,
@@ -500,7 +523,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				# - 目标是 sample 节点时，按 label 对齐连边
 				# - 目标是 aggregate 节点时，所有 sample 实例汇聚到目标节点
 				target = str(e.get("target"))
-				target_name = _node_name(node_map[target])
+				target_id_base = _node_id_base(node_map[target])
 				target_kind = node_kind.get(target, "sample")
 				source_handle = _edge_value(e, "sourceHandle", "source_handle")
 				target_handle = _edge_value(e, "targetHandle", "target_handle")
@@ -514,7 +537,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 
 				if target_kind == "sample":
 					for src_label in current_labels:
-						source_node_id = f"{name}_{src_label}" if src_label else name
+						source_node_id = _build_node_id(node_id_base, src_label)
 						if target_scatter_field:
 							candidate_target_labels = [src_label] if src_label and src_label in target_labels else target_labels
 							for dst_label in candidate_target_labels:
@@ -522,13 +545,13 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 									{
 										"analysis_id": analysis_id,
 										"source_node": source_node_id,
-										"target_node": f"{target_name}_{dst_label}",
+										"target_node": _build_node_id(target_id_base, dst_label),
 										"source_handle": source_handle,
 										"target_handle": target_handle,
 									}
 								)
 						else:
-							target_node_id = f"{target_name}_{src_label}" if src_label else target_name
+							target_node_id = _build_node_id(target_id_base, src_label)
 							analysis_edges.append(
 								{
 									"analysis_id": analysis_id,
@@ -540,12 +563,12 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 							)
 				else:
 					for src_label in current_labels:
-						source_node_id = f"{name}_{src_label}" if src_label else name
+						source_node_id = _build_node_id(node_id_base, src_label)
 						analysis_edges.append(
 							{
 								"analysis_id": analysis_id,
 								"source_node": source_node_id,
-								"target_node": target_name,
+								"target_node": target_id_base,
 								"source_handle": source_handle,
 								"target_handle": target_handle,
 							}
@@ -553,7 +576,8 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 
 		else:
 			# aggregate 节点：只生成一个实例，输入可能来自多个 sample 上游。
-			node_instance = name
+			node_instance = _build_node_id(node_id_base)
+			node_name = _build_node_name(name, "merged")
 			node_params = dict(_as_dict(node_params_defaults))
 			gather_field = _gather_field(node)
 			resolved_inputs: Dict[str, Any] = {}
@@ -567,7 +591,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					if _edge_value(in_edge, "targetHandle", "target_handle") != input_handle:
 						continue
 					src = str(in_edge.get("source"))
-					source_name = _node_name(node_map[src])
+					source_id_base = _node_id_base(node_map[src])
 					source_kind = node_kind.get(src, "sample")
 					source_handle = _edge_value(in_edge, "sourceHandle", "source_handle")
 
@@ -576,10 +600,10 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						if source_labels is None:
 							source_labels = [""]
 						for sample_label in source_labels:
-							source_instance = f"{source_name}_{sample_label}" if sample_label else source_name
+							source_instance = _build_node_id(source_id_base, sample_label)
 							values.append(output_cache.get((source_instance, source_handle, sample_label)))
 					else:
-						values.append(output_cache.get((source_name, source_handle, "aggregate")))
+						values.append(output_cache.get((source_id_base, source_handle, "aggregate")))
 
 				values = [v for v in values if v is not None]
 				is_list = bool(gather_field) and input_handle == gather_field
@@ -612,6 +636,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 				{
 					"analysis_id": analysis_id,
 					"node_id": node_instance,
+					"node_name": node_name,
 					"script_id": script_id,
 					"inputs_patterns": inputs,
 					"resolved_inputs": resolved_inputs,

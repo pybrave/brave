@@ -624,6 +624,7 @@ def find_by_analysis_id_and_script_ids(conn, analysis_id: str, script_ids: list[
     stmt = select(
         analysis_nodes.c.analysis_node_id,
         analysis_nodes.c.analysis_id,
+        analysis_nodes.c.node_name,
         analysis_nodes.c.node_id,
         analysis_nodes.c.script_id,
         analysis_nodes.c.status,
