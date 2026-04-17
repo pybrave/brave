@@ -531,6 +531,7 @@ class BaseAnalysis(ABC):
             # "file_columns":file_columns,
             "settings":settings,
             # "metadata_form":metadata_form
+            "analysis_name":request_param.get("analysis_name")
         }
 
         parse_data = getattr(module, "parse_data")

@@ -36,21 +36,22 @@ def _script_id(node: Dict[str, Any]) -> str:
 
 def _sample_label(sample: Dict[str, Any], index: int) -> str:
 	"""为 sample 生成稳定标签（例如 S1/S2），用于 sample 节点实例命名。"""
-	file_name = str(sample.get("file_name") or "").strip()
+	file_name = str(sample.get("file_name") or sample.get("analysis_result_id")).strip()
 	if file_name:
-		if "_" in file_name:
-			token = file_name.split("_")[-1].strip()
-			if token:
-				return token.upper()
-		if file_name[-1:].isdigit():
-			digits = ""
-			for ch in reversed(file_name):
-				if ch.isdigit():
-					digits = ch + digits
-				else:
-					break
-			if digits:
-				return f"S{digits}"
+		return f"{file_name}_{index + 1}"
+		# if "_" in file_name:
+		# 	token = file_name.split("_")[-1].strip()
+		# 	if token:
+		# 		return token.upper()
+		# if file_name[-1:].isdigit():
+		# 	digits = ""
+		# 	for ch in reversed(file_name):
+		# 		if ch.isdigit():
+		# 			digits = ch + digits
+		# 		else:
+		# 			break
+		# 	if digits:
+		# 		return f"S{digits}"
 	return f"S{index + 1}"
 
 
@@ -72,6 +73,22 @@ def _sample_value(sample: Dict[str, Any], handle: str) -> Any:
 			return normalized_sample_map[norm]
 
 	return None
+
+
+def _sample_extra_meta(sample: Dict[str, Any], input_handles: List[str]) -> Dict[str, Any]:
+	"""提取 sample 中未被输入句柄消费的字段，用于 resolved_inputs.meta。"""
+	def _norm_key(key: str) -> str:
+		return re.sub(r"[^a-z0-9]", "", key.lower())
+
+	consumed_norm_keys = {_norm_key(handle) for handle in input_handles}
+	extra: Dict[str, Any] = {}
+	for key, value in sample.items():
+		if value is None:
+			continue
+		if _norm_key(str(key)) in consumed_norm_keys:
+			continue
+		extra[str(key)] = value
+	return extra
 
 
 def _schema_type(schema: Dict[str, Any]) -> str:
@@ -393,7 +410,8 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						node_samples.append(sample_payload)
 				else:
 					node_samples = [dict(params)] if isinstance(params, dict) else []
-					node_sample_labels = [""] if node_samples else []
+					# node_sample_labels is params.analysis_name or [""]
+					node_sample_labels = [params.get("analysis_name", "")] if node_samples else []
 
 			node_labels[nid] = list(node_sample_labels)
 			node_samples_map[nid] = {
@@ -441,6 +459,10 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						continue
 
 					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, None))
+
+				extra_meta = _sample_extra_meta(sample, list(inputs.keys()))
+				if extra_meta and "meta" not in resolved_inputs:
+					resolved_inputs["meta"] = extra_meta
 
 				node_resolved_outputs: Dict[str, Any] = {}
 				has_input_errors = len(input_validation_errors) > 0

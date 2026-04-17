@@ -119,10 +119,11 @@ def delete_by_analysis_id(conn, analysis_id: str):
 
 def _normalize_node_row(row: dict, analysis_id: str | None = None) -> dict:
     return {
-        "analysis_node_id": row.get("analysis_node_id") or str(uuid.uuid4()),
+        "analysis_node_id": row.get("analysis_node_id") ,
         "analysis_id": analysis_id or row.get("analysis_id"),
         "node_id": row.get("node_id"),
         "sample_id": row.get("sample_id"),
+        "node_name": row.get("node_name"),
         "script_id": row.get("script_id"),
         "inputs_patterns": row.get("inputs_patterns"),
         "resolved_inputs": row.get("resolved_inputs"),
@@ -160,6 +161,7 @@ def _normalize_update_node_row(row: dict, analysis_id: str | None = None) -> dic
         "node_id": row.get("node_id"),
         "sample_id": row.get("sample_id"),
         "script_id": row.get("script_id"),
+        "node_name": row.get("node_name"),
         "inputs_patterns": row.get("inputs_patterns"),
         "output_patterns": row.get("output_patterns"),
         "output_dir": row.get("output_dir"),
@@ -253,16 +255,18 @@ def update_by_analysis_id(conn, analysis_id: str, rows: list[dict],find_analysis
             # Keep stable runtime directory and run identity for unchanged node_id.
             "analysis_node_id": existed.get("analysis_node_id") or row.get("analysis_node_id"),
         }
-        payload = _normalize_update_node_row(merged, analysis_id=analysis_id)
+        
         # Keep existing runtime status when syncing DAG structure.
         if is_cache:
+            payload = _normalize_update_node_row(merged, analysis_id=analysis_id)
             if existed.get("status")  in { "failed"}:
                 payload["status"] = "ready"
             else:
                 payload.pop("status", None)
         else:
-            payload["status"] = "pending"
-            
+            payload = _normalize_node_row(merged, analysis_id=analysis_id)
+            # payload["status"] = "pending"
+
         payload["updated_at"] = now
         conn.execute(
             analysis_nodes.update()

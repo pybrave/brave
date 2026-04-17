@@ -119,6 +119,7 @@ analysis_nodes = Table(
     Column("analysis_node_id", String(255)),   # 当前节点实例 ID (UUID)
     Column("analysis_id", String(255)),        # 整个 DAG 实例 ID
     Column("node_id", String(255)),            # DAG 定义中的节点 ID
+    Column("node_name", String(255)),
     Column("sample_id", String(255)),
     Column("script_id", String(255)),
 
