@@ -1,5 +1,5 @@
 {
-  "x_input": {
+  "count": {
     "id": 7012,
     "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
     "sample_id": null,
@@ -8,37 +8,111 @@
     "file_type": "collected",
     "content": "/opt/brave_prod/workspace/data/f6f2bb45-baec-432d-ab31-b1c35d985de1/gene_count.tsv",
     "file": 7012,
-    "sample_vars": [
+    "feature_var": {
+      "id": 7012,
+      "sample_name": "symbol",
+      "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+      "columns_name": "symbol"
+    },
+    "control": [
+      {
+        "id": 7012,
+        "sample_name": "SP1",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "SP1"
+      },
+      {
+        "id": 7012,
+        "sample_name": "SP2",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "SP2"
+      },
+      {
+        "id": 7012,
+        "sample_name": "SP3",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "SP3"
+      },
+      {
+        "id": 7012,
+        "sample_name": "SP4",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "SP4"
+      },
       {
         "id": 7012,
         "sample_name": "SP5",
         "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
         "columns_name": "SP5"
+      },
+      {
+        "id": 7012,
+        "sample_name": "SP6",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "SP6"
       }
     ],
-    "feature_var": {
-      "id": 7012,
-      "sample_name": "SP6",
-      "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
-      "columns_name": "SP6"
-    },
+    "treatment": [
+      {
+        "id": 7012,
+        "sample_name": "CF1",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "CF1"
+      },
+      {
+        "id": 7012,
+        "sample_name": "CF2",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "CF2"
+      },
+      {
+        "id": 7012,
+        "sample_name": "CF3",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "CF3"
+      },
+      {
+        "id": 7012,
+        "sample_name": "CF4",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "CF4"
+      },
+      {
+        "id": 7012,
+        "sample_name": "CF5",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "CF5"
+      },
+      {
+        "id": 7012,
+        "sample_name": "CF6",
+        "analysis_result_id": "15dee288-f49f-4031-a6d1-513d160e479a",
+        "columns_name": "CF6"
+      }
+    ],
     "form_type": "CollectedSampleSelect",
     "groups": [
-      "sample_vars",
-      "feature_var"
+      "feature_var",
+      "control",
+      "treatment"
     ]
   },
+  "filter_by": "p",
+  "species": "mmu",
+  "gene_id_type": "symbol",
+  "cutoff": 0.05,
+  "top_n": 20,
   "colors": {
-    "x_input": "-"
+    "count": "-"
   },
   "groups_name": {
-    "x_input": "-"
+    "count": "-"
   },
   "re_groups_name": {
-    "x_input": "-"
+    "count": "-"
   },
   "groups": [
-    "x_input"
+    "count"
   ],
   "pipeline_dir": "/opt/brave_prod/workspace/pipeline"
 }

@@ -93,5 +93,5 @@ class RunAnalysisInput(BaseModel):
     save: Optional[bool] = False
     is_submit: Optional[bool] = False
     is_report: Optional[bool] = None
-    is_cache: Optional[bool] = True
+    # is_cache: Optional[bool] = False
     analysis_node_id: Optional[str] = None

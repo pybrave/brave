@@ -170,7 +170,7 @@ def _normalize_update_node_row(row: dict, analysis_id: str | None = None) -> dic
         "memory": row.get("memory"),
         "disk": row.get("disk"),
         "gpu": row.get("gpu"),
-        "status":  "pending",
+        # "status":  "pending",
         "pid": row.get("pid"),
         "job_id": row.get("job_id"),
         "executor": row.get("executor"),
@@ -203,7 +203,7 @@ def replace_by_analysis_id(conn, analysis_id: str, rows: list[dict]):
     delete_by_analysis_id(conn, analysis_id)
     create_many(conn, rows)
 
-def update_by_analysis_id(conn, analysis_id: str, rows: list[dict],find_analysis):
+def update_by_analysis_id(conn, analysis_id: str, rows: list[dict],find_analysis,is_cache=False):
 
     existing_nodes = [dict(item) for item in find_by_analysis_id(conn, analysis_id)]
 
@@ -255,10 +255,14 @@ def update_by_analysis_id(conn, analysis_id: str, rows: list[dict],find_analysis
         }
         payload = _normalize_update_node_row(merged, analysis_id=analysis_id)
         # Keep existing runtime status when syncing DAG structure.
-        # if existed.get("status")  in { "failed"}:
-        #     payload["status"] = "ready"
-        # else:
-        #     payload.pop("status", None)
+        if is_cache:
+            if existed.get("status")  in { "failed"}:
+                payload["status"] = "ready"
+            else:
+                payload.pop("status", None)
+        else:
+            payload["status"] = "pending"
+            
         payload["updated_at"] = now
         conn.execute(
             analysis_nodes.update()

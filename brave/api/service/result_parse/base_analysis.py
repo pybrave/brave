@@ -52,7 +52,7 @@ def merge_columns_by_name(form_json):
 
     return result
 
-def dag_runtime_generate(conn, find_analysis, params, dag_definition):
+def dag_runtime_generate(conn, find_analysis, params, dag_definition, is_cache=False):
     analysis_id = find_analysis["analysis_id"]
     runtime = build_runtime_tasks(
         analysis_id= analysis_id,
@@ -68,7 +68,7 @@ def dag_runtime_generate(conn, find_analysis, params, dag_definition):
     analysis_edges = runtime.get("analysis_edges", [])
 
     # analysis_node_service.replace_by_analysis_id(conn, analysis_id, analysis_nodes)
-    analysis_node_service.update_by_analysis_id(conn, analysis_id, analysis_nodes,find_analysis)
+    analysis_node_service.update_by_analysis_id(conn, analysis_id, analysis_nodes,find_analysis,is_cache)
     analysis_edge_service.replace_by_analysis_id(conn, analysis_id, analysis_edges)
     analysis_node_service.refresh_ready_status(conn, analysis_id)
 
@@ -135,15 +135,15 @@ class BaseAnalysis(ABC):
                             parse_analysis_result,
                             relation_id,
                             dag_definition,
-                            is_report,
-                            is_cache):
+                            is_report):
         # parse_analysis_result,component = self.get_parames(request_param)
 
-
+        is_cache = request_param.get("is_cache", False)
         new_analysis = {
             "project":request_param['project'],
             "analysis_name":request_param['analysis_name'],
             "request_param":json.dumps(request_param),
+            "is_cache":is_cache,
             # "analysis_method":component_script,
             # "component_id":component['component_id'],
             "relation_id":relation_id,
@@ -210,8 +210,8 @@ class BaseAnalysis(ABC):
                 **find_analysis,
                 **new_analysis
             }
-            if is_cache:
-                analysis_node_service.update_status_ready_by_analysis_id(conn, request_param['analysis_id'])
+            # if is_cache:
+            analysis_node_service.update_status_ready_by_analysis_id(conn, request_param['analysis_id'])
         else:
             print("create analysis")
             settings = get_settings()
@@ -312,7 +312,7 @@ class BaseAnalysis(ABC):
             # dag_definition = component["dag_definition"]
         if dag_definition:
             dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
-            dag_runtime_generate(conn, new_analysis, parse_analysis_result, dag_definition)
+            dag_runtime_generate(conn, new_analysis, parse_analysis_result, dag_definition,is_cache)
         
             
         return new_analysis

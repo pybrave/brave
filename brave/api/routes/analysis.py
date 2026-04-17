@@ -450,7 +450,7 @@ async def save_script_analysis(
     save = runAnalysisInput.save
     is_submit = runAnalysisInput.is_submit
     is_report = runAnalysisInput.is_report
-    is_cache = runAnalysisInput.is_cache
+    # is_cache = runAnalysisInput.is_cache
 
     with get_engine().begin() as conn:
         relation_id = request_param['relation_id']
@@ -499,7 +499,7 @@ async def save_script_analysis(
                                                                 parse_analysis_result,
                                                                 relation_id,
                                                                 dag_definition,
-                                                                is_report,is_cache)
+                                                                is_report)
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
         # dag_definition = component["dag_definition"]
         analysis_id = save_analysis["analysis_id"]
@@ -948,6 +948,7 @@ async def edit_params(analysis_id):
     result = {
         "analysis_name":find_analysis["analysis_name"],
         "is_report":find_analysis["is_report"],
+        "is_cache":find_analysis["is_cache"],
         "analysis_id":find_analysis["analysis_id"],
         "status":find_analysis["job_status"],
         "server_status":find_analysis["server_status"],
@@ -1004,6 +1005,7 @@ async def edit_params(analysis_node_id):
     result = {
         "analysis_name":find_analysis["analysis_name"],
         "is_report":find_analysis["is_report"],
+        "is_cache":find_analysis["is_cache"],
         "analysis_id":find_analysis["analysis_id"],
         "status":find_analsyis_node["status"],
         "server_status":find_analysis["server_status"],
