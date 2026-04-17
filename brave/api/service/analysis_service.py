@@ -505,6 +505,12 @@ def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_param
     if script_type == "r":
         with open(command_path,"w") as f:
             f.write(f"Rscript {script_path} {params_path} {output_dir}")
+    if script_type == "shell":
+        with open(command_path,"w") as f:
+            f.write(f"sh {script_path} {params_path} {output_dir}")
+    if script_type == "python":
+        with open(command_path,"w") as f:
+            f.write(f"python {script_path} {params_path} {output_dir}")
 
     
    
