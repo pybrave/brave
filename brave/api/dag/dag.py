@@ -353,10 +353,10 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 	3) 解析输入、预渲染输出、构建输出缓存
 	4) 生成边并做最终图装饰
 	"""
-	with open("debug_dag_definition.json", "w") as f:
-		json.dump(dag_definition, f, indent=2)
-	with open("debug_dag_params.json", "w") as f:
-		json.dump(params, f, indent=2)
+	# with open("debug_dag_definition.json", "w") as f:
+	# 	json.dump(dag_definition, f, indent=2)
+	# with open("debug_dag_params.json", "w") as f:
+	# 	json.dump(params, f, indent=2)
 		
 	nodes = dag_definition.get("nodes") or []
 	edges = dag_definition.get("edges") or []
