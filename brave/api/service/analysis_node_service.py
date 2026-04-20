@@ -521,7 +521,11 @@ def page_analysis_nodes(conn, query: PageAnalysisNodeQuery):
 async def finished_analysis_node_conn(analysis_id,run_type,status):
     with get_engine().begin() as conn:  
         finished_analysis_node(conn,analysis_id,run_type,status)
-  
+
+async def find_by_analysis_node_id_conn(analysis_id):
+    with get_engine().begin() as conn:  
+        return find_by_analysis_node_id(conn,analysis_id)
+
 
 def finished_analysis_node(conn,analysis_node_id,run_type,status):
     if run_type =="tools":

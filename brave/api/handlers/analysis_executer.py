@@ -77,17 +77,39 @@ def setup_handlers(
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_NODE_SUBMITTED)
     async def on_analysis_node_submitted(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_node_submitted] {payload.analysis_id}")
+        analysis_id = None
         if  payload.run_type =="node":
             asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"submitted"))
+            analysis_node = await analysis_node_service.find_by_analysis_node_id_conn(payload.analysis_id)
+            analysis_id = analysis_node.get("analysis_id") 
 
         await job_executor.submit_job(payload)
 
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "analysis",
+                "id":  payload.analysis_id,
+                "parentId": analysis_id,
+                "method": "analysisSubmitted",
+                "args": {
+                    "status": "submitted",
+                    "id": payload.analysis_id
+                }
+            }
+        }
+     
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
+  
 
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_STARTED)
     async def on_analysis_started(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_started] {payload.analysis_id} {payload.run_type}")
+        analysis_id = None
         if  payload.run_type =="node":
             asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"running"))
+            analysis_node = await analysis_node_service.find_by_analysis_node_id_conn(payload.analysis_id)
+            analysis_id = analysis_node.get("analysis_id") 
         elif payload.run_type =="nserver":
             asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"running"))
 
@@ -100,6 +122,7 @@ def setup_handlers(
             "payload": {
                 "category": "analysis",
                 "id":  payload.analysis_id,
+                "parentId": analysis_id,
                 "method": "analysisStarted",
                 "args": {
                     "status": "running",
@@ -132,6 +155,7 @@ def setup_handlers(
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_COMPLETE)
     async def on_analysis_complete(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_complete] {payload.analysis_id} {payload.run_type}")
+        analysis_id = None
         if payload.run_type =="job":
             asyncio.create_task(result_parse_manage.parse(payload.analysis_id))
             
@@ -141,6 +165,8 @@ def setup_handlers(
         elif payload.run_type =="nserver":
              asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"stopped"))
         elif payload.run_type =="node":
+            analysis_node = await analysis_node_service.find_by_analysis_node_id_conn(payload.analysis_id)
+            analysis_id = analysis_node.get("analysis_id") 
             asyncio.create_task(analysis_runtime_engine_service.complete_node_conn(payload.analysis_id,"done"))
 
         # if payload.run_type !="retry":
@@ -156,6 +182,7 @@ def setup_handlers(
             "payload": {
                 "category": "analysis",
                 "id":  payload.analysis_id,
+                "parentId": analysis_id,
                 "method": "analysisDone",
                 "args": {
                     "status": "done",
@@ -177,11 +204,14 @@ def setup_handlers(
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_FAILED)
     async def on_analysis_failed(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_failed] {payload.analysis_id}")
+        analysis_id = None
         if payload.run_type =="server":
             await analysis_service.update_url(payload.analysis_id,None )
         elif payload.run_type =="nserver":
             asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"stopped"))
         elif payload.run_type =="node":
+            analysis_node = await analysis_node_service.find_by_analysis_node_id_conn(payload.analysis_id)
+            analysis_id = analysis_node.get("analysis_id") 
             asyncio.create_task(analysis_runtime_engine_service.complete_node_conn(payload.analysis_id,"failed"))
         elif payload.run_type !="retry":
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"failed"))
@@ -191,6 +221,7 @@ def setup_handlers(
             "payload": {
                 "category": "analysis",
                 "id":  payload.analysis_id,
+                "parentId": analysis_id,
                 "method": "analysisDone",
                 "args": {
                     "status": "done",

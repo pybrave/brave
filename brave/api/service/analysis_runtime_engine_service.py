@@ -18,6 +18,17 @@ from brave.api.service import analysis_edge_service, analysis_node_service
 
 TERMINAL_STATUS = {"done", "failed", "cached", "skipped"}
 SUCCESS_STATUS = {"done", "cached"}
+RUNTIME_STATUS_KEYS = {
+    "pending",
+    "ready",
+    "submitted",
+    "running",
+    # "retrying",
+    "done",
+    "failed",
+    "cached",
+    # "skipped",
+}
 SIMULATED_MIN_SLEEP_SECONDS = 0.5
 SIMULATED_MAX_SLEEP_SECONDS = 2.0
 
@@ -220,10 +231,15 @@ def get_runtime_snapshot(conn, analysis_id: str) -> Dict[str, Any]:
     nodes = [dict(row) for row in analysis_node_service.find_by_analysis_id(conn, analysis_id)]
     ready_nodes = [n for n in nodes if str(n.get("status") or "") == "ready"]
 
-    status_count: Dict[str, int] = {}
+    status_count: Dict[str, int] = {status: 0 for status in sorted(RUNTIME_STATUS_KEYS)}
     for node in nodes:
         status = str(node.get("status") or "pending")
         status_count[status] = status_count.get(status, 0) + 1
+
+    completed_count = sum(
+        1 for node in nodes if str(node.get("status") or "pending") in TERMINAL_STATUS
+    )
+    completion_percent = int(round((completed_count / len(nodes)) * 100)) if nodes else 100
 
     is_finished = all(str(node.get("status") or "pending") in TERMINAL_STATUS for node in nodes) if nodes else True
 
@@ -231,6 +247,8 @@ def get_runtime_snapshot(conn, analysis_id: str) -> Dict[str, Any]:
         "analysis_id": analysis_id,
         "total_nodes": len(nodes),
         "status_count": status_count,
+        "completed_count": completed_count,
+        "completion_percent": completion_percent,
         "ready_count": len(ready_nodes),
         "ready_nodes": ready_nodes,
         "is_finished": is_finished,

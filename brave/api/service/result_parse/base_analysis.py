@@ -135,6 +135,7 @@ class BaseAnalysis(ABC):
                             parse_analysis_result,
                             relation_id,
                             dag_definition,
+                            is_run_node,
                             is_report):
         # parse_analysis_result,component = self.get_parames(request_param)
 
@@ -310,7 +311,7 @@ class BaseAnalysis(ABC):
             # await self.submit_analysis(new_analysis)
         # if not is_cache:
             # dag_definition = component["dag_definition"]
-        if dag_definition:
+        if dag_definition and not is_run_node:
             dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
             dag_runtime_generate(conn, new_analysis, parse_analysis_result, dag_definition,is_cache)
         

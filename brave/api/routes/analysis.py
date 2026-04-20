@@ -492,13 +492,14 @@ async def save_script_analysis(
         parse_analysis_result = analysis_controller.get_parames(conn,request_param,formJson,databases)
         if not save:
             return parse_analysis_result
-        
+        is_run_node = True if analysis_node_id else False
         # save_analysis 中的dag_runtime_generate的update_by_analysis_id会将 failed 状态的节点更新为 ready
         save_analysis = await analysis_controller.save_analysis(conn,
                                                                 request_param,
                                                                 parse_analysis_result,
                                                                 relation_id,
                                                                 dag_definition,
+                                                                is_run_node,
                                                                 is_report)
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
         # dag_definition = component["dag_definition"]
