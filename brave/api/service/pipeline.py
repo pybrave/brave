@@ -1521,11 +1521,13 @@ def get_workflow(conn, tool_id):
 def get_from_json_by_relation_id(conn, relation_id):
     find_relation = find_by_relation_id(conn,relation_id)
     dag_definition = find_relation.get("dag_definition")
+    
     formJsonWarp = []
     if dag_definition:
         # dag_definition= json.loads(dag_definition)
         if "nodes" in dag_definition:
             nodes = dag_definition["nodes"]
+            nodes_map = { node["script_id"]: node for node in nodes if "script_id" in node }
             input_script_ids = set()
             edges = dag_definition.get("edges") or []
             target_node_ids = {
@@ -1550,8 +1552,28 @@ def get_from_json_by_relation_id(conn, relation_id):
                     script_id = script.get("component_id")
                     if script_id in input_script_ids and script["io_schema"]:
                         io_schema = json.loads(script["io_schema"])
-                        if "inputs" in io_schema:
-                            formJsonWarp.extend(io_schema["inputs"])  
+                        if script_id in nodes_map:
+                            node = nodes_map[script_id]
+                            io_schema = {**io_schema, **node}
+
+                        if "scatter" in io_schema:
+                            scatter = io_schema.get("scatter")
+                            if "mode" in scatter and scatter["mode"] == "each":
+                                if "workflow" in io_schema:
+                                    formJsonWarp.extend(io_schema["workflow"])  
+                            else:
+                                if "inputs" in io_schema:
+                                    formJsonWarp.extend(io_schema["inputs"])  
+                        else:
+                            if "inputs" in io_schema:
+                                formJsonWarp.extend(io_schema["inputs"])  
+
+                      
+                             
+                        
+                        if "params" in io_schema:
+                            formJsonWarp.extend(io_schema["params"])
+                        
 
                     if script["content"]:
                         content = json.loads(script["content"])

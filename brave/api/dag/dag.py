@@ -479,9 +479,17 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						resolved_inputs[input_handle] = direct_value
 						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, direct_value))
 						continue
+					else:
+						io_type = input_schema.get("type")
+						if io_type and io_type=="CollectedSampleSelect":
+							node_params[input_handle] = sample
+							resolved_inputs[input_handle] = sample
+							continue
+
 
 					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, None))
 
+				
 				extra_meta = _sample_extra_meta(sample, list(inputs.keys()))
 				if extra_meta and "meta" not in resolved_inputs:
 					resolved_inputs["meta"] = extra_meta

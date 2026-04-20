@@ -426,22 +426,22 @@ class BaseAnalysis(ABC):
                 columns = query_form["columns"]
                 analysis_result["form_type"] = query_form_type
                 analysis_result["groups"] = columns
-                for column_group in columns:
-                    # if "name" in column_group:
-                    #     column_group = column_group["name"]
-                    if column_group not in request_param[k]:
-                        continue
-                    columns = request_param[k][column_group]
-                    if isinstance(columns, list):
-                        columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
-                            for item in columns
-                        ]
-                    else:
-                        columns = analysis_result_service.build_collected_analysis_result(columns,analysis_result,samples_dict)
-                    # columns = {**columns,
-                    #     "selcted_group_name":groups_name[k].get(column_group),
-                    #     "re_groups_name":re_groups_name[k].get(column_group)}
-                    analysis_result[column_group] = columns
+                # for column_group in columns:
+                #     # if "name" in column_group:
+                #     #     column_group = column_group["name"]
+                #     if column_group not in request_param[k]:
+                #         continue
+                #     columns = request_param[k][column_group]
+                #     if isinstance(columns, list):
+                #         columns = [ analysis_result_service.build_collected_analysis_result(item,analysis_result,samples_dict)
+                #             for item in columns
+                #         ]
+                #     else:
+                #         columns = analysis_result_service.build_collected_analysis_result(columns,analysis_result,samples_dict)
+                #     # columns = {**columns,
+                #     #     "selcted_group_name":groups_name[k].get(column_group),
+                #     #     "re_groups_name":re_groups_name[k].get(column_group)}
+                #     analysis_result[column_group] = columns
 
                 
 
@@ -449,12 +449,14 @@ class BaseAnalysis(ABC):
             elif query_form_type =="NestCollectedSampleSelect":
                 ids = db_ids_dict[k]
                 request_param_item = request_param[k]
-                request_param_item_dict = {item["file"]:item for item in request_param_item}
-                db_dict[k] = [ {**item,
-                    # "form_type":query_form_type,
-                    # "selcted_group_name":groups_name.get(k),
-                    # "re_groups_name":re_groups_name.get(k),
-                    **request_param_item_dict.get(item["id"],{})} for item in v ]
+                # request_param_item_dict = {item["file"]:item for item in request_param_item}
+                # db_dict[k] = [ {**item,
+                #     **request_param_item_dict.get(item["id"],{})} for item in v ]
+                db_item_dict = {item["id"]:item for item in v}
+                
+                db_dict[k] =  [
+                   {**item, **db_item_dict.get(item["file"],{})} for item in request_param_item
+                ]
             else:
                 ids = db_ids_dict[k]
                 request_param_item = request_param[k]

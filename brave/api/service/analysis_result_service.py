@@ -392,11 +392,14 @@ def find_analyais_result_by_ids( conn,value):
         ids = [value]
     analysis_result = find_analyais_result(conn,AnalysisResultQuery(ids=ids,build_collected=False))
     analysis_result = [model_dump_one(item) for item in analysis_result]
-    if len(analysis_result)!=len(ids):
+    if len(analysis_result)!=len(set(ids)):
         raise HTTPException(status_code=500, detail="数据存在问题!")
     # if not isinstance(value,list) and len(analysis_result)==1:
     #     return analysis_result[0]
     # else:
+
+    
+
     return analysis_result
 
 def find_analysis_result_exist(conn,component_id,file_name,project):
