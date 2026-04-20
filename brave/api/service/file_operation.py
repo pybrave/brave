@@ -112,7 +112,7 @@ def format_table_output(path,row_num=None):
         data=[]
         data_type="download"
     elif path.endswith("tsv"):
-        df =  pd.read_csv(path,sep="\t")
+        df =  pd.read_csv(path,sep="\t", nrows= row_num)
         df = df.iloc[:, :100]
         # df = pd.read_csv(path,sep="\t")
         # data = json.loads(df.to_json(orient="records")) 
@@ -230,7 +230,7 @@ async def visualization_results_path(path):
     tables = []
     for ext in ("*.csv","*.md", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list","*.diff"):
         tables.extend(glob.glob(os.path.join(path, ext)))
-    tables = [format_table_output(table,100) for table in tables]
+    tables = [format_table_output(table,10) for table in tables]
     tables = sorted(tables, key=lambda x: x.get("order", 0), reverse=True)
     # textList = []
     # for ext in ("*.txt"):

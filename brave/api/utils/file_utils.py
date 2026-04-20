@@ -29,7 +29,8 @@ def delete_all_in_dir(path):
             print(f"删除 {file_path} 失败: {e}")
 
 def get_table_content(path,row_num=None):
-    df_content_0 = pd.read_csv(path,sep="\t")
+    row_num = int(row_num) if row_num else None
+    df_content_0 = pd.read_csv(path,sep="\t",nrows= row_num)
     return get_table_content_by_df(df_content_0,row_num)
 
 def get_table_content_by_df(df_content,row_num=None):
