@@ -770,6 +770,7 @@ async def visualization_node_results(analysis_id):
         return {
             "analysis_id":analysis_id,
             "analysis_name":find_analysis["analysis_name"],
+            "relation_id":find_relation["relation_id"],
             "result":list(node_dict.values())
         }
 

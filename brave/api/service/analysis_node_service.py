@@ -10,7 +10,7 @@ from sqlalchemy import and_, desc, select, or_, func, update
 from collections import defaultdict
 from datetime import datetime
 import uuid
-from brave.api.models.core import t_pipeline_components,t_container
+from brave.api.models.core import t_pipeline_components,t_container,analysis as t_analysis
 from brave.api.utils.file_utils import delete_all_in_dir
 import  brave.api.service.pipeline as   pipeline_service
 from pathlib import Path
@@ -300,10 +300,13 @@ def find_container_by_analysis_node_id(conn,  node_id: str):
                     t_container.c.container_id.label("container_id"),
                     t_container.c.image.label("container_image"),
                     t_container.c.image_status.label("image_status"),
+                    # t_analysis.c.relation_id.label("relation_id")
                   )
     stmt = stmt.select_from(
             analysis_nodes.outerjoin(t_pipeline_components,analysis_nodes.c.script_id==t_pipeline_components.c.component_id)
             .outerjoin(t_container,t_pipeline_components.c.container_id==t_container.c.container_id)
+            # .outerjoin(t_analysis, analysis_nodes.c.analysis_id==t_analysis.c.analysis_id)
+
     )
     stmt = stmt.where(
        analysis_nodes.c.analysis_node_id == node_id

@@ -243,6 +243,7 @@ def get_runtime_snapshot(conn, analysis_id: str) -> Dict[str, Any]:
 
     is_finished = all(str(node.get("status") or "pending") in TERMINAL_STATUS for node in nodes) if nodes else True
 
+
     return {
         "analysis_id": analysis_id,
         "total_nodes": len(nodes),

@@ -45,6 +45,13 @@ class RuntimeDagQueueScheduler:
         self.dispatch_errors: list[dict] = []
         self._workers: list[asyncio.Task] = []
         self._started_at = time.monotonic()
+        self._stop_requested = asyncio.Event()
+
+    def request_stop(self) -> None:
+        self._stop_requested.set()
+
+    def is_stop_requested(self) -> bool:
+        return self._stop_requested.is_set()
 
     def _is_timeout(self) -> bool:
         if self.timeout_seconds is None:
@@ -56,8 +63,13 @@ class RuntimeDagQueueScheduler:
             return analysis_runtime_engine_service.get_runtime_snapshot(conn, analysis_id=self.analysis_id)
 
     async def _claim_and_enqueue_ready_nodes(self) -> int:
+        if self._stop_requested.is_set():
+            return 0
+
         claimed = 0
         while not self.queue.full() and self.submitted_count < self.max_steps:
+            if self._stop_requested.is_set():
+                break
             with get_engine().begin() as conn:
                 # 调用 schedule_next 的时候会顺便刷新 ready 状态，所以不需要单独调用 refresh_ready_status。
                 node = analysis_runtime_engine_service.schedule_next(conn, analysis_id=self.analysis_id)
@@ -90,10 +102,27 @@ class RuntimeDagQueueScheduler:
 
         self.submitted_count += 1
 
+    async def _close_queued_node_without_dispatch(self, queued_node: _QueuedNode) -> None:
+        with get_engine().begin() as conn:
+            node = analysis_node_service.find_by_analysis_node_id(conn, queued_node.analysis_node_id)
+            if not node:
+                return
+            analysis_runtime_engine_service.complete_node(
+                conn,
+                analysis_id=str(node.get("analysis_id") or ""),
+                node_id=str(node.get("node_id") or ""),
+                status="failed",
+                exit_code=1,
+                error_message="dag stopping before dispatch",
+            )
+
     async def _worker(self) -> None:
         while True:
             queued_node = await self.queue.get()
             try:
+                if self._stop_requested.is_set():
+                    await self._close_queued_node_without_dispatch(queued_node)
+                    continue
                 await self._dispatch_single_node(queued_node)
             except Exception as exc:
                 self.failed_to_submit_count += 1
@@ -142,6 +171,9 @@ class RuntimeDagQueueScheduler:
                     break
 
                 if self.submitted_count >= self.max_steps and self.queue.empty() and running_count == 0:
+                    break
+
+                if self._stop_requested.is_set() and self.queue.empty() and running_count == 0:
                     break
 
                 if self._is_timeout():

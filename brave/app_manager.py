@@ -13,6 +13,7 @@ from brave.api.service.process_monitor_service import ProcessMonitor
 from brave.api.service.realtime_service import RealtimeService
 from brave.api.config.db import get_engine
 from brave.api.service import namespace_service, project_service
+from brave.api.service import analysis_node_service
 from brave.api.ingress.manager import IngressManager
 from brave.api.handlers import workflow_events,analysis_result   
 from brave.api.core.workflow_queue import WorkflowQueueManager
@@ -20,6 +21,8 @@ from dependency_injector.wiring import inject, Provide
 from brave.app_container import AppContainer
 from brave.api.core.routers.ingress_event_router import IngressEventRouter
 from brave.api.core.event import IngressEvent
+from brave.api.core.evenet_bus import EventBus
+from brave.api.core.event import AnalysisExecutorEvent
 from brave.api.service.analysis_result_parse import AnalysisResultParse
 from brave.api.service.listener_files_service import ListenerFilesService
 from brave.api.core.heartbeat import process_heartbeat
@@ -27,6 +30,8 @@ from brave.api.core.routers.watch_file_event_router import WatchFileEvenetRouter
 from brave.api.service.file_watcher_service import FileWatcherService
 from brave.api.core.event import WatchFileEvent
 from brave.api.core.event import WorkflowEvent
+from brave.api.core.routers_name import RoutersName
+from brave.api.schemas.analysis import AnalysisExecuterModal
 import  brave.api.service.analysis_service as analysis_service
 from brave.api.executor.base import JobExecutor
 from brave.api.executor.local_executor import LocalExecutor
@@ -44,6 +49,7 @@ class AppManager:
         listener_files_service: ListenerFilesService = Provide[AppContainer.listener_files_service],
         workflow_event_router:WorkflowEventRouter=Provide[AppContainer.workflow_event_router],
         watchfile_event_router:WatchFileEvenetRouter=Provide[AppContainer.watchfile_event_router],
+        event_bus:EventBus=Provide[AppContainer.event_bus],
         job_executor:JobExecutor=Provide[AppContainer.job_executor_selector],
         config = Provide[AppContainer.config],
         tool_manager:ToolManager=Provide[AppContainer.tool_manager]
@@ -60,6 +66,7 @@ class AppManager:
         self.listener_files_service = listener_files_service
         self.workflow_event_router = workflow_event_router
         self.watchfile_event_router = watchfile_event_router
+        self.event_bus = event_bus
         self.job_executor = job_executor
         self.tool_manager = tool_manager
         self.config = config
@@ -68,6 +75,85 @@ class AppManager:
         self.file_watcher = None
         self.process_monitor = None
         self.wes = None
+
+    async def _recover_stopping_dag_analysis(self, analysis_id: str):
+        with get_engine().begin() as conn:
+            node_items = analysis_node_service.find_running_analysis_node(conn)
+            running_nodes = [item for item in node_items if item.get("analysis_id") == analysis_id]
+
+        for node in running_nodes:
+            run_id = str(node.get("run_id") or "")
+            if not run_id:
+                continue
+            payload = AnalysisExecuterModal(
+                analysis_id=str(node.get("analysis_node_id") or ""),
+                run_id=run_id,
+                run_type=str(node.get("run_type") or "node"),
+            )
+            try:
+                await self.event_bus.dispatch(
+                    RoutersName.ANALYSIS_EXECUTER_ROUTER,
+                    AnalysisExecutorEvent.ON_ANALYSIS_STOPED,
+                    payload,
+                )
+            except Exception as exc:
+                print(
+                    f"[AppManager] Failed to stop recovered DAG node: "
+                    f"analysis_id={analysis_id} run_id={run_id} err={exc}"
+                )
+
+        wait_timeout_seconds = 60
+        wait_interval_seconds = 1
+        elapsed = 0
+        while elapsed < wait_timeout_seconds:
+            with get_engine().begin() as conn:
+                node_items = analysis_node_service.find_running_analysis_node(conn)
+                running_count = len([item for item in node_items if item.get("analysis_id") == analysis_id])
+            if running_count == 0:
+                await analysis_service.finished_analysis(analysis_id, "job", "stopped")
+                print(f"[AppManager] Recovered stopping DAG analysis to stopped: {analysis_id}")
+                return
+            await asyncio.sleep(wait_interval_seconds)
+            elapsed += wait_interval_seconds
+
+        print(f"[AppManager] Recover stopping DAG timed out: {analysis_id}")
+
+    async def _recover_running_dag_analysis(self):
+        with get_engine().begin() as conn:
+            running_dag_analysis = analysis_service.find_running_dag_analysis(conn)
+
+        if not running_dag_analysis:
+            return
+
+        for item in running_dag_analysis:
+            analysis_id = item.get("analysis_id")
+            if not analysis_id:
+                continue
+
+            if item.get("job_status") == "stopping":
+                asyncio.create_task(
+                    self._recover_stopping_dag_analysis(analysis_id),
+                    name=f"recover-stop-{analysis_id}",
+                )
+                print(f"[AppManager] Recovering stopping DAG analysis: {analysis_id}")
+                continue
+
+            run_id = item.get("run_id") or f"job-{analysis_id}"
+            payload = AnalysisExecuterModal(
+                analysis_id=analysis_id,
+                run_id=run_id,
+                run_type="job",
+            )
+
+            try:
+                await self.event_bus.dispatch(
+                    RoutersName.ANALYSIS_EXECUTER_ROUTER,
+                    AnalysisExecutorEvent.ON_DAG_SUBMITTED,
+                    payload,
+                )
+                print(f"[AppManager] Recovered running DAG analysis: {analysis_id}")
+            except Exception as exc:
+                print(f"[AppManager] Failed to recover DAG analysis {analysis_id}: {exc}")
         
 
 
@@ -159,6 +245,7 @@ class AppManager:
         analysis_executer.setup_handlers()
         workflow_events.setup_handlers()
         analysis_result.setup_handlers()
+        await self._recover_running_dag_analysis()
         self.tasks.append(asyncio.create_task(self.realtime_service.broadcast_loop()))
         # self.tasks.append(asyncio.create_task(self.ws_service.broadcast_loop()))
 

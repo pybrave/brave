@@ -173,6 +173,43 @@ def find_running_analysis(conn):
     result = [add_run_id(item) for item in result]
     return result
 
+
+def find_running_dag_analysis(conn):
+    """Return recoverable analyses that are DAG-based jobs.
+
+    Recovery includes both running and stopping DAG jobs so process restarts can
+    continue scheduling or complete a pending stop flow.
+    """
+    stmt = select(t_analysis).where(
+        or_(
+            t_analysis.c.job_status == "running",
+            t_analysis.c.job_status == "stopping",
+        )
+    )
+    running_items = conn.execute(stmt).mappings().all()
+    dag_items = []
+    for raw_item in running_items:
+        item = dict(raw_item)
+        analysis_id = item.get("analysis_id")
+        if not analysis_id:
+            continue
+        item["run_id"] = f"job-{analysis_id}"
+        item["run_type"] = "job"
+
+        relation_id = item.get("relation_id")
+        if item.get("run_type") != "job" or not relation_id:
+            continue
+
+        relation = pipeline_service.find_by_relation_id(conn, relation_id)
+        if not relation:
+            continue
+
+        dag_definition = relation.get("dag_definition")
+        if isinstance(dag_definition, dict) and dag_definition.get("nodes"):
+            dag_items.append(item)
+
+    return dag_items
+
 def get_all_files_recursive(directory,dir_name,file_dict):
     file_list=[]
     for root, dirs, files in os.walk(directory):

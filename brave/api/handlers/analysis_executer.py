@@ -9,6 +9,7 @@ from brave.api.core.routers.analysis_executer_router import AnalysisExecutorRout
 from dependency_injector.wiring import inject, Provide
 from brave.api.core.routers_name import RoutersName
 from brave.api.dag.runtime_dag_queue_scheduler import RuntimeDagQueueScheduler
+from brave.api.dag.running_dag_registry import running_dag_registry
 from brave.api.executor.base import JobExecutor
 from brave.api.schemas.analysis import AnalysisExecuterModal
 from brave.api.service import analysis_node_service, analysis_runtime_engine_service, analysis_service
@@ -30,6 +31,19 @@ def setup_handlers(
     
     evenet_bus.register_router(RoutersName.ANALYSIS_EXECUTER_ROUTER,router)
 
+    async def _watch_dag_run(analysis_id: str, dag_task: asyncio.Task):
+        try:
+            result = await dag_task
+            if isinstance(result, dict):
+                await running_dag_registry.mark_finished(analysis_id, result=result)
+            else:
+                await running_dag_registry.mark_finished(analysis_id, result={"result": str(result)})
+        except asyncio.CancelledError:
+            await running_dag_registry.mark_failed(analysis_id, error="dag scheduler task was cancelled")
+            return
+        except Exception as exc:
+            await running_dag_registry.mark_failed(analysis_id, error=str(exc))
+
     @router.on_event(AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED)
     async def on_analysis_submitted(payload:AnalysisExecuterModal):
         print(f"🚀 [on_analysis_submitted] {payload.analysis_id}")
@@ -39,18 +53,35 @@ def setup_handlers(
     async def on_dag_submitted(payload:AnalysisExecuterModal):
         print(f"🚀 [on_dag_submitted] {payload.analysis_id}")
         # await job_executor.submit_job(payload)
-        analsyis_id =payload.analysis_id
+        analysis_id = payload.analysis_id
+        max_steps = 10000
+        max_concurrency = 1
+        queue_size = 64
+        poll_interval_seconds = 500 / 1000.0
+        timeout_seconds = None
         scheduler = RuntimeDagQueueScheduler(
-            analysis_id=analsyis_id,
+            analysis_id=analysis_id,
             event_bus=evenet_bus,
-            max_steps=10000,
-            max_concurrency=1,
-            queue_size= 64,
-            poll_interval_seconds= 500 / 1000.0,
-            timeout_seconds=None,
+            max_steps=max_steps,
+            max_concurrency=max_concurrency,
+            queue_size=queue_size,
+            poll_interval_seconds=poll_interval_seconds,
+            timeout_seconds=timeout_seconds,
         )
         # submit to background task and return immediately use asyncio.create_task, so that client can receive the response without waiting for the whole run to complete.
-        asyncio.create_task(scheduler.run())
+        dag_task = asyncio.create_task(scheduler.run(), name=f"dag-run-{analysis_id}")
+        await running_dag_registry.register(
+            analysis_id=analysis_id,
+            task_name=dag_task.get_name(),
+            source="event.on_dag_submitted",
+            max_concurrency=max_concurrency,
+            queue_size=queue_size,
+            poll_interval_seconds=poll_interval_seconds,
+            timeout_seconds=timeout_seconds,
+            task=dag_task,
+            stop_callback=scheduler.request_stop,
+        )
+        asyncio.create_task(_watch_dag_run(analysis_id, dag_task))
         asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"job","running"))
         data = {
             "action": "component.invoke",
@@ -70,7 +101,15 @@ def setup_handlers(
     async def on_dag_complete(payload:dict):
         analysis_id = payload.get('analysis_id')
         print(f"🚀 [on_dag_complete] {analysis_id}")
-        asyncio.create_task(analysis_service.finished_analysis(analysis_id,"job","done"))
+        if analysis_id:
+            await running_dag_registry.mark_dag_complete_event(str(analysis_id))
+        final_status = "done"
+        if analysis_id:
+            with get_engine().begin() as conn:
+                find_analysis = analysis_service.find_analysis_by_id(conn, analysis_id)
+                if find_analysis and find_analysis.get("job_status") == "stopping":
+                    final_status = "stopped"
+        asyncio.create_task(analysis_service.finished_analysis(analysis_id,"job",final_status))
         data = {
             "action": "component.invoke",
             "payload": {
