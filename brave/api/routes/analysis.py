@@ -531,18 +531,18 @@ async def save_script_analysis(
                     await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,
                                           AnalysisExecutorEvent.ON_DAG_SUBMITTED,
                                           AnalysisExecuterModal(run_id=f"job-{analysis_id}",analysis_id=analysis_id,run_type="job"))
-                    analsyis_id = save_analysis["analysis_id"]
-                    scheduler = RuntimeDagQueueScheduler(
-                        analysis_id=analsyis_id,
-                        event_bus=evenet_bus,
-                        max_steps=10000,
-                        max_concurrency=1,
-                        queue_size= 64,
-                        poll_interval_seconds= 500 / 1000.0,
-                        timeout_seconds=None,
-                    )
-                    # submit to background task and return immediately use asyncio.create_task, so that client can receive the response without waiting for the whole run to complete.
-                    asyncio.create_task(scheduler.run())
+                    # analsyis_id = save_analysis["analysis_id"]
+                    # scheduler = RuntimeDagQueueScheduler(
+                    #     analysis_id=analsyis_id,
+                    #     event_bus=evenet_bus,
+                    #     max_steps=10000,
+                    #     max_concurrency=1,
+                    #     queue_size= 64,
+                    #     poll_interval_seconds= 500 / 1000.0,
+                    #     timeout_seconds=None,
+                    # )
+                    # # submit to background task and return immediately use asyncio.create_task, so that client can receive the response without waiting for the whole run to complete.
+                    # asyncio.create_task(scheduler.run())
     # if is_submit:
        
 

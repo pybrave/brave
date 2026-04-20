@@ -8,6 +8,7 @@ from brave.api.core.evenet_bus import EventBus
 from brave.api.core.routers.analysis_executer_router import AnalysisExecutorRouter
 from dependency_injector.wiring import inject, Provide
 from brave.api.core.routers_name import RoutersName
+from brave.api.dag.runtime_dag_queue_scheduler import RuntimeDagQueueScheduler
 from brave.api.executor.base import JobExecutor
 from brave.api.schemas.analysis import AnalysisExecuterModal
 from brave.api.service import analysis_node_service, analysis_runtime_engine_service, analysis_service
@@ -38,6 +39,18 @@ def setup_handlers(
     async def on_dag_submitted(payload:AnalysisExecuterModal):
         print(f"🚀 [on_dag_submitted] {payload.analysis_id}")
         # await job_executor.submit_job(payload)
+        analsyis_id =payload.analysis_id
+        scheduler = RuntimeDagQueueScheduler(
+            analysis_id=analsyis_id,
+            event_bus=evenet_bus,
+            max_steps=10000,
+            max_concurrency=1,
+            queue_size= 64,
+            poll_interval_seconds= 500 / 1000.0,
+            timeout_seconds=None,
+        )
+        # submit to background task and return immediately use asyncio.create_task, so that client can receive the response without waiting for the whole run to complete.
+        asyncio.create_task(scheduler.run())
         asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,"job","running"))
         data = {
             "action": "component.invoke",
