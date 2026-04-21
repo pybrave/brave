@@ -52,27 +52,27 @@ def merge_columns_by_name(form_json):
 
     return result
 
-def dag_runtime_generate(conn, find_analysis, params, dag_definition, is_cache=False):
+def dag_runtime_generate(conn, find_analysis, dag_runtime, is_cache=False):
     analysis_id = find_analysis["analysis_id"]
-    runtime = build_runtime_tasks(
-        analysis_id= analysis_id,
-        params=params,
-        dag_definition=dag_definition,
-    )
+    # runtime = build_runtime_tasks(
+    #     analysis_id= analysis_id,
+    #     params=params,
+    #     dag_definition=dag_definition,
+    # )
 
-    analysis_nodes = runtime.get("analysis_nodes", [])
+    analysis_nodes = dag_runtime.get("analysis_nodes", [])
     # init node path
     # find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
     # analysis_nodes = analysis_node_service.init_node_path(find_analysis, analysis_nodes)
 
-    analysis_edges = runtime.get("analysis_edges", [])
+    analysis_edges = dag_runtime.get("analysis_edges", [])
 
     # analysis_node_service.replace_by_analysis_id(conn, analysis_id, analysis_nodes)
     analysis_node_service.update_by_analysis_id(conn, analysis_id, analysis_nodes,find_analysis,is_cache)
     analysis_edge_service.replace_by_analysis_id(conn, analysis_id, analysis_edges)
     analysis_node_service.refresh_ready_status(conn, analysis_id)
 
-    return runtime
+    # return runtime
 
 class BaseAnalysis(ABC):
     def __init__(self, event_bus:EventBus) -> None:
@@ -134,7 +134,9 @@ class BaseAnalysis(ABC):
                             request_param,
                             parse_analysis_result,
                             relation_id,
-                            dag_definition,
+                            analysis_id,
+                            find_analysis,
+                            dag_runtime,
                             is_run_node,
                             is_report):
         # parse_analysis_result,component = self.get_parames(request_param)
@@ -179,10 +181,10 @@ class BaseAnalysis(ABC):
 
         output_dir=None
         work_dir=None
-        result = None
-        if "analysis_id" in request_param:
-            stmt = select(t_analysis).where(t_analysis.c.analysis_id == request_param['analysis_id'])
-            result = conn.execute(stmt).mappings().first()
+        result = find_analysis
+        # if "analysis_id" in request_param:
+        #     stmt = select(t_analysis).where(t_analysis.c.analysis_id == request_param['analysis_id'])
+        #     result = conn.execute(stmt).mappings().first()
         if result:
             print("update analysis")
 
@@ -206,9 +208,9 @@ class BaseAnalysis(ABC):
 
             stmt = t_analysis.update().values(new_analysis).where(t_analysis.c.analysis_id==request_param['analysis_id'])
             conn.execute(stmt)
-            find_analysis = dict(result)
+            result_dict = dict(result)
             new_analysis ={
-                **find_analysis,
+                **result_dict,
                 **new_analysis
             }
             # if is_cache:
@@ -220,8 +222,8 @@ class BaseAnalysis(ABC):
             analsyis_dir = settings.ANALYSIS_DIR
             work_dir = settings.WORK_DIR
             pieline_dir = settings.PIPELINE_DIR
-            str_uuid = str(uuid.uuid4())
-            pieline_dir_with_namespace = f"{pieline_dir}"
+            str_uuid = analysis_id #str(uuid.uuid4())
+            # pieline_dir_with_namespace = f"{pieline_dir}"
            
 
             # /ssd1/wy/workspace2/nextflow_workspace
@@ -311,9 +313,8 @@ class BaseAnalysis(ABC):
             # await self.submit_analysis(new_analysis)
         # if not is_cache:
             # dag_definition = component["dag_definition"]
-        if dag_definition and not is_run_node:
-            dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
-            dag_runtime_generate(conn, new_analysis, parse_analysis_result, dag_definition,is_cache)
+        if dag_runtime and not is_run_node:
+            dag_runtime_generate(conn, new_analysis,dag_runtime,is_cache)
         
             
         return new_analysis

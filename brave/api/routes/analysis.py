@@ -490,15 +490,38 @@ async def save_script_analysis(
         formJson = pipeline_service.get_from_json_by_relation_id(conn, relation_id)
         databases = []
         parse_analysis_result = analysis_controller.get_parames(conn,request_param,formJson,databases)
-        if not save:
-            return parse_analysis_result
         is_run_node = True if analysis_node_id else False
+        dag_runtime = {}
+
+        analysis_id = str(uuid.uuid4())
+        find_analysis =None 
+        if "analysis_id" in request_param:
+            find_analysis = analysis_service.find_analysis_by_id(conn, request_param['analysis_id'])
+            if find_analysis:
+                analysis_id = find_analysis["analysis_id"]
+        
+        if not is_run_node:
+            dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
+
+            dag_runtime = build_runtime_tasks(
+                analysis_id= analysis_id,
+                params=parse_analysis_result,
+                dag_definition=dag_definition,
+            )
+        if not save:
+            return {
+                "params":parse_analysis_result,
+                "dag_runtime":dag_runtime,
+            }
+       
         # save_analysis 中的dag_runtime_generate的update_by_analysis_id会将 failed 状态的节点更新为 ready
         save_analysis = await analysis_controller.save_analysis(conn,
                                                                 request_param,
                                                                 parse_analysis_result,
                                                                 relation_id,
-                                                                dag_definition,
+                                                                analysis_id,
+                                                                find_analysis,
+                                                                dag_runtime,
                                                                 is_run_node,
                                                                 is_report)
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
