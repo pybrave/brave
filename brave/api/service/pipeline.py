@@ -1517,6 +1517,25 @@ def get_workflow(conn, tool_id):
 
     return dag_definition
 
+def build_input_script_form_json(io_schema,formJsonWarp):
+    # io_schema = json.loads(script["io_schema"])
+    # if script_id in nodes_map:
+    #     node = nodes_map[script_id]
+    #     io_schema = {**io_schema, **node}
+
+    if "scatter" in io_schema:
+        scatter = io_schema.get("scatter")
+        if "mode" in scatter and scatter["mode"] == "each":
+            if "workflow" in io_schema:
+                formJsonWarp.extend(io_schema["workflow"])  
+        else:
+            if "inputs" in io_schema:
+                formJsonWarp.extend(io_schema["inputs"])  
+    else:
+        if "inputs" in io_schema:
+            formJsonWarp.extend(io_schema["inputs"])  
+
+
 
 def get_from_json_by_relation_id(conn, relation_id):
     find_relation = find_by_relation_id(conn,relation_id)
@@ -1550,30 +1569,28 @@ def get_from_json_by_relation_id(conn, relation_id):
                 for script in scripts:
                     script = dict(script)
                     script_id = script.get("component_id")
+                    io_schema = json.loads(script["io_schema"])
                     if script_id in input_script_ids and script["io_schema"]:
-                        io_schema = json.loads(script["io_schema"])
                         if script_id in nodes_map:
                             node = nodes_map[script_id]
                             io_schema = {**io_schema, **node}
+                        build_input_script_form_json(io_schema, formJsonWarp)
 
-                        if "scatter" in io_schema:
-                            scatter = io_schema.get("scatter")
-                            if "mode" in scatter and scatter["mode"] == "each":
-                                if "workflow" in io_schema:
-                                    formJsonWarp.extend(io_schema["workflow"])  
-                            else:
-                                if "inputs" in io_schema:
-                                    formJsonWarp.extend(io_schema["inputs"])  
-                        else:
-                            if "inputs" in io_schema:
-                                formJsonWarp.extend(io_schema["inputs"])  
-
-                      
-                             
-                        
-                        if "params" in io_schema:
-                            formJsonWarp.extend(io_schema["params"])
-                        
+                        # if "scatter" in io_schema:
+                        #     scatter = io_schema.get("scatter")
+                        #     if "mode" in scatter and scatter["mode"] == "each":
+                        #         if "workflow" in io_schema:
+                        #             formJsonWarp.extend(io_schema["workflow"])  
+                        #     else:
+                        #         if "inputs" in io_schema:
+                        #             formJsonWarp.extend(io_schema["inputs"])  
+                        # else:
+                        #     if "inputs" in io_schema:
+                        #         formJsonWarp.extend(io_schema["inputs"])  
+                        # if "params" in io_schema:
+                        #     formJsonWarp.extend(io_schema["params"])
+                    if "params" in io_schema:
+                        formJsonWarp.extend(io_schema["params"])
 
                     if script["content"]:
                         content = json.loads(script["content"])

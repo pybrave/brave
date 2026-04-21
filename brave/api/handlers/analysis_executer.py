@@ -88,7 +88,7 @@ def setup_handlers(
             "payload": {
                 "category": "analysis",
                 "id":  payload.analysis_id,
-                "method": "analysisStarted",
+                "method": "dagStarted",
                 "args": {
                     "status": "running",
                     "id": payload.analysis_id
@@ -115,7 +115,7 @@ def setup_handlers(
             "payload": {
                 "category": "analysis",
                 "id":  analysis_id,
-                "method": "analysisDone",
+                "method": "dagDone",
                 "args": {
                     "status": "done",
                     "id": analysis_id

@@ -983,7 +983,7 @@ async def edit_params(analysis_node_id):
     with get_engine().begin() as conn:
         find_analsyis_node = analysis_node_service.find_by_analysis_node_id(conn,analysis_node_id)
         analysis_id = find_analsyis_node.analysis_id
-        find_analysis = analysis_service.find_analysis_by_id(conn,analysis_id)
+        find_analysis = analysis_service.find_analysis_and_component_by_id(conn,analysis_id)
         # find_component = pipeline_service.find_component_by_id(conn,find_analysis['component_id'])
         # project = json.loads(find_analysis["extra_project_ids"]) if "extra_project_ids" in  find_analysis and find_analysis["extra_project_ids"] else []
 
@@ -1002,8 +1002,23 @@ async def edit_params(analysis_node_id):
         relation_id = find_analysis["relation_id"]
         # formJsonWarp = pipeline_service.get_from_json_by_relation_id(conn, relation_id)
         find_script = pipeline_service.find_component_by_id(conn,find_analsyis_node.script_id)
+        dag_definition = json.loads(find_analysis["dag_definition"])
+        nodes = dag_definition.get("nodes",[])
+        nodes_map = { node["script_id"]: node for node in nodes if "script_id" in node }
+        node = nodes_map.get(find_analsyis_node.script_id,{})
+        io_schema = json.loads(find_script["io_schema"])
+        io_schema = {**io_schema, **node}
+        formJson = []
+        # pipeline_service.build_input_script_form_json(io_schema, formJson)
+
+        
         content = json.loads(find_script["content"])
-        formJson = content.get("formJson",[])
+
+        if "formJson" in content:
+            formJson.extend(content["formJson"])
+        if "params" in io_schema:
+            formJson.extend(io_schema["params"])
+
     result = {
         "analysis_name":find_analysis["analysis_name"],
         "is_report":find_analysis["is_report"],

@@ -48,9 +48,26 @@ def _script_id(node: Dict[str, Any]) -> str:
 
 def _sample_label(sample: Dict[str, Any], index: int) -> str:
 	"""为 sample 生成稳定标签（例如 S1/S2），用于 sample 节点实例命名。"""
-	file_name = str(sample.get("file_name") or sample.get("analysis_result_id")).strip()
-	if file_name:
-		return f"{file_name}_{index + 1}"
+	node_name = None
+	file_name = None
+	if sample.get("node_name"):
+		node_name = sample.get("node_name")
+	if  sample.get("file_name"):
+		file_name = sample.get("file_name")
+	if node_name and file_name:
+		return f"{node_name} ({file_name}) ({index + 1})".strip()
+	elif file_name:
+		return f"{file_name} ({index + 1})".strip()
+	elif node_name:
+		return f"{node_name} ({index + 1})".strip()
+	else:
+		analysis_result_id = sample.get("analysis_result_id")
+		return f"{analysis_result_id} ({index + 1})".strip()
+	
+	
+	# file_name = str(sample.get("file_name") or ).strip()
+	# if file_name:
+	# 	return f"{file_name}_{index + 1}"
 		# if "_" in file_name:
 		# 	token = file_name.split("_")[-1].strip()
 		# 	if token:
@@ -64,7 +81,9 @@ def _sample_label(sample: Dict[str, Any], index: int) -> str:
 		# 			break
 		# 	if digits:
 		# 		return f"S{digits}"
-	return f"S{index + 1}"
+
+	analysis_result_id = 	sample.get("analysis_result_id")
+	# return f"{analysis_result_id} ({index + 1})"
 
 
 def _sample_value(sample: Dict[str, Any], handle: str) -> Any:
@@ -246,7 +265,7 @@ def _build_node_name(name: str, sample_label: str) -> str:
 	"""构建节点展示名，格式为 #name:sample_label。"""
 	# sym_value = str(sym or "node")
 	label_value = str(sample_label or "merged")
-	return f"{name} ({label_value})"
+	return f"{label_value} ({name})"
 
 
 def _topology(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> List[str]:
