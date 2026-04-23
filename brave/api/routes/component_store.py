@@ -24,7 +24,20 @@ def open_file(file_path):
 def list_local_components(store_name,relation_type):
     settings = get_settings()
     store_dir = settings.STORE_DIR
+    lock_file = f"{store_dir}/{store_name}.lock"
+    if os.path.exists(lock_file):
+        with open(lock_file, 'r', encoding='utf-8') as f:
+            lock_data = json.load(f)
+        return {
+            "data":[],
+            "total":0,
+            "lock_data":lock_data,
+        }
 
+    
+
+
+      
     file_list = glob.glob(f"{store_dir}/{store_name}/{relation_type}/*/component_relation.json")
     file_list = [open_file(file) for file in file_list]
     relation_ids= [ item["relation_id"] for item in file_list]
@@ -47,7 +60,18 @@ def list_local_components(store_name,relation_type):
             item["img"] = f"/brave-api/store-dir/{store_name}/{relation_type}/{relation_id}/{img_name}"
         else:
             item["img"] = f"/brave-api/img/pipeline.jpg"
-    return file_list
+    result = {
+        "data":file_list,
+        "total":len(file_list)
+    }
+    config_file = f"{store_dir}/{store_name}/.config"
+    if os.path.exists(config_file):
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+            if "git_url" in config_data:
+                result["git_url"] = config_data["git_url"]
+
+    return result
 
 def format_store(file_path):
     filename = os.path.basename(file_path)
