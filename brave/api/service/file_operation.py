@@ -117,7 +117,7 @@ def format_table_output(path,row_num=None):
         except Exception as e:
             print(f"Error reading TSV: {e}")
             df = pd.DataFrame()
-            
+
         df = df.iloc[:, :100]
         # df = pd.read_csv(path,sep="\t")
         # data = json.loads(df.to_json(orient="records")) 
