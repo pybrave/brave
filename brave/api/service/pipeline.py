@@ -970,8 +970,13 @@ def write_relation_json(relation_id):
         relation_type = find_relation["relation_type"]
         input_component_ids = find_relation["input_component_ids"] or []
         output_component_ids = find_relation["output_component_ids"] or []
-        component_id = find_relation["component_id"]
-        component_list = find_component_list_in_ids(conn,input_component_ids + output_component_ids + [component_id])
+        script_ids= []
+        if "dag_definition" in find_relation:
+            dag_definition = find_relation["dag_definition"]
+            for node in dag_definition["nodes"]:
+                script_ids.append(node["script_id"])
+
+        component_list = find_component_list_in_ids(conn,input_component_ids + output_component_ids + script_ids)
         container_id_list = [ item['container_id'] for item in component_list if item['container_id'] is not None ]
         container_list = container_service.find_by_container_ids(conn,container_id_list)
 

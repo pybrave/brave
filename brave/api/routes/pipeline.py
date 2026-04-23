@@ -592,12 +592,17 @@ async def find_pipeline_relation(relation_id):
         return conn.execute(stmt).mappings().first()
 
 
+@pipeline.post("/generate-tools-json/{relation_id}",tags=['pipeline'])
+async def generate_tools_json(relation_id):
+    pipeline_service.write_relation_json(relation_id)
+    return {"message":"success"}
+
 @pipeline.post("/save-pipeline-relation",tags=['pipeline'])
 async def save_pipeline_relation_controller(savePipelineRelation:SavePipelineRelation):
     with get_engine().begin() as conn:  
         relation_id = await save_pipeline_relation(conn,savePipelineRelation)
 
-    pipeline_service.write_relation_json(relation_id)
+    # pipeline_service.write_relation_json(relation_id)
     return {"message":"success"}
 
 async def save_pipeline_relation(conn,savePipelineRelation:SavePipelineRelation):
@@ -742,8 +747,8 @@ async def publish_component(publishRelation:PublishRelation):
     relation_dir = f"{pipeline_dir}/{relation_type}/{relation_id}"
     relation_dir_component = f"{relation_dir}/component.json"
 
-    if not os.path.exists(relation_dir_component):
-        pipeline_service.write_relation_json(relation_id)
+    # if not os.path.exists(relation_dir_component):
+    pipeline_service.write_relation_json(relation_id)
     source_dir = relation_dir
     target_dir = f"{store_path}/{relation_type}/{relation_id}"
 
@@ -782,43 +787,43 @@ async def publish_component(publishRelation:PublishRelation):
             shutil.copytree(source_dir,target_dir)
             print(f"publish {source_dir} to {target_dir}")
     
-    install_json = {
-        "relation":{
-            "tools":[]
-        }
-    }
-    install_file = f"{store_path}/main.json"
+    # install_json = {
+    #     "relation":{
+    #         "tools":[]
+    #     }
+    # }
+    # install_file = f"{store_path}/main.json"
 
-    if  os.path.exists(install_file):
-        with open(install_file,"r") as f:
-            install_json = json.load(f)
+    # if  os.path.exists(install_file):
+    #     with open(install_file,"r") as f:
+    #         install_json = json.load(f)
 
-    relation_name = find_relation['name']
-    category = find_relation.get('category','default')
-    order_index = find_relation.get('order_index',0)
-    install_json_component_type = install_json["relation"][relation_type]
-    found = False
-    for existing_item in install_json_component_type:
-        if existing_item["relation_id"] == relation_id:
-            # ✅ 已存在 → 更新字段
-            existing_item.update({
-                "name": relation_name,
-                "category": category,
-                "order_index": order_index
-            })
-            found = True
-            break
+    # relation_name = find_relation['name']
+    # category = find_relation.get('category','default')
+    # order_index = find_relation.get('order_index',0)
+    # install_json_component_type = install_json["relation"][relation_type]
+    # found = False
+    # for existing_item in install_json_component_type:
+    #     if existing_item["relation_id"] == relation_id:
+    #         # ✅ 已存在 → 更新字段
+    #         existing_item.update({
+    #             "name": relation_name,
+    #             "category": category,
+    #             "order_index": order_index
+    #         })
+    #         found = True
+    #         break
 
-    if not found:
-        # ✅ 不存在 → 添加新项
-        install_json_component_type.append({
-            "name": relation_name,
-            "relation_id": relation_id,
-            "category": category,
-            "order_index": order_index
-        })
-    with open(install_file,"w") as f:
-        json.dump(install_json,f)
+    # if not found:
+    #     # ✅ 不存在 → 添加新项
+    #     install_json_component_type.append({
+    #         "name": relation_name,
+    #         "relation_id": relation_id,
+    #         "category": category,
+    #         "order_index": order_index
+    #     })
+    # with open(install_file,"w") as f:
+    #     json.dump(install_json,f)
     return {"message":"success"}
 
 
