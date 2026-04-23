@@ -112,7 +112,12 @@ def format_table_output(path,row_num=None):
         data=[]
         data_type="download"
     elif path.endswith("tsv"):
-        df =  pd.read_csv(path,sep="\t", nrows= row_num)
+        try:
+            df =  pd.read_csv(path,sep="\t", nrows= row_num)
+        except Exception as e:
+            print(f"Error reading TSV: {e}")
+            df = pd.DataFrame()
+            
         df = df.iloc[:, :100]
         # df = pd.read_csv(path,sep="\t")
         # data = json.loads(df.to_json(orient="records")) 

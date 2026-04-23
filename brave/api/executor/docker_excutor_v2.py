@@ -122,10 +122,17 @@ class DockerExecutorV2(JobExecutor):
         envionment = {}
         if find_container["envionment"]:
             envionment = find_container["envionment"]
+            r_package_dir =  f"{package_dir}/R"
+            if "version" in find_container and find_container["version"]:
+                version = find_container["version"]
+                r_package_dir = f"{r_package_dir}/{version}"
+                if not os.path.exists(r_package_dir):
+                    os.makedirs(r_package_dir)
+
             envionment = envionment.replace("$USERID", str(user_id))
             envionment = envionment.replace("$GROUPID", str(group_id))
             envionment = envionment.replace("$DOCKER_GROUPID", str(sock_gid))
-            envionment = envionment.replace("$R_PACKAGE_DIR", f"{package_dir}/R")
+            envionment = envionment.replace("$R_PACKAGE_DIR", r_package_dir)
             envionment = envionment.replace("$PYTHON_PACKAGE_DIR", f"{package_dir}/python")
 
             envionment = envionment.replace("$SCRIPT_DIR", script_dir)

@@ -457,6 +457,7 @@ t_container = Table(
     Column("image_id", String(255)),
     Column("image_status", String(255)),
     Column("description", String(255)),
+    Column("version", String(255)),
     # Column("namespace", String(255)),
     Column("envionment", String(255)),
     Column("command", String(255)),

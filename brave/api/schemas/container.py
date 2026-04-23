@@ -17,6 +17,7 @@ class SaveContainer(BaseModel):
     change_uid:Optional[bool]=True
     container_key:Optional[str]=None
     img: Optional[str]=None
+    version: Optional[str]=None
     
 
 class ListContainerQuery(BaseModel):

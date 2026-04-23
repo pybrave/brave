@@ -164,7 +164,8 @@ def setup_handlers(
             analysis_id = analysis_node.get("analysis_id") 
         elif payload.run_type =="nserver":
             asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"running"))
-
+        elif payload.run_type =="retry":
+            analysis_id = "container"
         # if payload.run_type =="server":
         #     await analysis_service.update_url(payload.analysis_id,f"http://10.110.1.11:5003/container/{payload.analysis_id}")
 
@@ -220,6 +221,8 @@ def setup_handlers(
             analysis_node = await analysis_node_service.find_by_analysis_node_id_conn(payload.analysis_id)
             analysis_id = analysis_node.get("analysis_id") 
             asyncio.create_task(analysis_runtime_engine_service.complete_node_conn(payload.analysis_id,"done"))
+        elif payload.run_type =="retry":
+            analysis_id = "container"
 
         # if payload.run_type !="retry":
         #     if payload.run_type =="job":
@@ -266,6 +269,7 @@ def setup_handlers(
             analysis_id = analysis_node.get("analysis_id") 
             asyncio.create_task(analysis_runtime_engine_service.complete_node_conn(payload.analysis_id,"failed"))
         elif payload.run_type !="retry":
+            analysis_id = "container"
             asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"failed"))
 
         data = {
