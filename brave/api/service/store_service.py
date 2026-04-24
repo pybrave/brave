@@ -48,6 +48,9 @@ def delete_store(conn,store_id):
     stmt = t_store.delete().where(t_store.c.store_id == store_id)
     conn.execute(stmt)
 
+def delete_store_db(store_id):
+    with get_engine().connect() as conn:
+        delete_store(conn,store_id)
 
 def find_store_by_url(conn,url):
     stmt = select(
@@ -58,8 +61,10 @@ def find_store_by_url(conn,url):
     find_store = conn.execute(stmt).mappings().first()
     return find_store
 
+def update_store_status(conn, store_id,status):
+    stmt = t_store.update().where(t_store.c.store_id == store_id).values(status=status)
+    conn.execute(stmt)
 
-def  update_store_status(store_id,status):
+def  update_store_status_db(store_id,status):
     with get_engine().connect() as conn:
-        stmt = t_store.update().where(t_store.c.store_id == store_id).values(status=status)
-        conn.execute(stmt)
+        update_store_status(conn, store_id,status)
