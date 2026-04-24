@@ -20,6 +20,7 @@ from brave.api.service.listener_files_service import ListenerFilesService
 from brave.api.ingress.factory import IngressMode
 from brave.api.core.routers.watch_file_event_router import WatchFileEvenetRouter
 from brave.api.core.routers.analysis_executer_router import AnalysisExecutorRouter
+from brave.api.core.routers.git_executer_router import GitExecuterRouter
 # from brave.api.executor.factory import get_executor
 from brave.api.executor.docker_excutor import DockerExecutor
 from brave.api.executor.k8s_executor import K8sExecutor
@@ -36,6 +37,7 @@ class AppContainer(containers.DeclarativeContainer):
     watchfile_event_router = providers.Singleton(WatchFileEvenetRouter)
     analysis_executer_router = providers.Singleton(AnalysisExecutorRouter)
     analysis_result_router = providers.Singleton(AnalysisResultRouter)
+    git_executer_router = providers.Singleton(GitExecuterRouter)
 
 
     

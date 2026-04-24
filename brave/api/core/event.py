@@ -29,6 +29,15 @@ class AnalysisExecutorEvent(str,Enum):
     ON_ANALYSIS_STARTED="on_analysis_started"
     ON_ANALYSIS_STOPED="on_analysis_stoped"
 
+
+class GitExecutorEvent(str,Enum):
+    ON_GIT_CLONE="on_git_clone"
+    ON_GIT_PULL="on_git_pull"
+    ON_GIT_PUSH="on_git_push"
+    ON_GIT_STOP="on_git_stop"
+    ON_GIT_COMMIT="on_git_commit"
+    ON_GIT_TAG="on_git_tag"
+
 class AnalysisResultEvent(str,Enum):
     ON_ANALYSIS_RESULT_ADD="on_analysis_result_add"
     ON_ANALYSIS_RESULT_UPDATE="on_analysis_result_update"
@@ -38,3 +47,5 @@ class AnalysisResultEvent(str,Enum):
     ON_ANALYSIS_RESULT_QUERY_BY_ANALYSIS_ID="on_analysis_result_query_by_analysis_id"
     ON_ANALYSIS_RESULT_QUERY_BY_COMPONENT_ID="on_analysis_result_query_by_component_id"
     ON_ANALYSIS_RESULT_QUERY_BY_SAMPLE_ID="on_analysis_result_query_by_sample_id"
+
+

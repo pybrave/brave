@@ -7,6 +7,7 @@ class RoutersName(str, Enum):
     WATCHFILE_EVENT_ROUTER = "watchfile_event_router"
     ANALYSIS_EVENT_ROUTER = "analysis_event_router"
     ANALYSIS_EXECUTER_ROUTER = "analysis_executer_router"
+    GIT_EXECUTER_ROUTER = "git_executer_router"
     FILE_WATCHER_EVENT_ROUTER = "file_watcher_event_router"
     SSE_EVENT_ROUTER = "sse_event_router"
     HTTP_EVENT_ROUTER = "http_event_router"

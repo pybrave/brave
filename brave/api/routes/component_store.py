@@ -9,8 +9,8 @@ from brave.api.schemas.component_store import ComponentStore, GetStoreRequest, R
 import brave.api.service.pipeline as pipeline_service
 import requests
 import base64
+from brave.api.service import store_service
 
-from build.lib.brave.api.routes.component_store import get_github_file_content
 
 component_store_api = APIRouter(prefix="/component-store",tags=["component_store"])
 
@@ -26,15 +26,15 @@ def open_file(file_path):
 def list_local_components(store_name,relation_type):
     settings = get_settings()
     store_dir = settings.STORE_DIR
-    lock_file = f"{store_dir}/{store_name}.lock"
-    if os.path.exists(lock_file):
-        with open(lock_file, 'r', encoding='utf-8') as f:
-            lock_data = json.load(f)
-        return {
-            "data":[],
-            "total":0,
-            "lock_data":lock_data,
-        }
+    # lock_file = f"{store_dir}/{store_name}.lock"
+    # if os.path.exists(lock_file):
+    #     with open(lock_file, 'r', encoding='utf-8') as f:
+    #         lock_data = json.load(f)
+    #     return {
+    #         "data":[],
+    #         "total":0,
+    #         "lock_data":lock_data,
+    #     }
 
     
 
@@ -62,18 +62,18 @@ def list_local_components(store_name,relation_type):
             item["img"] = f"/brave-api/store-dir/{store_name}/{relation_type}/{relation_id}/{img_name}"
         else:
             item["img"] = f"/brave-api/img/pipeline.jpg"
-    result = {
-        "data":file_list,
-        "total":len(file_list)
-    }
-    config_file = f"{store_dir}/{store_name}/.config"
-    if os.path.exists(config_file):
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config_data = json.load(f)
-            if "git_url" in config_data:
-                result["git_url"] = config_data["git_url"]
+    # result = {
+    #     "data":file_list,
+    #     "total":len(file_list)
+    # }
+    # config_file = f"{store_dir}/{store_name}/.config"
+    # if os.path.exists(config_file):
+    #     with open(config_file, 'r', encoding='utf-8') as f:
+    #         config_data = json.load(f)
+    #         if "git_url" in config_data:
+    #             result["git_url"] = config_data["git_url"]
 
-    return result
+    return file_list
 
 def format_store(file_path):
     filename = os.path.basename(file_path)
@@ -100,17 +100,17 @@ def list_local_store():
     file_list = [ format_store(file) for file in file_list if os.path.isdir(file) and "remote" not in  file  ] 
     return file_list
 
-@component_store_api.get("/list-stores")
-async def list_store(address:str):
-    if address=="github":
-        return [{
-                    "store_name":"quick-start-v2",
-                    "store_path":"pybrave",
-                    "name":"Quick Start Store V2",
-                    "address":"github"
-                }]
-    else:
-        return list_local_store()
+# @component_store_api.get("/list-stores")
+# async def list_store(address:str):
+#     if address=="github":
+#         return [{
+#                     "store_name":"quick-start-v2",
+#                     "store_path":"pybrave",
+#                     "name":"Quick Start Store V2",
+#                     "address":"github"
+#                 }]
+#     else:
+#         return list_local_store()
 
 
 
@@ -128,6 +128,21 @@ async def list_components_by_type(componentStore:ComponentStore):
     else:
         raise ValueError("address must be 'local' or 'github'")
     return components
+
+@component_store_api.post("/details-by-store-id/{store_id}")
+async def list_components_by_type(store_id:str, type:str="tools"):
+    with get_engine().begin() as conn: 
+        store = store_service.find_store_by_id(conn,store_id)
+    if not store:
+        raise ValueError("Store not found")
+    store = dict(store)
+
+    store_name = store["path_name"]
+    components = list_local_components(store_name, type)
+    return {
+        "store":store,
+        "data":components,
+    }
 
 
 

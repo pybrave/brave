@@ -33,6 +33,7 @@ from brave.api.routes.llm import llm_api
 from brave.api.routes.ws import ws_app
 from brave.api.routes.analysis_task import analysis_task_api
 from brave.api.routes.analysis_runtime import analysis_runtime_api
+from brave.api.routes.store import store_api
 import httpx
 import websockets
 
@@ -87,6 +88,7 @@ def setup_routes(app: FastAPI,manager:AppManager):
     app.include_router(ws_app,prefix="/brave-api")  
     app.include_router(analysis_task_api,prefix="/brave-api")
     app.include_router(analysis_runtime_api,prefix="/brave-api")
+    app.include_router(store_api,prefix="/brave-api")
 
 
     endpoint_factory = manager.realtime_service.create_endpoint()

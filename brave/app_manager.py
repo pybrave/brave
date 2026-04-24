@@ -7,6 +7,7 @@ from brave.api.config.config import get_settings
 from brave.api.core.routers.workflow_event_router import WorkflowEventRouter
 # from brave.api.service.file_watcher_service import FileWatcher
 from brave.api.handlers import analysis_executer
+from brave.api.handlers import git_executer
 from brave.api.llm.tool_manager import ToolManager
 from brave.api.service.listener_files_service import get_listener_files_service
 from brave.api.service.process_monitor_service import ProcessMonitor
@@ -243,6 +244,7 @@ class AppManager:
 
         # setup_handlers()
         analysis_executer.setup_handlers()
+        git_executer.setup_handlers()
         workflow_events.setup_handlers()
         analysis_result.setup_handlers()
         await self._recover_running_dag_analysis()
