@@ -1209,17 +1209,20 @@ async def install_component(installComponent:InstallComponent,
     return {"message":"success"}
 
 
+
+
 @pipeline.post("/install-relation",tags=['pipeline'])
 @inject
 async def install_component(installRelation:InstallComponent,
     job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
 ):
-    if installRelation.address=="github":
-        await install_github_component(installRelation)
-    elif installRelation.address=="local":
-        install_local_component(installRelation)
-    else:
-        raise HTTPException(status_code=500, detail=f"Not support {installRelation.address} yet!")
+    # if installRelation.address=="github":
+    #     await install_github_component(installRelation)
+    # elif installRelation.address=="local":
+        
+    # else:
+    #     raise HTTPException(status_code=500, detail=f"Not support {installRelation.address} yet!")
+    install_local_component(installRelation)
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 

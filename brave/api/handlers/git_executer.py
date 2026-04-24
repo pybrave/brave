@@ -4,7 +4,6 @@ import json
 import os
 import shutil
 import signal
-import time
 from dependency_injector.wiring import inject
 from fastapi import HTTPException
 from brave.api.config.config import get_settings
@@ -61,7 +60,7 @@ def release_lock(lock_file):
         os.remove(lock_file)
 
 
-def stop_process(pid: int):
+async def stop_process(pid: int):
     try:
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
@@ -71,7 +70,7 @@ def stop_process(pid: int):
 
     # Give process a brief chance to exit gracefully, then force kill.
     for _ in range(5):
-        time.sleep(0.2)
+        await asyncio.sleep(0.2)
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
@@ -116,7 +115,26 @@ def build_git_log(stdout: bytes = b"", stderr: bytes = b"", error: str = None):
 #         store_service.delete_store_db(conn, store_id)
 
 
-async def monitor_clone_process(proc, lock_file, timeout=60):
+async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = None, timeout=60):
+    async def push_clone_sse(status: str, reason: str = None):
+        if not sse_service or not store_id:
+            return
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "store",
+                "id": store_id,
+                "method": "clone",
+                "args": {
+                    "status": status,
+                    "id": store_id,
+                },
+            },
+        }
+        if reason:
+            data["payload"]["args"]["reason"] = reason
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
+
     lock_data = read_lock(lock_file) or {}
     store_id = lock_data.get("store_id")
     try:
@@ -131,9 +149,20 @@ async def monitor_clone_process(proc, lock_file, timeout=60):
                 write_repo_config(target_path, url)
             if store_id:
                 # update_store_record(store_id=store_id, status="done", log=git_log)
-                store_service.update_store_status_db(store_id,"done")
+                config_file = f"{target_path}/metadata.json"
+                category = None
+                if os.path.exists(config_file):
+                    with open(config_file, "r") as f:
+                        config_data = json.load(f)
+                    if "category" in config_data:
+                        category = config_data["category"]
+                    # update_store_record(store_id=store_id, status="done", log=git_log, url=git_url)
+                    category = config_data.get("category")
+                store_service.update_store_status_db(store_id, "done", category=category)
+                await push_clone_sse("done","clone_finished")
 
         elif store_id:
+            await push_clone_sse("failed", "clone_nonzero_exit")
             store_service.delete_store_db(store_id)
 
         result = {
@@ -143,11 +172,14 @@ async def monitor_clone_process(proc, lock_file, timeout=60):
             "stderr": stderr.decode(errors="ignore"),
         }
         print(f"clone task finished: {result}")
+        # await push_clone_sse("done", "clone_finished")
+
         return result
     except asyncio.TimeoutError:
         proc.kill()
         await proc.communicate()
         if store_id:
+            await push_clone_sse("failed", "timeout")
             store_service.delete_store_db(store_id)
         result = {
             "error": "timeout",
@@ -157,11 +189,16 @@ async def monitor_clone_process(proc, lock_file, timeout=60):
         return result
     except asyncio.CancelledError:
         # Stop endpoint may cancel the monitor task after killing process.
+        latest_lock_data = read_lock(lock_file) or {}
+        if latest_lock_data.get("status") == "stopped":
+            raise
         if store_id:
+            # await push_clone_sse("failed", "cancelled")
             store_service.delete_store_db(store_id)
         raise
     except Exception:
         if store_id:
+            # await push_clone_sse("failed", "exception")
             store_service.delete_store_db(store_id)
         raise
     finally:
@@ -169,7 +206,25 @@ async def monitor_clone_process(proc, lock_file, timeout=60):
         release_lock(lock_file)
 
 
-async def monitor_pull_process(proc, lock_file, timeout=60):
+async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
+    async def pull_sse(status: str, reason: str = None):
+        if not sse_service or not store_id:
+            return
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "store",
+                "id": store_id,
+                "method": "pull",
+                "args": {
+                    "status": status,
+                    "id": store_id,
+                },
+            },
+        }
+        if reason:
+            data["payload"]["args"]["reason"] = reason
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
     lock_data = read_lock(lock_file) or {}
     store_id = lock_data.get("store_id")
     try:
@@ -188,6 +243,7 @@ async def monitor_pull_process(proc, lock_file, timeout=60):
             "stderr": stderr.decode(errors="ignore"),
         }
         print(f"pull task finished: {result}")
+        await pull_sse("done", "pull_finished")
         return result
     except asyncio.TimeoutError:
         proc.kill()
@@ -198,15 +254,22 @@ async def monitor_pull_process(proc, lock_file, timeout=60):
             "error": "timeout",
             "pid": proc.pid,
         }
+        # await pull_sse("failed", "timeout")
         print(f"pull task timeout: {result}")
         return result
     except asyncio.CancelledError:
+        latest_lock_data = read_lock(lock_file) or {}
+        if latest_lock_data.get("status") == "stopped":
+            raise
         if store_id:
             store_service.delete_store_db(store_id)
+        # await pull_sse("failed", "cancelled")
         raise
     except Exception:
+        
         if store_id:
             store_service.delete_store_db(store_id)
+        # await pull_sse("failed", "exception")
         raise
     finally:
         DOWNLOAD_TASKS.pop(lock_file, None)
@@ -267,22 +330,8 @@ def setup_handlers(
                 "operation": "clone",
             },
         )
-        monitor_task = asyncio.create_task(monitor_clone_process(proc, lock_file))
+        monitor_task = asyncio.create_task(monitor_clone_process(proc, lock_file, sse_service=sse_service))
         DOWNLOAD_TASKS[lock_file] = monitor_task
-
-        # data = {
-        #     "action": "component.invoke",
-        #     "payload": {
-        #         "category": "store",
-        #         "id":  store_id,
-        #         "method": "clone",
-        #         "args": {
-        #             "status": "done",
-        #             "id": store_id
-        #         }
-        #     }
-        # }
-        # await sse_service.push_message({"group": "default", "data": json.dumps(data)})
     
     @router.on_event(GitExecutorEvent.ON_GIT_PULL)
     async def on_git_pull(payload:dict):
@@ -321,7 +370,7 @@ def setup_handlers(
                 },
             )
 
-            monitor_task = asyncio.create_task(monitor_pull_process(proc, lock_file))
+            monitor_task = asyncio.create_task(monitor_pull_process(sse_service, proc, lock_file))
             DOWNLOAD_TASKS[lock_file] = monitor_task
 
 
@@ -344,16 +393,45 @@ def setup_handlers(
         lock_file = f"{target_path}.lock"
         lock_data = read_lock(lock_file)
         if not lock_data:
+            store_service.update_store_status_db(payload.get("store_id"), "done")
             raise HTTPException(status_code=404, detail=f"Lock file not found for {target_path}")
 
+        store_id = lock_data.get("store_id")
+        operation = lock_data.get("operation") or "clone"
         pid = lock_data.get("pid")
         process_status = "pid_missing"
+
+        update_lock(
+            lock_file,
+            {
+                **lock_data,
+                "status": "stopped",
+            },
+        )
+
         if pid:
-            process_status = stop_process(int(pid))
+            process_status = await stop_process(int(pid))
 
         task = DOWNLOAD_TASKS.pop(lock_file, None)
         if task and not task.done():
             task.cancel()
+
+        if store_id:
+            store_service.update_store_status_db(store_id, "done")
+            data = {
+                "action": "component.invoke",
+                "payload": {
+                    "category": "store",
+                    "id": store_id,
+                    "method": "stop",
+                    "args": {
+                        "status": "done",
+                        "id": store_id,
+                        "process_status": process_status,
+                    },
+                },
+            }
+            await sse_service.push_message({"group": "default", "data": json.dumps(data)})
 
         release_lock(lock_file)
 

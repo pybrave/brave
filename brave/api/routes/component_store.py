@@ -112,7 +112,10 @@ def list_local_store():
 #     else:
 #         return list_local_store()
 
-
+@component_store_api.get("/list-stores-directory")
+async def list_store():
+    return list_local_store()
+      
 
 @component_store_api.post("/list-components")
 async def list_components_by_type(componentStore:ComponentStore):

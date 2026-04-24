@@ -111,9 +111,9 @@ class SavePipelineComponentsEdges(BaseModel):
 
 class InstallComponent(BaseModel):
     path: str
-    address: str 
-    token: Optional[str]=None
-    branch: Optional[str]="master"
+    # address: str 
+    # token: Optional[str]=None
+    # branch: Optional[str]="master"
     force: Optional[bool]=False
 
 

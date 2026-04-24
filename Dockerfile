@@ -23,7 +23,9 @@ RUN yarn install --frozen-lockfile && yarn build
 # Stage 2: Python backend
 # ============================
 FROM python:3.10-slim AS backend
-
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+    && rm -rf /var/lib/apt/lists/*
 # 安装系统依赖
 # RUN apt-get update && apt-get install -y --no-install-recommends \
 #         git \

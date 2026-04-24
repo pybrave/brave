@@ -1100,6 +1100,8 @@ def write_component_json(component_id):
 def import_relation_one(conn,item,force=False):
     # pipeline_dir = get_pipeline_dir()
     find_pipeline_component_relation = find_by_relation_id(conn,item['relation_id'])
+    if "dag_definition" in item and item["dag_definition"]:
+        item["dag_definition"] = json.dumps(item["dag_definition"])
     if find_pipeline_component_relation:
         if force:
             update_stmt = update(t_pipeline_components_relation).where(t_pipeline_components_relation.c.relation_id == item['relation_id']).values(item)

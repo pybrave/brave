@@ -45,12 +45,7 @@ async def create_store(createStore: CreateStore,
             return {
                 "store_id": find_store.get("store_id"),
                 "message": "success",
-                "target_path": find_store.get("path"),
-                "cmd": f"git clone {createStore.url} {find_store.get('path')}",
-                "info": {
-                    "message": f"Store with URL {createStore.url} already exists! If you want to overwrite it, please set force to true.",
-                    "pid": None,
-                },
+                
             }
 
 
@@ -67,21 +62,17 @@ async def create_store(createStore: CreateStore,
         createStore.path_name = filename.replace('.git', '')
 
         store_id = store_service.create_store(conn, createStore)
-        asyncio.create_task(evenet_bus.dispatch(RoutersName.GIT_EXECUTER_ROUTER, GitExecutorEvent.ON_GIT_CLONE, {
-            "url": createStore.url,
-            "target_path": target_path,
-            "store_id": store_id,
-        }))
 
-        return {
-            "message": "success",
-            "target_path": target_path,
-            "cmd": f"git clone {createStore.url} {target_path}",
-            "info": {
-                "message": f"Store creation for URL {createStore.url} is submitted successfully.",  
-                "pid": None,
-            },
-        }
+    asyncio.create_task(evenet_bus.dispatch(RoutersName.GIT_EXECUTER_ROUTER, GitExecutorEvent.ON_GIT_CLONE, {
+        "url": createStore.url,
+        "target_path": target_path,
+        "store_id": store_id,
+    }))
+
+    return {
+       "store_id":store_id,
+        "message": "success",
+    }
 
 
     # lock_file = f"{target_path}.lock"
@@ -188,7 +179,7 @@ async def git_stop(store_id: str, evenet_bus:EventBus = Depends(Provide[AppConta
             raise HTTPException(status_code=400, detail=f"Store with id {store_id} is not in a valid state for stop operation")
 
         asyncio.create_task(evenet_bus.dispatch(RoutersName.GIT_EXECUTER_ROUTER, GitExecutorEvent.ON_GIT_STOP, {
-            "path": find_store.get("path"),
+            "target_path": find_store.get("path"),
             "store_id": store_id,
         }))
         return {
@@ -248,7 +239,7 @@ async def git_pull(store_id: str,
         
         store_service.update_store_status(conn, store_id,"pulling")
         asyncio.create_task(evenet_bus.dispatch(RoutersName.GIT_EXECUTER_ROUTER, GitExecutorEvent.ON_GIT_PULL, {
-            "path": find_store.get("path"),
+            "target_path": find_store.get("path"),
             "url": find_store.get("url"),
             "store_id": store_id,
         }))
