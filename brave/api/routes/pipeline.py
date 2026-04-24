@@ -1226,6 +1226,10 @@ async def install_component(installRelation:InstallComponent,
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 
+
+
+
+
 @pipeline.get("/get-depend-relation/{relation_id}",tags=['pipeline'])
 async def get_depend_relation(relation_id):
     with get_engine().begin() as conn:
@@ -1435,4 +1439,25 @@ async def get_from_json_by_relation_id(relation_id):
             "type":"tools",
             "formJson": formJsonWarp
         }
-    
+
+
+
+@pipeline.get("/tools/get-dep-container/{relation_id}",tags=['pipeline'])
+async def get_dep_container(relation_id):
+    with get_engine().begin() as conn:
+        find_relation = pipeline_service.find_by_relation_id(conn, relation_id)
+        dag_definition = find_relation.get("dag_definition", {})
+        if dag_definition and "nodes" in dag_definition:
+            nodes = dag_definition["nodes"] 
+            script_ids = [ node["script_id"] for node in nodes]
+            scripts = pipeline_service.find_by_component_ids_with_container(conn, script_ids)
+    return scripts
+
+
+
+@pipeline.post("/update-container-status",tags=['pipeline'])
+@inject
+async def update_container_status(job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])):
+    asyncio.create_task(job_executor.update_images_status())
+    return {"message":"success"}
+

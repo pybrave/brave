@@ -1156,7 +1156,25 @@ def find_by_component_ids(conn,component_ids):
     stmt = t_pipeline_components.select().where(t_pipeline_components.c.component_id.in_(component_ids))
     find_pipeline = conn.execute(stmt).mappings().all()
     return find_pipeline
+def find_by_component_ids_with_container(conn,component_ids):
+    stmt = select(
+        t_pipeline_components.c.component_id,
+        t_pipeline_components.c.component_name,
+        t_container.c.container_id,
+        t_container.c.name.label("container_name"),
+        t_container.c.image,
+        t_container.c.image_status
 
+    )
+    stmt = stmt.select_from(
+        t_pipeline_components.outerjoin(
+            t_container,
+            t_pipeline_components.c.container_id == t_container.c.container_id
+        )
+    )
+    stmt = stmt.where(t_pipeline_components.c.component_id.in_(component_ids))
+    find_pipeline = conn.execute(stmt).mappings().all()
+    return find_pipeline
 
 def get_all_category(conn):
     stmt = select(t_pipeline_components.c.category).distinct().where(t_pipeline_components.c.category != None)
