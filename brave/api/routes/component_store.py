@@ -5,10 +5,12 @@ import glob
 import json
 from collections import defaultdict
 from brave.api.config.db import get_engine
-from brave.api.schemas.component_store import ComponentStore, RelationStore
+from brave.api.schemas.component_store import ComponentStore, GetStoreRequest, RelationStore
 import brave.api.service.pipeline as pipeline_service
 import requests
 import base64
+
+from build.lib.brave.api.routes.component_store import get_github_file_content
 
 component_store_api = APIRouter(prefix="/component-store",tags=["component_store"])
 
@@ -144,6 +146,44 @@ async def list_components_by_type(relationStore:RelationStore):
         raise ValueError("address must be 'local' or 'github'")
     return components
 
+# git@github.com:pybrave/store-repo.git
+@component_store_api.post("/get-remote-store")
+async def get_remote_store(storeRequest:GetStoreRequest):
+    owner = storeRequest.owner
+    repo = storeRequest.repo
+    file_path = storeRequest.file_path
+    branch = storeRequest.branch
+    token = storeRequest.token
+    is_cache = storeRequest.is_cache
+    
+    settings = get_settings()
+    store_dir = settings.STORE_DIR
+    remote_cache = f"{store_dir}/remote/{owner}_{repo}.json"
+    if os.path.exists(remote_cache) and  is_cache:
+        with open(remote_cache, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            print(f"Using cached data for {owner}/{repo} from {remote_cache}")
+            return data
+    
+    if storeRequest.origin =="github":
+        data = get_github_file_content(owner, repo, file_path, branch, token=token)
+        data = json.loads(data)
+            # Cache the data for future use
+        os.makedirs(os.path.dirname(remote_cache), exist_ok=True)
+        with open(remote_cache, 'w', encoding='utf-8') as f:
+            json.dump(data, f)
+        return data
+    elif storeRequest.origin =="gitee":
+        data = get_gitee_file_content(owner, repo, file_path, branch, token=token)
+        data = json.loads(data)
+            # Cache the data for future use
+        os.makedirs(os.path.dirname(remote_cache), exist_ok=True)
+        with open(remote_cache, 'w', encoding='utf-8') as f:
+            json.dump(data, f)
+        return data
+    else:
+        raise ValueError("origin must be 'github' or 'gitee'")
+
 
 def list_remote_components(owner,store_name,relation_type,remote_force,branch,token):
     # data = get_github_file_content("pybrave","quick-start","main.json",branch="master")
@@ -203,7 +243,23 @@ def get_github_file_list(owner,repo,dir_path,branch="master"):
         return []
 
 
-
+def get_gitee_file_content(owner, repo, path, branch="master", token=None):
+    api_url = f"https://gitee.com/api/v5/repos/{owner}/{repo}/contents/{path}?ref={branch}"
+    headers = {}
+    if token:
+        headers["Authorization"] = f"token {token}"
+    response = requests.get(api_url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        if "content" in data and data.get("encoding") == "base64":
+            content = base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+            return content
+        else:
+            raise ValueError("Unable to decode file content from Gitee")
+    else:
+        raise ValueError(f"Failed to fetch file from Gitee: {response.status_code} - {response.text}")
+    
+    
 def get_github_file_content(owner, repo, path, branch="main", token=None):
     meta_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}"
     """

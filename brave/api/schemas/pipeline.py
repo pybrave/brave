@@ -132,7 +132,7 @@ class FileConetent(BaseModel):
     content: str
 
 
-class DownloadStore(BaseModel):
-    url: str
-    force: Optional[bool]=False
+# class CreateStore(BaseModel):
+#     url: str
+#     force: Optional[bool]=False
     # store_path:Optional[str]=None

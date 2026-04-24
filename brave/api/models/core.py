@@ -487,3 +487,18 @@ t_chat_history = Table(
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)
 )
+
+
+t_store = Table(
+    "store",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("store_id", String(255)),
+    Column("name", String(255)),
+    Column("url", String(255)),
+    Column("status", String(255)),
+    # Column("progress", Integer),
+    Column("log", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
+)

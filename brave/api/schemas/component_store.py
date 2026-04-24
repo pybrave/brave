@@ -18,3 +18,12 @@ class RelationStore(BaseModel):
     remote_force:Optional[bool] = False
     branch:Optional[str] = "master"
     token:Optional[str] = None
+
+class GetStoreRequest(BaseModel):
+    owner:Optional[str] = "pybrave"
+    repo:Optional[str] = "store-repo"
+    file_path:Optional[str] = "main.json"
+    branch:Optional[str] = "master"
+    token:Optional[str] = None
+    origin:Optional[str] = "github"
+    is_cache:Optional[bool] = False
