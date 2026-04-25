@@ -126,8 +126,9 @@ class DockerExecutorV2(JobExecutor):
             if "version" in find_container and find_container["version"]:
                 version = find_container["version"]
                 r_package_dir = f"{r_package_dir}/{version}"
-                if not os.path.exists(r_package_dir):
-                    os.makedirs(r_package_dir)
+                
+            if not os.path.exists(r_package_dir):
+                os.makedirs(r_package_dir)
 
             envionment = envionment.replace("$USERID", str(user_id))
             envionment = envionment.replace("$GROUPID", str(group_id))
