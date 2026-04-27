@@ -74,6 +74,7 @@ from collections import defaultdict
 from brave.api.dag.dag import build_runtime_tasks
 from brave.api.service import analysis_node_service, analysis_edge_service
 # from build.lib.brave.api.service import project_service
+from brave.api.service.result_parse import base_analysis
 
 analysis_api = APIRouter()
 
@@ -576,7 +577,39 @@ async def save_script_analysis(
         "dag_definition":dag_definition,
         "analysis_id": save_analysis["analysis_id"],   
     }
-    
+
+@analysis_api.post("/run-dag/{analysis_id}")
+@inject
+async def run_dag(
+    analysis_id,
+    is_cache: bool = False,
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_by_id(conn, analysis_id)
+        
+        relation_id = find_analysis["relation_id"]
+        params_path = find_analysis["params_path"]
+        db_is_cache = find_analysis["is_cache"]
+        if db_is_cache != is_cache:
+            analysis_service.update_analysis_cache(conn, analysis_id, is_cache)
+
+        with open(params_path, "r") as f:
+            parse_analysis_result = json.load(f)
+        dag_definition = pipeline_service.get_workflow_vis(conn, relation_id)
+        dag_runtime = build_runtime_tasks(
+            analysis_id= analysis_id,
+            params=parse_analysis_result,
+            dag_definition=dag_definition,
+        )
+        base_analysis.dag_runtime_generate(conn, find_analysis,dag_runtime,is_cache)
+
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,
+                                          AnalysisExecutorEvent.ON_DAG_SUBMITTED,
+                                          AnalysisExecuterModal(run_id=f"job-{analysis_id}",analysis_id=analysis_id,run_type="job"))
+
+    return {"msg":"success"}
+
 @analysis_api.get("/analysis/node-params/{analysis_node_id}")
 def get_analysis_node_params(analysis_node_id):
     with get_engine().begin() as conn:
@@ -1381,6 +1414,39 @@ async def run_analysis_v2(
 
 
     return {"msg":"success"}
+
+
+@analysis_api.post("/run-dag-server/{analysis_id}")
+@inject
+async def run_container(
+    analysis_id,
+    evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) 
+    ):
+    with get_engine().begin() as conn:
+        find_analysis = analysis_service.find_analysis_with_container_id(conn,analysis_id)
+        container_id = find_analysis["container_id"]
+        project_id = find_analysis["project"]
+        if not container_id:
+            raise HTTPException(status_code=404, detail=f"No container associated with analysis {analysis_id}")
+        base_dir = find_analysis["output_dir"]
+    run_id = f"server-{analysis_id}"
+    base_dir = analysis_node_service.build_analysis_dir(project_id,analysis_id)
+    base_dir= str(base_dir)
+    analysis_ =  AnalysisExecuterModal(
+        analysis_id=analysis_id,
+        container_id=container_id,
+        output_dir=base_dir,
+        workspace_dir=f"{base_dir}",
+        script_path=f"{base_dir}/init.sh",
+        run_id=run_id
+    )
+    # try:
+    # raise RuntimeError("oops!")
+    await evenet_bus.dispatch(RoutersName.ANALYSIS_EXECUTER_ROUTER,AnalysisExecutorEvent.ON_ANALYSIS_SUBMITTED,analysis_)
+
+
+    return {"msg":"success"}
+
 
 # run analysis node
 @analysis_api.post("/run-analysis-node/{analysis_node_id}")

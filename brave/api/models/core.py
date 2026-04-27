@@ -337,6 +337,7 @@ t_pipeline_components_relation = Table(
     Column("install_key", String(255)),
     # Column("pipeline_id", String(255)),
     Column("component_id", String(255)),
+    Column("container_id", String(255)),
     Column("parent_component_id", String(255)),
     Column("input_component_ids",  JSON),
     Column("output_component_ids",  JSON),

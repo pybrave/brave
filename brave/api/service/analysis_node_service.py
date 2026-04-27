@@ -301,6 +301,7 @@ def find_container_by_analysis_node_id(conn,  node_id: str):
                     t_container.c.image.label("container_image"),
                     t_container.c.image_status.label("image_status"),
                     t_container.c.image_id.label("image_id"),
+                    t_container.c.name.label("container_name"),
                     # t_analysis.c.relation_id.label("relation_id")
                   )
     stmt = stmt.select_from(
@@ -578,6 +579,10 @@ def find_running_analysis_node(conn):
 def _build_workspace_dir(project_id: str, analysis_id: str, node_id: str) -> Path:
     settings = get_settings()
     return Path(settings.ANALYSIS_DIR) / project_id / analysis_id / node_id
+
+def build_analysis_dir(project_id: str, analysis_id: str) -> Path:
+    settings = get_settings()
+    return Path(settings.ANALYSIS_DIR) / project_id / analysis_id 
 
 
 def init_node_path(analysis, node_list):

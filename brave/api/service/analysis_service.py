@@ -247,6 +247,20 @@ def find_analysis_by_id(conn,analysis_id):
     result = conn.execute(stmt).mappings().first()
     return result
 
+
+def find_analysis_with_container_id(conn,analysis_id):
+    stmt = select(
+        t_analysis,
+        # t_pipeline_components.c.prompt.label("component_prompt"),
+        t_pipeline_components_relation.c.container_id
+    ).select_from(
+        # t_analysis.outerjoin(t_pipeline_components,t_analysis.c.component_id==t_pipeline_components.c.component_id)   
+        t_analysis.outerjoin(t_pipeline_components_relation,t_analysis.c.relation_id==t_pipeline_components_relation.c.relation_id)
+    ).where(t_analysis.c.analysis_id == analysis_id)
+    result = conn.execute(stmt).mappings().first()
+    return result
+
+
 def find_analysis_and_component_by_id(conn,analysis_id):
     stmt = select(
         t_analysis,
@@ -682,3 +696,12 @@ async def run_analysis_node(conn,analysis_node,run_type):
     analysis_executer_modal = AnalysisExecuterModal(**analysis_node)
     # analysis_.image = find_container["image"]
     return analysis_executer_modal
+
+
+def update_analysis_cache(conn, analysis_id, is_cache):
+    stmt = (
+        update(t_analysis)
+        .where(t_analysis.c.analysis_id == analysis_id)
+        .values(is_cache = is_cache)
+    )
+    conn.execute(stmt)

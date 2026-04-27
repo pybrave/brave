@@ -164,6 +164,8 @@ def setup_handlers(
             analysis_id = analysis_node.get("analysis_id") 
         elif payload.run_type =="nserver":
             asyncio.create_task(analysis_node_service.finished_analysis_node_conn(payload.analysis_id,payload.run_type,"running"))
+        elif payload.run_type =="server":
+            asyncio.create_task(analysis_service.finished_analysis(payload.analysis_id,payload.run_type,"running"))
         elif payload.run_type =="retry":
             analysis_id = "container"
         # if payload.run_type =="server":

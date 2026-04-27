@@ -122,6 +122,8 @@ async def get_runtime_snapshot(query: RuntimeScheduleQuery):
     running_item = await running_dag_registry.get_running(query.analysis_id)
     snapshot["running_info"] = running_item
     snapshot["status"] = find_analysis.get("job_status") if find_analysis else None
+    snapshot["is_cache"] = find_analysis.get("is_cache") if find_analysis else None
+    snapshot["server_status"] = find_analysis.get("server_status") if find_analysis else None
     return  snapshot
 
 
