@@ -296,16 +296,35 @@ def _topology(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> List[
 
 
 def _classify_nodes(nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> Dict[str, str]:
-	"""将节点分类为 sample 或 aggregate。
+	"""将节点分类为 sample / singleton / aggregate。
 
 	规则摘要：
-	- 仅由 gather 决定：配置 gather(mode=list) 的节点 -> aggregate
-	- 其他节点 -> sample
+	- 配置 gather(mode=list) 的节点 -> aggregate
+	- 配置 scatter(mode=each) 的节点 -> sample
+	- 其余节点若依赖 sample 上游 -> sample
+	- 否则视为 singleton（单例配置节点）
 	"""
 	node_map = {_node_key(n): n for n in nodes}
+	incoming = defaultdict(list)
+	for edge in edges:
+		incoming[str(edge.get("target") or "")].append(edge)
+
+	order = _topology(nodes, edges)
 	kind: Dict[str, str] = {}
-	for nid, node in node_map.items():
-		kind[nid] = "aggregate" if _gather_field(node) else "sample"
+	for nid in order:
+		node = node_map[nid]
+		if _gather_field(node):
+			kind[nid] = "aggregate"
+			continue
+		if _scatter_field(node):
+			kind[nid] = "sample"
+			continue
+
+		has_sample_upstream = any(
+			kind.get(str(edge.get("source") or "")) == "sample"
+			for edge in incoming.get(nid, [])
+		)
+		kind[nid] = "sample" if has_sample_upstream else "singleton"
 	return kind
 
 
@@ -372,10 +391,10 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 	3) 解析输入、预渲染输出、构建输出缓存
 	4) 生成边并做最终图装饰
 	"""
-	# with open("debug_dag_definition.json", "w") as f:
-	# 	json.dump(dag_definition, f, indent=2)
-	# with open("debug_dag_params.json", "w") as f:
-	# 	json.dump(params, f, indent=2)
+	with open("debug_dag_definition.json", "w") as f:
+		json.dump(dag_definition, f, indent=2)
+	with open("debug_dag_params.json", "w") as f:
+		json.dump(params, f, indent=2)
 		
 	nodes = dag_definition.get("nodes") or []
 	edges = dag_definition.get("edges") or []
@@ -484,6 +503,8 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						resolved_value = output_cache.get((source_instance, source_handle, sample_label))
 						if resolved_value is None:
 							resolved_value = output_cache.get((source_id_base, source_handle, ""))
+						if resolved_value is None:
+							resolved_value = output_cache.get((source_id_base, source_handle, "aggregate"))
 
 						resolved_value = _project_input_value_by_schema(resolved_value, input_schema)
 						node_params[input_handle] = resolved_value
@@ -602,9 +623,11 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						)
 
 		else:
-			# aggregate 节点：只生成一个实例，输入可能来自多个 sample 上游。
+			# singleton / aggregate 节点：只生成一个实例。
+			is_aggregate = node_kind.get(nid) == "aggregate"
 			node_instance = _build_node_id(node_id_base)
-			node_name = _build_node_name(name, "merged")
+			instance_label = "merged" if is_aggregate else str(params.get("analysis_name") or "")
+			node_name = _build_node_name(name, instance_label)
 			node_params = dict(_as_dict(node_params_defaults))
 			gather_field = _gather_field(node)
 			resolved_inputs: Dict[str, Any] = {}
@@ -629,11 +652,13 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 						for sample_label in source_labels:
 							source_instance = _build_node_id(source_id_base, sample_label)
 							values.append(output_cache.get((source_instance, source_handle, sample_label)))
+					elif source_kind == "singleton":
+						values.append(output_cache.get((source_id_base, source_handle, "")))
 					else:
 						values.append(output_cache.get((source_id_base, source_handle, "aggregate")))
 
 				values = [v for v in values if v is not None]
-				is_list = bool(gather_field) and input_handle == gather_field
+				is_list = is_aggregate and bool(gather_field) and input_handle == gather_field
 				if is_list:
 					node_params[input_handle] = values
 					resolved_inputs[input_handle] = values
@@ -643,21 +668,32 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					resolved_inputs[input_handle] = values[0]
 					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, values[0]))
 				else:
-					input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, None))
+					direct_value = params.get(input_handle) if isinstance(params, dict) else None
+					if direct_value is not None:
+						direct_value = _project_input_value_by_schema(direct_value, input_schema)
+						node_params[input_handle] = direct_value
+						resolved_inputs[input_handle] = direct_value
+						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, direct_value))
+					else:
+						input_validation_errors.extend(_collect_required_input_errors(input_handle, input_schema, None))
 
 			node_resolved_outputs: Dict[str, Any] = {}
 			has_input_errors = len(input_validation_errors) > 0
 			for output_handle, output_cfg in outputs.items():
-				# aggregate 输出中的 {sample} 固定渲染为 merged。
+				# aggregate 输出中的 {sample} 固定渲染为 merged；singleton 使用分析名渲染。
 				output_value = None
 				if not has_input_errors:
 					output_value = node_params.get(output_handle)
 				if not has_input_errors and isinstance(output_cfg, dict):
 					pattern = output_cfg.get("pattern")
 					if isinstance(pattern, str) and pattern:
-						output_value = pattern.replace("{sample}", "merged")
+						if is_aggregate:
+							output_value = pattern.replace("{sample}", "merged")
+						else:
+							output_value = _render_output_pattern(pattern, params, instance_label)
 				node_resolved_outputs[output_handle] = output_value
-				output_cache[(node_instance, output_handle, "aggregate")] = output_value
+				cache_scope = "aggregate" if is_aggregate else ""
+				output_cache[(node_instance, output_handle, cache_scope)] = output_value
 
 			analysis_nodes.append(
 				{
@@ -675,6 +711,49 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					"max_retry": int(node.get("max_retry") or 3),
 				}
 			)
+
+			for e in outgoing[nid]:
+				# singleton/aggregate 出边：
+				# - 指向 sample 节点时，复制到目标的每个 sample 实例
+				# - 指向非 sample 节点时，保持单条边
+				target = str(e.get("target"))
+				target_id_base = _node_id_base(node_map[target])
+				target_kind = node_kind.get(target, "sample")
+				source_handle = _edge_value(e, "sourceHandle", "source_handle")
+				target_handle = _edge_value(e, "targetHandle", "target_handle")
+				target_scatter_field = _scatter_field(node_map[target])
+				target_raw_samples = params.get(target_scatter_field) if target_scatter_field else None
+
+				if target_kind == "sample":
+					if isinstance(target_raw_samples, list):
+						target_labels = [
+							_sample_label(sample, i)
+							for i, sample in enumerate(target_raw_samples)
+							if isinstance(sample, dict)
+						]
+					else:
+						target_labels = _derive_upstream_sample_labels(target, incoming, node_kind, node_labels)
+
+					for dst_label in target_labels:
+						analysis_edges.append(
+							{
+								"analysis_id": analysis_id,
+								"source_node": node_instance,
+								"target_node": _build_node_id(target_id_base, dst_label),
+								"source_handle": source_handle,
+								"target_handle": target_handle,
+							}
+						)
+				else:
+					analysis_edges.append(
+						{
+							"analysis_id": analysis_id,
+							"source_node": node_instance,
+							"target_node": target_id_base,
+							"source_handle": source_handle,
+							"target_handle": target_handle,
+						}
+					)
 
 	_decorate_runtime_graph(analysis_id, analysis_nodes, analysis_edges)
 

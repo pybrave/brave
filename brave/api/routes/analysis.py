@@ -508,6 +508,7 @@ async def save_script_analysis(
                 params=parse_analysis_result,
                 dag_definition=dag_definition,
             )
+            pass
         if not save:
             return {
                 "params":parse_analysis_result,

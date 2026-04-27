@@ -46,6 +46,12 @@ The default installation location is `$HOME/brave-install`, but you can specify 
 curl -s https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/install.sh  | bash -s -- --aliyun --base-dir /opt/brave
 ```
 
+On China mainland, you can use the following command to install BRAVE using the Alibaba Cloud mirror:
+```
+curl -s https://raw.giteeusercontent.com/pybrave/brave/raw/master/install.sh  | bash -s -- --aliyun
+```
+
+
 ## Install Componnet
 ```
 cd $HOME/brave-install/store
