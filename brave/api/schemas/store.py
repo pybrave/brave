@@ -2,7 +2,8 @@ from typing import Optional
 from pydantic import BaseModel
 
 class CreateStore(BaseModel):
-    url: Optional[str]
+    store_id: Optional[str]=None
+    url: Optional[str]=None
     path: Optional[str]=None
     name: Optional[str]=None
     status: Optional[str]=None

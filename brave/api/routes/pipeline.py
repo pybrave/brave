@@ -7,8 +7,9 @@ import os
 import glob
 from brave.api.config.config import get_settings
 from brave.api.enum.component_script import ScriptName
+from brave.api.schemas.store import CreateStore
 from brave.api.service.pipeline import get_pipeline_dir,get_pipeline_list
-from brave.api.service import component_store_service
+from brave.api.service import component_store_service, store_service
 
 from collections import defaultdict
 from brave.api.models.core import t_pipeline_components,t_pipeline_components_relation
@@ -736,11 +737,14 @@ async def save_pipeline(savePipeline:SavePipeline):
     return {"message":"success"}
 @pipeline.post("/publish-relation",tags=['pipeline'])
 async def publish_component(publishRelation:PublishRelation):
-    setting = get_settings()
-    store_path = f"{setting.STORE_DIR}/default"
-    if publishRelation.store_path:
-        store_path = publishRelation.store_path
+    store_id = publishRelation.store_id
+    
+    # setting = get_settings()
+    # store_path = f"{setting.STORE_DIR}/default"
+
     with get_engine().begin() as conn:
+        find_store = store_service.find_store_by_id(conn,store_id)
+        store_path = find_store['store_path']
         find_relation = pipeline_service.find_by_relation_id(conn,publishRelation.relation_id)
         relation_type = find_relation['relation_type']
         relation_id  = find_relation['relation_id']
@@ -826,6 +830,7 @@ async def publish_component(publishRelation:PublishRelation):
     #     })
     # with open(install_file,"w") as f:
     #     json.dump(install_json,f)
+
     return {"message":"success"}
 
 

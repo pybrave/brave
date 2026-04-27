@@ -125,7 +125,8 @@ class PublishComponent(BaseModel):
 
 class PublishRelation(BaseModel):
     relation_id: str
-    store_path:Optional[str]=None
+    store_id: Optional[str]=None
+    # store_path:Optional[str]=None
     force: Optional[bool]=False
 
 

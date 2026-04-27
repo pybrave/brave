@@ -17,6 +17,7 @@ def create_store(conn, createStore:CreateStore):
 
 def update_store(conn,store_id,updateStore:CreateStore):
     update_data = updateStore.dict(exclude_none=True)
+    update_data = {k: v for k, v in update_data.items() if v is not None}
     update_data.pop("store_id", None)
     if not update_data:
         return
@@ -35,6 +36,15 @@ def find_store_by_id(conn,store_id):
     )
    
     stmt = stmt.where(t_store.c.store_id ==store_id)
+    find_store = conn.execute(stmt).mappings().first()
+    return find_store
+
+def find_by_path_name(conn,path_name):
+    stmt = select(
+        t_store
+    )
+   
+    stmt = stmt.where(t_store.c.path_name ==path_name)
     find_store = conn.execute(stmt).mappings().first()
     return find_store
 

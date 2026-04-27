@@ -35,7 +35,7 @@ async def delete_store(store_id:str):
         store_service.delete_store(conn,store_id)
     return {"message":"success"}
 
-@store_api.post("/create-store",tags=['pipeline'])
+@store_api.post("/clone-store",tags=['pipeline'])
 @inject
 async def create_store(createStore: CreateStore,
                         evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) ):
@@ -52,8 +52,16 @@ async def create_store(createStore: CreateStore,
         settings = get_settings()
         store_path = f"{settings.STORE_DIR}"
         url = createStore.url
-        filename = url.split("/")[-1]
-        target_path = f"{store_path}/{filename.replace('.git','')}"
+        url_lists = url.split("/")
+        if len(url_lists) < 2:
+            raise HTTPException(status_code=400, detail=f"Invalid git url: {url}")
+        
+        filename = url_lists[-1]
+        # target_path is owner/repo
+        url_path = url_lists[-2:]
+        target_path = f"{store_path}/{url_path[0]}/{filename.replace('.git','')}"
+        
+        # target_path = f"{store_path}/{filename.replace('.git','')}"
 
         createStore.name = filename.replace('.git', '')
         createStore.path = target_path
@@ -144,6 +152,13 @@ async def create_store(createStore: CreateStore,
 def list_stores():
     with get_engine().begin() as conn:
         stores = store_service.list_store(conn)
+       
+    return stores
+
+@store_api.get("/list-tree-stores", tags=['pipeline'])
+def list_tree_stores():
+    with get_engine().begin() as conn:
+        stores = store_service.list_store(conn)
         # 根据category生成children的树状结构
         # {
         #     category:"xxx",
@@ -222,7 +237,59 @@ async def git_stop(store_id: str, evenet_bus:EventBus = Depends(Provide[AppConta
     #     "process_status": process_status,
     # }
 
+@store_api.get("/find-store-by-id/{store_id}", tags=['pipeline'])
+async def find_store_by_id(store_id: str):
+    with get_engine().begin() as conn:
+        find_store = store_service.find_store_by_id(conn,store_id)
+        if not find_store:
+            raise HTTPException(status_code=404, detail=f"Store with id {store_id} not found")
+        return find_store
 
+
+
+@store_api.post("/save-store", tags=['pipeline'])
+async def save_store(createStore: CreateStore):
+    store_id = createStore.store_id
+    with get_engine().begin() as conn:
+        
+        if store_id:
+        
+            find_store = store_service.find_store_by_id(conn,store_id)
+            if not find_store:
+                raise HTTPException(status_code=404, detail=f"Store with id {store_id} not found")
+            store_service.update_store(conn, store_id, createStore)
+        else:
+            find_store = store_service.find_by_path_name(conn,createStore.path_name)
+            if find_store:
+                raise HTTPException(status_code=400, detail=f"Store with path_name {createStore.path_name} already exists")
+            settings = get_settings()
+            store_path = f"{settings.STORE_DIR}"
+            path_name = createStore.path_name
+            if createStore.name is  None:
+                createStore.name = createStore.path_name
+            # filename = url.split("/")[-1]
+            createStore.path = f"{store_path}/{path_name}"
+            createStore.status = "done"
+            if not os.path.exists(createStore.path):
+                os.makedirs(createStore.path)
+                print(f"Created directory at {createStore.path}")
+            
+            # createStore.url = {
+            #     "github": f"https://github.com/{path_name}.git",
+            #     "gitee": f"https://gitee.com/{path_name}.git",
+            # }
+            
+
+            # createStore = CreateStore(
+            #     # url=createStore.url,
+            #     path=target_path,
+            #     name=createStore.name,
+            #     status="created",
+            #     path_name=path_name,
+            # )
+            store_service.create_store(conn, createStore)
+            
+    return {"message":"success"}
 
                         
 @store_api.post("/git-pull/{store_id}", tags=['pipeline'])
@@ -310,4 +377,5 @@ async def git_pull(store_id: str,
     #     delete_store_record(store_id)
     #     release_lock(lock_file)
     #     raise HTTPException(status_code=500, detail=f"Git pull failed: {str(e)}")
+
 
