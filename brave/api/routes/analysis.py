@@ -595,7 +595,20 @@ def get_analysis_node_params(analysis_node_id):
         
 
     
-
+@analysis_api.get("/analysis/node-logs/{analysis_node_id}")
+def get_analysis_node_logs(analysis_node_id):
+    with get_engine().begin() as conn:
+        node = analysis_node_service.find_by_analysis_node_id(conn, analysis_node_id)
+        if not node:
+            raise HTTPException(status_code=404, detail=f"Analysis node with id {analysis_node_id} not found")
+        log_path = node.get("log_path")
+        if log_path and os.path.exists(log_path):
+            with open(log_path, "r") as f:
+                logs = f.read()
+            return logs
+        else:
+            raise HTTPException(status_code=404, detail=f"Log file not found for analysis node with id {analysis_node_id}")
+        
 
 
 @analysis_api.post("/fast-api/analysis-controller-old")

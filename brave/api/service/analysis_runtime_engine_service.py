@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 import glob
+import json
 import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -103,6 +104,45 @@ def _glob_files(output_dir: Path, pattern: str) -> List[str]:
     return sorted(list(dict.fromkeys(matches)))
 
 
+def _load_outputs_json(node: Dict[str, Any]) -> Dict[str, Any]:
+    """读取 output_dir/outputs.json，失败时返回空字典。"""
+    node_output_dir = str(node.get("output_dir") or "").strip()
+    if not node_output_dir:
+        return {}
+
+    outputs_json_path = Path(node_output_dir) / "outputs.json"
+    if not outputs_json_path.exists() or not outputs_json_path.is_file():
+        return {}
+
+    try:
+        with outputs_json_path.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception:
+        return {}
+
+    return payload if isinstance(payload, dict) else {}
+
+
+def _resolve_output_value_by_name(
+    outputs_payload: Dict[str, Any],
+    handle: str,
+    multiple: bool,
+) -> Optional[Any]:
+    """当未声明 pattern 时，从 outputs.json 按 handle 读取输出值。"""
+
+    if handle not in outputs_payload:
+        return None
+
+    value = outputs_payload[handle]
+
+    if multiple:
+        if isinstance(value, list):
+            return value
+        return [value]
+
+    return value
+
+
 def _resolve_verified_outputs(
     node: Dict[str, Any],
     candidate_outputs: Dict[str, Any],
@@ -110,6 +150,7 @@ def _resolve_verified_outputs(
     """根据 output_patterns 校验真实输出文件，仅返回已落盘的输出值。"""
     output_patterns = _as_dict(node.get("output_patterns"))
     output_dir = _resolve_node_output_dir(node)
+    outputs_payload = _load_outputs_json(node)
     verified: Dict[str, Any] = {}
     errors: List[str] = []
 
@@ -130,10 +171,13 @@ def _resolve_verified_outputs(
             continue
 
         if not isinstance(pattern, str) or not pattern.strip():
-            if handle in candidate_outputs:
+            named_output_value = _resolve_output_value_by_name(outputs_payload, handle, multiple)
+            if named_output_value is not None:
+                verified[handle] = named_output_value
+            elif handle in candidate_outputs:
                 verified[handle] = candidate_outputs[handle]
             elif required:
-                errors.append(f"missing output pattern: {handle}")
+                errors.append(f"missing output pattern or named output: {handle}")
             continue
 
         rendered_pattern = _render_pattern(pattern.strip(), node)
@@ -402,7 +446,7 @@ def complete_node(
         error_message = error_message or "node execution failed"
 
     if status in SUCCESS_STATUS:
-        candidate_outputs = resolved_outputs or _build_simulated_outputs(node)
+        candidate_outputs = resolved_outputs # or _build_simulated_outputs(node)
         final_outputs, output_errors = _resolve_verified_outputs(node, _as_dict(candidate_outputs))
 
         if output_errors:
