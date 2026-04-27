@@ -525,6 +525,7 @@ async def save_script_analysis(
                                                                 dag_runtime,
                                                                 is_run_node,
                                                                 is_report)
+        
         # find_analysis_task = analysis_task_service.find_analysis_tasks_by_analysis_id(conn, analysis_id=save_analysis["analysis_id"])
         # dag_definition = component["dag_definition"]
         analysis_id = save_analysis["analysis_id"]
@@ -589,7 +590,7 @@ def get_analysis_node_params(analysis_node_id):
             params = json.load(f)
 
         resolved_inputs = node.get("resolved_inputs",{})
-        params = analysis_service.build_analysis_node_params(params,resolved_inputs)
+        params = analysis_service.build_analysis_node_params(node,params,resolved_inputs)
         return params
         
 

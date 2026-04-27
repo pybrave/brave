@@ -189,6 +189,10 @@ def create_file(component_id,component_type,file_type):
     elif file_type == "R":
         with resources.files("brave.templete").joinpath("py_plot.R").open("r") as f:
             content_text = f.read()
+    elif file_type == "sh":
+        with resources.files("brave.templete").joinpath("main.sh").open("r") as f:
+            content_text = f.read()
+
     # if component_type == "pipeline":
     # analysis_file = f"{pipeline_dir}/{component_type}/{component_id}/main.{file_type}"
     analysis_dir  = get_script_dir(component_type, component_id)

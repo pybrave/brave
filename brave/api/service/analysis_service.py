@@ -19,6 +19,24 @@ from sqlalchemy import or_, and_
 from brave.api.utils.file_utils import delete_all_in_dir
 from brave.api.core.evenet_bus import EventBus
 from pathlib import Path
+from jinja2 import Environment, StrictUndefined, TemplateError
+
+
+def _render_shell_template(script_content: str, params: dict) -> str:
+    """Render shell templates with params using native Jinja2 syntax."""
+    if not isinstance(params, dict):
+        raise HTTPException(status_code=500, detail="Shell template params must be a JSON object")
+
+    context = dict(params)
+    meta = context.get("meta")
+    if isinstance(meta, dict) and "meta_file_name" not in context and "file_name" in meta:
+        context["meta_file_name"] = meta["file_name"]
+
+    env = Environment(undefined=StrictUndefined, autoescape=False)
+    try:
+        return env.from_string(script_content).render(**context)
+    except TemplateError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to render shell template: {exc}")
 
 def get_parse_analysis_result_params(conn,analysis_id):
     stmt = select(t_analysis).where(t_analysis.c.analysis_id == analysis_id)
@@ -518,8 +536,10 @@ def update_used(conn,analysis_id):
     #     )
     #     conn.execute(stmt)
 
-def build_analysis_node_params(analysis_params,analysis_node_params):
-    return {**analysis_params, **analysis_node_params}
+def build_analysis_node_params(node,analysis_params,analysis_node_params):
+    return {**analysis_params, **analysis_node_params,
+            "output_dir": node["output_dir"],
+            }
 
 def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_params_path, script_path):
     workspace_dir = Path(analysis_node["workspace_dir"])
@@ -533,8 +553,8 @@ def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_param
     with open(analysis_params_path,"r") as f:
         analysis_params = json.load(f)
         
-    resolved_inputs = build_analysis_node_params(analysis_params, resolved_inputs)
- 
+    resolved_inputs = build_analysis_node_params(analysis_node, analysis_params, resolved_inputs)
+    
 
     with open(params_path,"w") as f:
         json.dump(resolved_inputs,f)
@@ -543,8 +563,18 @@ def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_param
         with open(command_path,"w") as f:
             f.write(f"Rscript {script_path} {params_path} {output_dir}")
     if script_type == "shell":
+        with open(params_path,"r") as f:
+            params = json.load(f)
+        with open(script_path,"r") as f:
+            script_content = f.read()
+        rendered_script = _render_shell_template(script_content, params)
+
+        rendered_script += f"\n\n#{script_path}"
         with open(command_path,"w") as f:
-            f.write(f"sh {script_path} {params_path} {output_dir}")
+            f.write(rendered_script)
+        # os.chmod(command_path, 0o755)
+
+            # f.write(f"sh {script_path} {params_path} {output_dir}")
     if script_type == "python":
         with open(command_path,"w") as f:
             f.write(f"python {script_path} {params_path} {output_dir}")

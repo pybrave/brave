@@ -187,7 +187,7 @@ class BaseAnalysis(ABC):
         #     result = conn.execute(stmt).mappings().first()
         if result:
             print("update analysis")
-
+            parse_analysis_result["tools_output_dir"] = result.output_dir
             output_dir = result.output_dir
             work_dir = result.work_dir
             if not os.path.exists(output_dir):
@@ -240,6 +240,7 @@ class BaseAnalysis(ABC):
             #     output_dir = f"{project_dir}/{pipeline_id}/{component['component_id']}/{str_uuid}"
             # else:
             output_dir = f"{project_dir}/{str_uuid}"
+            parse_analysis_result["tools_output_dir"] = output_dir
             # /data/wangyang/nf_work/
             work_dir = f"{work_dir}/{request_param['project']}/{relation_id}/{str_uuid}"
             params_path = f"{output_dir}/params.json"
@@ -302,6 +303,7 @@ class BaseAnalysis(ABC):
             new_analysis["job_status"] = "created"
             # with open(command_path, "w") as f:
             #     f.write(command)
+            
             with open(params_path, "w") as f:
                 json.dump(parse_analysis_result,f)
             stmt = t_analysis.insert().values(new_analysis)

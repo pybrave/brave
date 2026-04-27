@@ -30,7 +30,8 @@ setup(
         "cryptography",
         "openai",
         "oss2",
-        "openpyxl"
+        "openpyxl",
+        "Jinja2"
         ],
     entry_points={
         "console_scripts": [

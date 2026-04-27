@@ -391,10 +391,10 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 	3) 解析输入、预渲染输出、构建输出缓存
 	4) 生成边并做最终图装饰
 	"""
-	with open("debug_dag_definition.json", "w") as f:
-		json.dump(dag_definition, f, indent=2)
-	with open("debug_dag_params.json", "w") as f:
-		json.dump(params, f, indent=2)
+	# with open("debug_dag_definition.json", "w") as f:
+	# 	json.dump(dag_definition, f, indent=2)
+	# with open("debug_dag_params.json", "w") as f:
+	# 	json.dump(params, f, indent=2)
 		
 	nodes = dag_definition.get("nodes") or []
 	edges = dag_definition.get("edges") or []
@@ -542,6 +542,7 @@ def build_runtime_tasks(analysis_id: str, params: Dict[str, Any], dag_definition
 					if not has_input_errors:
 						output_value = node_params.get(output_handle)
 					if not has_input_errors and isinstance(output_cfg, dict):
+						# TODO - 输出预渲染目前仅支持单样本单输出的简单字符串模板，后续可根据需求增强。 
 						pattern = output_cfg.get("pattern")
 						if isinstance(pattern, str) and pattern:
 							output_value = _render_output_pattern(pattern, sample, sample_label)
