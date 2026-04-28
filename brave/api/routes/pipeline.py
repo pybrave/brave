@@ -735,6 +735,19 @@ async def save_pipeline(savePipeline:SavePipeline):
     # print("文件创建耗时", time.time() - t0)
 
     return {"message":"success"}
+
+
+def write_metadata(store:dict):
+    with open(f"{store['path']}/metadata.json","w") as f:
+        json.dump({
+            "category": store.get("category"),
+            "name": store.get("name"),
+            "version": store.get("version"),
+            "update_info": store.get("update_info"),
+        },f, default=str)
+    
+
+
 @pipeline.post("/publish-relation",tags=['pipeline'])
 async def publish_component(publishRelation:PublishRelation):
     store_id = publishRelation.store_id
@@ -746,7 +759,17 @@ async def publish_component(publishRelation:PublishRelation):
         find_store = store_service.find_store_by_id(conn,store_id)
         store_path = find_store['store_path']
         find_relation = pipeline_service.find_by_relation_id(conn,publishRelation.relation_id)
+        store_version = find_relation["version"]
+        store_service.update_store_version(conn,store_id,store_version)
+
         pipeline_service.update_relation_store_id(conn,publishRelation.relation_id,store_id)
+        # update othre relation version 
+        pipeline_service.update_version_by_store_id(conn,store_id,store_version)
+
+        write_metadata({
+            **find_store,
+            "version": store_version
+        })
         relation_type = find_relation['relation_type']
         relation_id  = find_relation['relation_id']
 
@@ -1151,13 +1174,14 @@ async def install_github_component(installComponent:InstallComponent):
         container_service.import_container(conn,install_target_path,force)
         # pipeline_service.import_component(conn,path,force)
 
-def install_local_component(store_path, store_id, force=False):
+def install_local_component(store_path, store_id,version, force=False):
     # force = installRelation.force
     pipeline_dir = pipeline_service.get_pipeline_dir()
     path = os.path.dirname(store_path)
     with open(store_path,"r") as f:
         data = json.load(f)
         data["store_id"] = store_id
+        data["version"] = version
         relation_type = data['relation_type']
         relation_id = data['relation_id']
         source_path = path
@@ -1234,8 +1258,9 @@ async def reinstall_relation(relation_id: str,
         
     # /store/pybrave/enrichment-analysis/tools/f29920b6-db5c-4b5b-9696-c9b3bda2e60c/component_relation.json
     store_path = find_store['store_path']
+    store_version = find_store['version']
     file_path = f"{store_path}/tools/{relation_id}/component_relation.json"
-    install_local_component(file_path, store_id, force=True)
+    install_local_component(file_path, store_id, store_version, force=True)
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 
@@ -1256,7 +1281,8 @@ async def install_relation(installRelation:InstallComponent,
         if not find_store:
             raise HTTPException(status_code=500, detail=f"Store {installRelation.store_id} not found!")
         store_id = find_store['store_id']
-    install_local_component(installRelation.path, store_id, installRelation.force)
+        store_version = find_store['version']
+    install_local_component(installRelation.path, store_id, store_version, installRelation.force)
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 

@@ -853,6 +853,9 @@ def update_relation_store_id(conn, relation_id, store_id):
     stmt = t_pipeline_components_relation.update().where(t_pipeline_components_relation.c.relation_id == relation_id).values(store_id=store_id)
     conn.execute(stmt)
 
+def update_version_by_store_id(conn, store_id, version):
+    stmt = t_pipeline_components_relation.update().where(t_pipeline_components_relation.c.store_id == store_id).values(version=version)
+    conn.execute(stmt)
 
 
 def update_relation_component_id(conn,relation_id, component_id):

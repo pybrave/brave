@@ -345,6 +345,7 @@ t_pipeline_components_relation = Table(
     Column("output_component_ids",  JSON),
     Column("order_index", Integer),
     Column("store_id", String(255)),
+    Column("version", String(255)),
     # Column("namespace", String(255)),
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)

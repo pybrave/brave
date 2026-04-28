@@ -269,15 +269,6 @@ async def find_store_by_id(store_id: str):
             raise HTTPException(status_code=404, detail=f"Store with id {store_id} not found")
         return find_store
 
-def write_metadata(store:dict):
-    with open(f"{store['path']}/metadata.json","w") as f:
-        json.dump({
-            "category": store.get("category"),
-            "name": store.get("name"),
-            "version": store.get("version"),
-            "update_info": store.get("update_info"),
-        },f, default=str)
-    pass
 
 
 @store_api.post("/save-store", tags=['pipeline'])
@@ -321,10 +312,10 @@ async def save_store(createStore: CreateStore):
                 "publish_urls": publish_urls,
             }
             store_service.update_store(conn, store_id, update_data)
-            write_metadata({
-                **find_store,
-                **createStore.dict()
-            })
+            # write_metadata({
+            #     **find_store,
+            #     **createStore.dict()
+            # })
         else:
 
             find_store = store_service.find_by_path_name(conn,path_name)
@@ -349,18 +340,18 @@ async def save_store(createStore: CreateStore):
             #     "gitee": f"https://gitee.com/{path_name}.git",
             # }
             
-            version = str(int(time.time()))
+            # version = str(int(time.time()))
             store_data = {
                 **createStore.dict(exclude_none=True),
                 "path": store_path,
                 "status":"done",
                 "path_name": path_name,
-                "version": version,
+                "version": createStore.version,
                 "publish_urls": publish_urls,
             }
             store_data.pop("store_id", None)
             store_service.create_store(conn, store_data)
-            write_metadata(store_data)
+            # write_metadata(store_data)
     
             
     return {"message":"success"}

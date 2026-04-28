@@ -34,6 +34,10 @@ def find_store_by_id(conn,store_id):
     find_store = conn.execute(stmt).mappings().first()
     return find_store
 
+def update_store_version(conn, store_id, version):
+    stmt = t_store.update().where(t_store.c.store_id == store_id).values(version=version)
+    conn.execute(stmt)
+
 def find_by_path_name(conn,path_name):
     stmt = select(
         t_store

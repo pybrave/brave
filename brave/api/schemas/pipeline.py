@@ -43,6 +43,7 @@ class SavePipelineRelation(BaseModel):
     prompt:Optional[str]=None
     dag_definition: Optional[str]=None
     container_id:Optional[str]=None
+    version:Optional[str]=None
 
 
 
