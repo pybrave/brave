@@ -114,6 +114,20 @@ def build_git_log(stdout: bytes = b"", stderr: bytes = b"", error: str = None):
 #     with get_engine().begin() as conn:
 #         store_service.delete_store_db(conn, store_id)
 
+async def update_store(store_id: str, target_path: str, push_sse,reasion):
+    # update_store_record(store_id=store_id, status="done", log=git_log)
+    config_file = f"{target_path}/metadata.json"
+    if os.path.exists(config_file):
+        with open(config_file, "r") as f:
+            config_data = json.load(f)
+            update_data = {
+                "update_info": config_data.get("update_info",None),
+                "version": config_data.get("version",None),
+                "category": config_data.get("category",None),
+                "status": "done",
+            }
+    store_service.update_store_db(store_id, update_data)
+    await push_sse("done",reasion)
 
 async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = None, timeout=60):
     async def push_clone_sse(status: str, reason: str = None):
@@ -148,19 +162,20 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
             if target_path and url and os.path.isdir(target_path):
                 write_repo_config(target_path, url)
             if store_id:
+                await update_store(store_id, target_path, push_clone_sse,"clone_finished")
                 # update_store_record(store_id=store_id, status="done", log=git_log)
-                config_file = f"{target_path}/metadata.json"
-                if os.path.exists(config_file):
-                    with open(config_file, "r") as f:
-                        config_data = json.load(f)
-                        update_data = {
-                            "update_info": config_data.get("update_info",None),
-                            "version": config_data.get("version",None),
-                            "category": config_data.get("category",None),
-                            "status": "done",
-                        }
-                store_service.update_store_db(store_id, update_data)
-                await push_clone_sse("done","clone_finished")
+                # config_file = f"{target_path}/metadata.json"
+                # if os.path.exists(config_file):
+                #     with open(config_file, "r") as f:
+                #         config_data = json.load(f)
+                #         update_data = {
+                #             "update_info": config_data.get("update_info",None),
+                #             "version": config_data.get("version",None),
+                #             "category": config_data.get("category",None),
+                #             "status": "done",
+                #         }
+                # store_service.update_store_db(store_id, update_data)
+                # await push_clone_sse("done","clone_finished")
 
         elif store_id:
             await push_clone_sse("failed", "clone_nonzero_exit")
@@ -228,6 +243,7 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
         await sse_service.push_message({"group": "default", "data": json.dumps(data)})
     lock_data = read_lock(lock_file) or {}
     store_id = lock_data.get("store_id")
+    target_path = lock_data.get("target_path")
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         git_log = build_git_log(stdout, stderr)
@@ -245,7 +261,10 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
             "stderr": stderr.decode(errors="ignore"),
         }
         print(f"pull task finished: {result}")
-        await pull_sse("done", "pull_finished")
+
+        await update_store(store_id, target_path, pull_sse,"pull_finished")
+
+        # await pull_sse("done", "pull_finished")
         return result
     except asyncio.TimeoutError:
         proc.kill()
