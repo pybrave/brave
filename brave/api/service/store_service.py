@@ -1,7 +1,7 @@
 
 import uuid
 
-from brave.api.schemas.store import CreateStore
+from brave.api.schemas.store import CreateStore, StoreQuery
 from brave.api.models.core import t_store
 from sqlalchemy import select
 
@@ -43,8 +43,22 @@ def find_by_path_name(conn,path_name):
     find_store = conn.execute(stmt).mappings().first()
     return find_store
 
-def list_store(conn):
+def list_store(conn, query: StoreQuery):
     stmt =select(t_store) 
+    if query:
+        if query.store_id:
+            stmt = stmt.where(t_store.c.store_id == query.store_id)
+        if query.url:
+            stmt = stmt.where(t_store.c.url == query.url)
+        if query.name:
+            stmt = stmt.where(t_store.c.name == query.name)
+        if query.status:
+            stmt = stmt.where(t_store.c.status == query.status)
+        if query.path_name:
+            stmt = stmt.where(t_store.c.path_name == query.path_name)
+        if query.category:
+            stmt = stmt.where(t_store.c.category == query.category)
+            
     find_store = conn.execute(stmt).mappings().all()
     find_store = [dict(item) for item in find_store]
     return find_store

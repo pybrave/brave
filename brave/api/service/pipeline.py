@@ -12,7 +12,7 @@ import shutil
 from fastapi import Depends, HTTPException
 from brave.api.schemas.pipeline import PageComponentRelationQuery, PagePipelineQuery, SavePipeline,Pipeline,QueryPipeline,QueryModule,SaveOrder,SavePipelineComponentsEdges
 from brave.api.config.db import get_engine
-from brave.api.models.core import  t_pipeline_components, t_pipeline_components_edges, t_pipeline_components_relation
+from brave.api.models.core import  t_pipeline_components, t_store, t_pipeline_components_relation
 import importlib.resources as resources
 from sqlalchemy import delete, select, and_, join, func,insert,update,or_
 from datetime import datetime
@@ -849,6 +849,10 @@ def update_component_description(conn, component_id,description):
     conn.execute(stmt)
     # pass
 
+def update_relation_store_id(conn, relation_id, store_id):
+    stmt = t_pipeline_components_relation.update().where(t_pipeline_components_relation.c.relation_id == relation_id).values(store_id=store_id)
+    conn.execute(stmt)
+
 
 
 def update_relation_component_id(conn,relation_id, component_id):
@@ -1320,16 +1324,20 @@ def get_components_by_relation_id_v2(conn,relation_id):
     stmt = (
         select(
             t_pipeline_components_relation,  # 关系表所有字段
+            t_store.c.name.label("store_name"),
+            t_store.c.url.label("store_url"),
+            t_store.c.version.label("store_version"),
+            t_store.c.update_info.label("store_update_info"),
             # t_pipeline_components.c.script_type,
             # t_pipeline_components.c.content,
             # t_pipeline_components.c.description.label("component_description"),
         )
-        # .select_from(
-        #     t_pipeline_components_relation.outerjoin(
-        #         t_pipeline_components,
-        #         t_pipeline_components_relation.c.component_id == t_pipeline_components.c.component_id
-        #     )
-        # )
+        .select_from(
+            t_pipeline_components_relation.outerjoin(
+                t_store,
+                t_pipeline_components_relation.c.store_id == t_store.c.store_id
+            )
+        )
         .where(t_pipeline_components_relation.c.relation_id == relation_id)
     )
 

@@ -13,7 +13,7 @@ from brave.api.config.db import get_engine
 from brave.api.core.evenet_bus import EventBus
 from brave.api.core.event import GitExecutorEvent
 from brave.api.core.routers_name import RoutersName
-from brave.api.schemas.store import CreateStore
+from brave.api.schemas.store import CreateStore, StoreQuery
 from  brave.api.service import store_service 
 
 from brave.app_container import AppContainer
@@ -172,17 +172,17 @@ async def clone_store(createStore: CreateStore,
     #     },
     # }
 
-@store_api.get("/list-stores", tags=['pipeline'])
-def list_stores():
+@store_api.post("/list-stores", tags=['pipeline'])
+def list_stores(query: StoreQuery ):
     with get_engine().begin() as conn:
-        stores = store_service.list_store(conn)
+        stores = store_service.list_store(conn, query)
        
     return stores
 
 @store_api.get("/list-tree-stores", tags=['pipeline'])
 def list_tree_stores():
     with get_engine().begin() as conn:
-        stores = store_service.list_store(conn)
+        stores = store_service.list_store(conn,None)
         # 根据category生成children的树状结构
         # {
         #     category:"xxx",
@@ -286,10 +286,11 @@ async def save_store(createStore: CreateStore):
     url = createStore.url
     path_name, filename = get_path_name_from_url(createStore.url)
 
+    publish_urls = []
     # is_ssh= True
     if  url is not None:
         # if is_ssh:
-        createStore.publish_urls = [
+        publish_urls = [
             {
                 "name": "github",
                 "ssh": f"git@github.com:{path_name}.git",
@@ -317,6 +318,7 @@ async def save_store(createStore: CreateStore):
             update_data = {
                 **createStore.dict(exclude_none=True),
                 "status": "done",
+                "publish_urls": publish_urls,
             }
             store_service.update_store(conn, store_id, update_data)
             write_metadata({
@@ -354,6 +356,7 @@ async def save_store(createStore: CreateStore):
                 "status":"done",
                 "path_name": path_name,
                 "version": version,
+                "publish_urls": publish_urls,
             }
             store_data.pop("store_id", None)
             store_service.create_store(conn, store_data)

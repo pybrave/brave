@@ -746,6 +746,7 @@ async def publish_component(publishRelation:PublishRelation):
         find_store = store_service.find_store_by_id(conn,store_id)
         store_path = find_store['store_path']
         find_relation = pipeline_service.find_by_relation_id(conn,publishRelation.relation_id)
+        pipeline_service.update_relation_store_id(conn,publishRelation.relation_id,store_id)
         relation_type = find_relation['relation_type']
         relation_id  = find_relation['relation_id']
 
@@ -1215,11 +1216,33 @@ async def install_component(installComponent:InstallComponent,
     return {"message":"success"}
 
 
+@pipeline.post("/reinstall-relation/{relation_id}",tags=['pipeline'])
+@inject
+async def reinstall_relation(relation_id: str,
+    job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
+):
+    with get_engine().begin() as conn:
+        find_relation = pipeline_service.find_by_relation_id(conn, relation_id)
+        if not find_relation:
+            raise HTTPException(status_code=404, detail=f"Relation {relation_id} not found!")
+        store_id = find_relation['store_id']
+        if not store_id:
+            raise HTTPException(status_code=500, detail=f"Relation {relation_id} has no store_id, cannot reinstall!")
+        find_store = store_service.find_store_by_id(conn,store_id)
+        if not find_store:
+            raise HTTPException(status_code=500, detail=f"Store {store_id} not found!")
+        
+    # /store/pybrave/enrichment-analysis/tools/f29920b6-db5c-4b5b-9696-c9b3bda2e60c/component_relation.json
+    store_path = find_store['store_path']
+    file_path = f"{store_path}/tools/{relation_id}/component_relation.json"
+    install_local_component(file_path, store_id, force=True)
+    asyncio.create_task(job_executor.update_images_status())
+    return {"message":"success"}
 
 
 @pipeline.post("/install-relation",tags=['pipeline'])
 @inject
-async def install_component(installRelation:InstallComponent,
+async def install_relation(installRelation:InstallComponent,
     job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector])
 ):
     # if installRelation.address=="github":
