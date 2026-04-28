@@ -315,7 +315,9 @@ t_pipeline_components = Table(
     Column("content", Text),
     Column("order_index", Integer),
     Column("position", Text),
-    Column("edges", Text)
+    Column("edges", Text),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
 
 )
 # relation_type: pipeline_software software_input_file  software_ouput_file  file_script

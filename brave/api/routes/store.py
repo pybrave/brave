@@ -286,18 +286,26 @@ async def save_store(createStore: CreateStore):
     url = createStore.url
     path_name, filename = get_path_name_from_url(createStore.url)
 
-    is_ssh= True
-    if createStore.publish_urls is None and url is not None:
-        if is_ssh:
-            createStore.publish_urls = {
-                "github": f"git@github.com:{path_name}.git",
-                "gitee": f"git@gitee.com:{path_name}.git"
+    # is_ssh= True
+    if  url is not None:
+        # if is_ssh:
+        createStore.publish_urls = [
+            {
+                "name": "github",
+                "ssh": f"git@github.com:{path_name}.git",
+                "https": f"https://github.com/{path_name}.git"
+            }, {
+                "name": "gitee",
+                "ssh": f"git@gitee.com:{path_name}.git",
+                "https": f"https://gitee.com/{path_name}.git"   
             }
-        else:
-            createStore.publish_urls = {
-                "github": f"https://github.com/{path_name}.git",
-                "gitee": f"https://gitee.com/{path_name}.git"
-            }
+        ]
+           
+        # else:
+        #     createStore.publish_urls = {
+        #         "github": f"https://github.com/{path_name}.git",
+        #         "gitee": f"https://gitee.com/{path_name}.git"
+        #     }
     with get_engine().begin() as conn:
     
 

@@ -994,12 +994,12 @@ def write_relation_json(relation_id):
     pipeline_component_relation_file = f"{pipeline_dir}/component_relation.json"
     container_file = f"{pipeline_dir}/container.json"
     with open(pipeline_component_file,"w") as f:
-        json.dump([ {k:v for k,v in item.items() if k!="id"} for item in component_list],f, default=datetime_converter)
+        json.dump([ {k:v for k,v in item.items() if k!="id" and k!="updated_at" and k!="created_at"} for item in component_list],f, default=datetime_converter, indent=4)
     with open(pipeline_component_relation_file,"w") as f:
-        json.dump({k:v for k,v in dict(find_relation).items() if k!="id" and k!="store_id"  },f, default=datetime_converter)    
+        json.dump({k:v for k,v in dict(find_relation).items() if k!="id" and k!="store_id" and k!="updated_at" and k!="created_at"},f, default=datetime_converter, indent=4)    
     with open(container_file,"w") as f:
         container_list = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at" and k!="image_id"} for item in container_list]
-        json.dump(container_list,f)
+        json.dump(container_list,f, indent=4)
     
     # install_file = f"{pipeline_dir}/install.json"
     # with open(install_file,"w") as f:
