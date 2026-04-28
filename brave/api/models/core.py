@@ -342,6 +342,7 @@ t_pipeline_components_relation = Table(
     Column("input_component_ids",  JSON),
     Column("output_component_ids",  JSON),
     Column("order_index", Integer),
+    Column("store_id", String(255)),
     # Column("namespace", String(255)),
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)
@@ -501,8 +502,12 @@ t_store = Table(
     Column("path", String(255)),
     Column("path_name", String(255)),
     Column("category", String(255)),
+    Column("publish_urls", JSON),
     # Column("progress", Integer),
     Column("log", Text().with_variant(LONGTEXT(), "mysql")),
+    #使用时间戳作为版本控制
+    Column("version", String(255)),
+    Column("update_info", Text().with_variant(LONGTEXT(), "mysql")),
     Column("created_at", DateTime, default=datetime.now),
     Column("updated_at", DateTime, onupdate=datetime.now)
 )

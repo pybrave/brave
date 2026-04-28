@@ -1150,12 +1150,13 @@ async def install_github_component(installComponent:InstallComponent):
         container_service.import_container(conn,install_target_path,force)
         # pipeline_service.import_component(conn,path,force)
 
-def install_local_component(installRelation:InstallComponent):
-    force = installRelation.force
+def install_local_component(store_path, store_id, force=False):
+    # force = installRelation.force
     pipeline_dir = pipeline_service.get_pipeline_dir()
-    path = os.path.dirname(installRelation.path)
-    with open(installRelation.path,"r") as f:
+    path = os.path.dirname(store_path)
+    with open(store_path,"r") as f:
         data = json.load(f)
+        data["store_id"] = store_id
         relation_type = data['relation_type']
         relation_id = data['relation_id']
         source_path = path
@@ -1176,7 +1177,7 @@ def install_local_component(installRelation:InstallComponent):
         container_service.import_container(conn,path,force)
 
     # install all components
-    store_dir  =  os.path.dirname(installRelation.path)
+    store_dir  =  os.path.dirname(store_path)
     store_dir = os.path.dirname(store_dir)
     store_dir = os.path.dirname(store_dir)
 
@@ -1227,7 +1228,12 @@ async def install_component(installRelation:InstallComponent,
         
     # else:
     #     raise HTTPException(status_code=500, detail=f"Not support {installRelation.address} yet!")
-    install_local_component(installRelation)
+    with get_engine().begin() as conn:
+        find_store = store_service.find_store_by_id(conn,installRelation.store_id)
+        if not find_store:
+            raise HTTPException(status_code=500, detail=f"Store {installRelation.store_id} not found!")
+        store_id = find_store['store_id']
+    install_local_component(installRelation.path, store_id, installRelation.force)
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 

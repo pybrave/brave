@@ -7,16 +7,16 @@ from sqlalchemy import select
 
 from brave.api.config.db import get_engine
 
-def create_store(conn, createStore:CreateStore):
-    store_data = createStore.dict(exclude_none=True)
+def create_store(conn, store_data:dict):
+    # store_data = createStore.dict(exclude_none=True)
     store_id = store_data.get("store_id") or str(uuid.uuid4())
     store_data["store_id"] = store_id
     stmt = t_store.insert().values(**store_data)
     conn.execute(stmt)
     return store_id
 
-def update_store(conn,store_id,updateStore:CreateStore):
-    update_data = updateStore.dict(exclude_none=True)
+def update_store(conn,store_id,update_data:dict):
+    # update_data = updateStore.dict(exclude_none=True)
     update_data = {k: v for k, v in update_data.items() if v is not None}
     update_data.pop("store_id", None)
     if not update_data:
@@ -24,11 +24,6 @@ def update_store(conn,store_id,updateStore:CreateStore):
     stmt = t_store.update().where(t_store.c.store_id == store_id).values(**update_data)
     conn.execute(stmt)
 
-def save_store(conn,createStore:CreateStore):
-    if createStore.store_id:
-        update_store(conn,createStore.store_id,createStore)
-    else:
-        create_store(conn,createStore)
 
 def find_store_by_id(conn,store_id):
     stmt = select(
@@ -81,3 +76,7 @@ def update_store_status(conn, store_id,status,category=None):
 def  update_store_status_db(store_id,status,category=None):
     with get_engine().begin() as conn:
         update_store_status(conn, store_id,status,category)
+    
+def  update_store_db(store_id,update_data:dict):
+    with get_engine().begin() as conn:
+        update_store(conn, store_id, update_data)

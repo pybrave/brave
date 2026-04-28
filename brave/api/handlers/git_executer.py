@@ -150,15 +150,16 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
             if store_id:
                 # update_store_record(store_id=store_id, status="done", log=git_log)
                 config_file = f"{target_path}/metadata.json"
-                category = None
                 if os.path.exists(config_file):
                     with open(config_file, "r") as f:
                         config_data = json.load(f)
-                    if "category" in config_data:
-                        category = config_data["category"]
-                    # update_store_record(store_id=store_id, status="done", log=git_log, url=git_url)
-                    category = config_data.get("category")
-                store_service.update_store_status_db(store_id, "done", category=category)
+                        update_data = {
+                            "update_info": config_data.get("update_info",None),
+                            "version": config_data.get("version",None),
+                            "category": config_data.get("category",None),
+                            "status": "done",
+                        }
+                store_service.update_store_db(store_id, update_data)
                 await push_clone_sse("done","clone_finished")
 
         elif store_id:
@@ -235,7 +236,8 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
                 # update_store_record(store_id=store_id, status="done", log=git_log)
                 store_service.update_store_status_db(store_id,"done")
         elif store_id:
-            store_service.delete_store_db(store_id)
+            # store_service.delete_store_db(store_id)
+            store_service.update_store_status_db(store_id,"failed")
         result = {
             "code": proc.returncode,
             "pid": proc.pid,
@@ -249,7 +251,8 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
         proc.kill()
         await proc.communicate()
         if store_id:
-            store_service.delete_store_db(store_id)
+            # store_service.delete_store_db(store_id)
+            store_service.update_store_status_db(store_id,"failed")
         result = {
             "error": "timeout",
             "pid": proc.pid,
@@ -262,13 +265,15 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
         if latest_lock_data.get("status") == "stopped":
             raise
         if store_id:
-            store_service.delete_store_db(store_id)
+            # store_service.delete_store_db(store_id)
+            store_service.update_store_status_db(store_id,"failed")
         # await pull_sse("failed", "cancelled")
         raise
     except Exception:
         
         if store_id:
-            store_service.delete_store_db(store_id)
+            store_service.update_store_status_db(store_id,"failed")
+            # store_service.delete_store_db(store_id)
         # await pull_sse("failed", "exception")
         raise
     finally:

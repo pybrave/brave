@@ -112,6 +112,7 @@ class SavePipelineComponentsEdges(BaseModel):
 
 class InstallComponent(BaseModel):
     path: str
+    store_id:str
     # address: str 
     # token: Optional[str]=None
     # branch: Optional[str]="master"

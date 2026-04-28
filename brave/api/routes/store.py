@@ -35,9 +35,20 @@ async def delete_store(store_id:str):
         store_service.delete_store(conn,store_id)
     return {"message":"success"}
 
+def get_path_name_from_url(url:str):
+    url_lists = url.split("/")
+    if len(url_lists) < 2:
+        raise HTTPException(status_code=400, detail=f"Invalid git url: {url}")
+    
+    filename = url_lists[-1]
+    # target_path is owner/repo
+    url_path = url_lists[-2:]
+    path_name = f"{url_path[0]}/{filename.replace('.git','')}"
+    return path_name,filename
+
 @store_api.post("/clone-store",tags=['pipeline'])
 @inject
-async def create_store(createStore: CreateStore,
+async def clone_store(createStore: CreateStore,
                         evenet_bus:EventBus = Depends(Provide[AppContainer.event_bus]) ):
     with get_engine().begin() as conn:
         find_store = store_service.find_store_by_url(conn, createStore.url)
@@ -52,24 +63,37 @@ async def create_store(createStore: CreateStore,
         settings = get_settings()
         store_path = f"{settings.STORE_DIR}"
         url = createStore.url
-        url_lists = url.split("/")
-        if len(url_lists) < 2:
-            raise HTTPException(status_code=400, detail=f"Invalid git url: {url}")
+        # url_lists = url.split("/")
+        # if len(url_lists) < 2:
+        #     raise HTTPException(status_code=400, detail=f"Invalid git url: {url}")
         
-        filename = url_lists[-1]
-        # target_path is owner/repo
-        url_path = url_lists[-2:]
-        target_path = f"{store_path}/{url_path[0]}/{filename.replace('.git','')}"
+        # filename = url_lists[-1]
+        # # target_path is owner/repo
+        # url_path = url_lists[-2:]
+        # path_name = f"{url_path[0]}/{filename.replace('.git','')}"
+        path_name, filename = get_path_name_from_url(url)
+        target_path = f"{store_path}/{path_name}"
+        # 创建父目录
+        if not os.path.exists(os.path.dirname(target_path)):
+            os.makedirs(os.path.dirname(target_path))
         
         # target_path = f"{store_path}/{filename.replace('.git','')}"
 
-        createStore.name = filename.replace('.git', '')
-        createStore.path = target_path
-        createStore.status = "running"
-        createStore.log = f"git clone {createStore.url} {target_path}"
-        createStore.path_name = filename.replace('.git', '')
+        # createStore.path = target_path
+        # createStore.status = "running"
+        # createStore.log = f"git clone {createStore.url} {target_path}"
+        # createStore.path_name = filename.replace('.git', '')
 
-        store_id = store_service.create_store(conn, createStore)
+        store_data = {
+            "url": createStore.url,
+            "path": target_path,
+            "name": filename,
+            "status": "running",
+            "path_name": path_name,
+            "log": f"git clone {createStore.url} {target_path}",
+            "category": createStore.category,
+        }
+        store_id = store_service.create_store(conn, store_data)
 
     asyncio.create_task(evenet_bus.dispatch(RoutersName.GIT_EXECUTER_ROUTER, GitExecutorEvent.ON_GIT_CLONE, {
         "url": createStore.url,
@@ -245,49 +269,88 @@ async def find_store_by_id(store_id: str):
             raise HTTPException(status_code=404, detail=f"Store with id {store_id} not found")
         return find_store
 
+def write_metadata(store:dict):
+    with open(f"{store['path']}/metadata.json","w") as f:
+        json.dump({
+            "category": store.get("category"),
+            "name": store.get("name"),
+            "version": store.get("version"),
+            "update_info": store.get("update_info"),
+        },f, default=str)
+    pass
 
 
 @store_api.post("/save-store", tags=['pipeline'])
 async def save_store(createStore: CreateStore):
     store_id = createStore.store_id
+    url = createStore.url
+    path_name, filename = get_path_name_from_url(createStore.url)
+
+    is_ssh= True
+    if createStore.publish_urls is None and url is not None:
+        if is_ssh:
+            createStore.publish_urls = {
+                "github": f"git@github.com:{path_name}.git",
+                "gitee": f"git@gitee.com:{path_name}.git"
+            }
+        else:
+            createStore.publish_urls = {
+                "github": f"https://github.com/{path_name}.git",
+                "gitee": f"https://gitee.com/{path_name}.git"
+            }
     with get_engine().begin() as conn:
-        
+    
+
         if store_id:
         
             find_store = store_service.find_store_by_id(conn,store_id)
             if not find_store:
                 raise HTTPException(status_code=404, detail=f"Store with id {store_id} not found")
-            store_service.update_store(conn, store_id, createStore)
+            update_data = {
+                **createStore.dict(exclude_none=True),
+                "status": "done",
+            }
+            store_service.update_store(conn, store_id, update_data)
+            write_metadata({
+                **find_store,
+                **createStore.dict()
+            })
         else:
-            find_store = store_service.find_by_path_name(conn,createStore.path_name)
+
+            find_store = store_service.find_by_path_name(conn,path_name)
             if find_store:
-                raise HTTPException(status_code=400, detail=f"Store with path_name {createStore.path_name} already exists")
+                raise HTTPException(status_code=400, detail=f"Store with path_name {path_name} already exists")
             settings = get_settings()
             store_path = f"{settings.STORE_DIR}"
-            path_name = createStore.path_name
+
+            # path_name = createStore.path_name
             if createStore.name is  None:
-                createStore.name = createStore.path_name
+                createStore.name = filename
             # filename = url.split("/")[-1]
-            createStore.path = f"{store_path}/{path_name}"
-            createStore.status = "done"
-            if not os.path.exists(createStore.path):
-                os.makedirs(createStore.path)
-                print(f"Created directory at {createStore.path}")
+            # createStore.path = 
+            # createStore.status = "done"
+            store_path = f"{store_path}/{path_name}"
+            if not os.path.exists(store_path):
+                os.makedirs(store_path)
+                print(f"Created directory at {store_path}")
             
             # createStore.url = {
             #     "github": f"https://github.com/{path_name}.git",
             #     "gitee": f"https://gitee.com/{path_name}.git",
             # }
             
-
-            # createStore = CreateStore(
-            #     # url=createStore.url,
-            #     path=target_path,
-            #     name=createStore.name,
-            #     status="created",
-            #     path_name=path_name,
-            # )
-            store_service.create_store(conn, createStore)
+            version = str(int(time.time()))
+            store_data = {
+                **createStore.dict(exclude_none=True),
+                "path": store_path,
+                "status":"done",
+                "path_name": path_name,
+                "version": version,
+            }
+            store_data.pop("store_id", None)
+            store_service.create_store(conn, store_data)
+            write_metadata(store_data)
+    
             
     return {"message":"success"}
 
