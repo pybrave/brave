@@ -745,6 +745,9 @@ def write_metadata(store:dict):
             "version": store.get("version"),
             "update_info": store.get("update_info"),
         },f, default=str)
+    gitignore = f"{store['path']}/.gitignore"
+    with open(gitignore,"w") as f:
+        f.write(".config\n")
     
 
 
