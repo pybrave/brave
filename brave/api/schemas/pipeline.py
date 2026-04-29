@@ -112,7 +112,7 @@ class SavePipelineComponentsEdges(BaseModel):
     position:str
 
 class InstallComponent(BaseModel):
-    path: str
+    # path: str
     store_id:str
     # address: str 
     # token: Optional[str]=None
@@ -126,8 +126,12 @@ class PublishComponent(BaseModel):
     force: Optional[bool]=False
 
 class PublishRelation(BaseModel):
+    url: str
     relation_id: str
-    store_id: Optional[str]=None
+    version: Optional[str]=None
+    update_info: Optional[str]=None
+    
+    # store_id: Optional[str]=None
     # store_path:Optional[str]=None
     force: Optional[bool]=False
 

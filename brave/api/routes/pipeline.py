@@ -594,6 +594,11 @@ async def find_pipeline_relation(relation_id):
         stmt = t_pipeline_components_relation.select().where(t_pipeline_components_relation.c.relation_id == relation_id)
         return conn.execute(stmt).mappings().first()
 
+@pipeline.post("/find-tools-publish/{relation_id}",tags=['pipeline'])
+async def find_tools_publish(relation_id):
+    with get_engine().begin() as conn:    
+        return pipeline_service.find_tools_publish(conn,relation_id)
+
 
 @pipeline.post("/generate-tools-json/{relation_id}",tags=['pipeline'])
 async def generate_tools_json(relation_id):
@@ -738,44 +743,76 @@ async def save_pipeline(savePipeline:SavePipeline):
 
 
 def write_metadata(store:dict):
+    # url,app_id,name,category,tags,version,update_info
     with open(f"{store['path']}/metadata.json","w") as f:
         json.dump({
             "category": store.get("category"),
             "name": store.get("name"),
+            "img":store.get("img"),
+            "app_id": store.get("app_id"),
             "version": store.get("version"),
             "update_info": store.get("update_info"),
-        },f, default=str)
+            "tags": store.get("tags",[])
+        },f, default=str, indent=4,ensure_ascii=False)
     gitignore = f"{store['path']}/.gitignore"
     with open(gitignore,"w") as f:
         f.write(".config\n")
     
 
 
+
 @pipeline.post("/publish-relation",tags=['pipeline'])
 async def publish_component(publishRelation:PublishRelation):
-    store_id = publishRelation.store_id
-    
-    # setting = get_settings()
-    # store_path = f"{setting.STORE_DIR}/default"
+    relation_id = publishRelation.relation_id
+  
 
     with get_engine().begin() as conn:
-        find_store = store_service.find_store_by_id(conn,store_id)
-        store_path = find_store['store_path']
-        find_relation = pipeline_service.find_by_relation_id(conn,publishRelation.relation_id)
-        store_version = find_relation["version"]
-        store_service.update_store_version(conn,store_id,store_version)
+        find_relation = pipeline_service.find_by_relation_id(conn,relation_id)
+        find_store = store_service.find_store_by_app_id(conn,relation_id)
+        
+        store_data = store_service.create_or_update_store(publishRelation.url,
+                                             relation_id,
+                                             find_relation["name"], 
+                                             find_relation["img"],
+                                             find_relation.get("category", "default"), 
+                                             find_relation.get("tags", []), 
+                                             publishRelation.version,
+                                             publishRelation.update_info)
+        # store_data = {
+        #         **store_data,
+        #         "version":publishRelation.version,
+        #         "update_info": publishRelation.update_info
+        #     }
+        if not find_store:
+            store_data.pop("store_id", None)
+            store_service.create_store(conn, store_data)
+        else:
+            store_id = find_store['store_id']
+            if publishRelation.url != find_store['url']:
+                # delete old store
+                old_store_path = find_store['path']
+                if os.path.exists(old_store_path):
+                    shutil.rmtree(old_store_path)
+                    print(f"Deleted old store at {old_store_path}")
+            store_service.update_store(conn, store_id, store_data)
 
-        pipeline_service.update_relation_store_id(conn,publishRelation.relation_id,store_id)
+        
+        # store_path = find_store['store_path']
+        # find_relation = pipeline_service.find_by_relation_id(conn,publishRelation.relation_id)
+        # store_version = find_relation["version"]
+        # store_service.update_store_version(conn,store_id,store_version)
+
+        # pipeline_service.update_relation_store_id(conn,publishRelation.relation_id,store_id)
         # update othre relation version 
-        pipeline_service.update_version_by_store_id(conn,store_id,store_version)
+        pipeline_service.update_publish_info(conn,publishRelation.relation_id,
+                                             publishRelation.url,
+                                             publishRelation.version,
+                                             publishRelation.update_info)
 
-        write_metadata({
-            **find_store,
-            "version": store_version
-        })
-        relation_type = find_relation['relation_type']
-        relation_id  = find_relation['relation_id']
-
+    write_metadata(store_data)
+    relation_type = find_relation['relation_type']
+    relation_id  = find_relation['relation_id']
+    store_path = store_data['path']
     pipeline_dir = pipeline_service.get_pipeline_dir()
     relation_dir = f"{pipeline_dir}/{relation_type}/{relation_id}"
     relation_dir_component = f"{relation_dir}/component.json"
@@ -783,8 +820,8 @@ async def publish_component(publishRelation:PublishRelation):
     # if not os.path.exists(relation_dir_component):
     pipeline_service.write_relation_json(relation_id)
     source_dir = relation_dir
-    target_dir = f"{store_path}/{relation_type}/{relation_id}"
-
+    # target_dir = f"{store_path}/{relation_type}/{relation_id}"
+    target_dir = f"{store_path}/{relation_type}"
     if os.path.exists(target_dir):
         if publishRelation.force:
             shutil.rmtree(target_dir)
@@ -1177,14 +1214,19 @@ async def install_github_component(installComponent:InstallComponent):
         container_service.import_container(conn,install_target_path,force)
         # pipeline_service.import_component(conn,path,force)
 
-def install_local_component(store_path, store_id,version, force=False):
+def install_local_component(store, force=False):
     # force = installRelation.force
+    store_path = f"{store['path']}/tools/component_relation.json"
+    if not os.path.exists(store_path):
+        raise HTTPException(status_code=500, detail=f"Store path {store_path} does not exist!")
     pipeline_dir = pipeline_service.get_pipeline_dir()
     path = os.path.dirname(store_path)
+
     with open(store_path,"r") as f:
         data = json.load(f)
-        data["store_id"] = store_id
-        data["version"] = version
+        data["version"] = store.get("version")
+        data["url"] = store.get("url")
+        data["update_info"] = store.get("update_info")
         relation_type = data['relation_type']
         relation_id = data['relation_id']
         source_path = path
@@ -1207,7 +1249,7 @@ def install_local_component(store_path, store_id,version, force=False):
     # install all components
     store_dir  =  os.path.dirname(store_path)
     store_dir = os.path.dirname(store_dir)
-    store_dir = os.path.dirname(store_dir)
+    # store_dir = os.path.dirname(store_dir)
 
 
     with open(f"{path}/component.json","r") as f:
@@ -1252,18 +1294,16 @@ async def reinstall_relation(relation_id: str,
         find_relation = pipeline_service.find_by_relation_id(conn, relation_id)
         if not find_relation:
             raise HTTPException(status_code=404, detail=f"Relation {relation_id} not found!")
-        store_id = find_relation['store_id']
-        if not store_id:
-            raise HTTPException(status_code=500, detail=f"Relation {relation_id} has no store_id, cannot reinstall!")
-        find_store = store_service.find_store_by_id(conn,store_id)
+        
+        find_store = store_service.find_store_by_app_id(conn,relation_id)
         if not find_store:
-            raise HTTPException(status_code=500, detail=f"Store {store_id} not found!")
+            raise HTTPException(status_code=500, detail=f"Store {relation_id} not found!")
         
     # /store/pybrave/enrichment-analysis/tools/f29920b6-db5c-4b5b-9696-c9b3bda2e60c/component_relation.json
-    store_path = find_store['store_path']
-    store_version = find_store['version']
-    file_path = f"{store_path}/tools/{relation_id}/component_relation.json"
-    install_local_component(file_path, store_id, store_version, force=True)
+    # store_path = find_store['store_path']
+    # store_version = find_store['version']
+    # file_path = f"{store_path}/tools/{relation_id}/component_relation.json"
+    install_local_component(find_store, force=True)
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 
@@ -1283,9 +1323,9 @@ async def install_relation(installRelation:InstallComponent,
         find_store = store_service.find_store_by_id(conn,installRelation.store_id)
         if not find_store:
             raise HTTPException(status_code=500, detail=f"Store {installRelation.store_id} not found!")
-        store_id = find_store['store_id']
-        store_version = find_store['version']
-    install_local_component(installRelation.path, store_id, store_version, installRelation.force)
+        # store_id = find_store['store_id']
+        # store_version = find_store['version']
+    install_local_component(find_store, installRelation.force)
     asyncio.create_task(job_executor.update_images_status())
     return {"message":"success"}
 

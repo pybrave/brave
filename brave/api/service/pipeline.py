@@ -853,8 +853,8 @@ def update_relation_store_id(conn, relation_id, store_id):
     stmt = t_pipeline_components_relation.update().where(t_pipeline_components_relation.c.relation_id == relation_id).values(store_id=store_id)
     conn.execute(stmt)
 
-def update_version_by_store_id(conn, store_id, version):
-    stmt = t_pipeline_components_relation.update().where(t_pipeline_components_relation.c.store_id == store_id).values(version=version)
+def update_publish_info(conn, relation_id,url, version,update_info):
+    stmt = t_pipeline_components_relation.update().where(t_pipeline_components_relation.c.relation_id == relation_id).values(url=url,version=version, update_info=update_info)
     conn.execute(stmt)
 
 
@@ -1001,12 +1001,12 @@ def write_relation_json(relation_id):
     pipeline_component_relation_file = f"{pipeline_dir}/component_relation.json"
     container_file = f"{pipeline_dir}/container.json"
     with open(pipeline_component_file,"w") as f:
-        json.dump([ {k:v for k,v in item.items() if k!="id" and k!="updated_at" and k!="created_at"} for item in component_list],f, default=datetime_converter, indent=4)
+        json.dump([ {k:v for k,v in item.items() if k!="id" and k!="updated_at" and k!="created_at"} for item in component_list],f, default=datetime_converter, indent=4,ensure_ascii=False)
     with open(pipeline_component_relation_file,"w") as f:
-        json.dump({k:v for k,v in dict(find_relation).items() if k!="id" and k!="store_id" and k!="updated_at" and k!="created_at"},f, default=datetime_converter, indent=4)    
+        json.dump({k:v for k,v in dict(find_relation).items() if k!="id" and k!="store_id" and k!="updated_at" and k!="created_at"},f, default=datetime_converter, indent=4,ensure_ascii=False)    
     with open(container_file,"w") as f:
         container_list = [ {k:v for k,v in item.items() if k!="id" and k!="created_at" and k!="updated_at" and k!="image_id"} for item in container_list]
-        json.dump(container_list,f, indent=4)
+        json.dump(container_list,f, indent=4,ensure_ascii=False)
     
     # install_file = f"{pipeline_dir}/install.json"
     # with open(install_file,"w") as f:
@@ -1338,7 +1338,7 @@ def get_components_by_relation_id_v2(conn,relation_id):
         .select_from(
             t_pipeline_components_relation.outerjoin(
                 t_store,
-                t_pipeline_components_relation.c.store_id == t_store.c.store_id
+                t_pipeline_components_relation.c.relation_id == t_store.c.app_id
             )
         )
         .where(t_pipeline_components_relation.c.relation_id == relation_id)
@@ -1648,3 +1648,21 @@ def list_all_relation(conn):
     stmt = select(t_pipeline_components_relation)
     relations = conn.execute(stmt).mappings().all()
     return relations
+
+
+def find_tools_publish(conn, relation_id):
+    stmt = select(
+        t_pipeline_components_relation,  # 关系表所有字段
+        t_store.c.status.label("store_status"),
+        t_store.c.publish_urls.label("publish_urls"),
+        t_store.c.path.label("path"),
+    )
+    stmt = stmt.select_from(
+        t_pipeline_components_relation.outerjoin(
+            t_store,
+            t_pipeline_components_relation.c.relation_id == t_store.c.app_id
+        )
+    )
+    stmt = stmt.where(t_pipeline_components_relation.c.relation_id == relation_id)
+    find_relation = conn.execute(stmt).mappings().first()
+    return find_relation

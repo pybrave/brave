@@ -116,21 +116,39 @@ def build_git_log(stdout: bytes = b"", stderr: bytes = b"", error: str = None):
 
 async def update_store(store_id: str, target_path: str, push_sse,reasion):
     # update_store_record(store_id=store_id, status="done", log=git_log)
-    config_file = f"{target_path}/metadata.json"
-    if os.path.exists(config_file):
-        with open(config_file, "r") as f:
-            config_data = json.load(f)
-            update_data = {
-                "update_info": config_data.get("update_info",None),
-                "version": config_data.get("version",None),
-                "category": config_data.get("category",None),
-                "status": "done",
-            }
-    store_service.update_store_db(store_id, update_data)
+    with get_engine().begin() as conn:
+        config_file = f"{target_path}/metadata.json"
+        if os.path.exists(config_file):
+            with open(config_file, "r") as f:
+                config_data = json.load(f)
+                if "app_id" not in config_data:
+                    raise Exception(f"app_id is required in metadata.json for store {store_id}")
+                app_id = config_data["app_id"]
+                find_store = store_service.find_store_by_app_id(conn, app_id)
+                if find_store:
+                    # store_service.delete_store(conn, find_store["store_id"])
+                    await push_sse("error",reasion,"already_exists")
+                    raise Exception(f"Store with app_id {app_id} already exists for store_id {find_store['store_id']}")
+                update_data = store_service.build_store_data(
+                    app_id=app_id,
+                    img=config_data.get("img",None),
+                    name=config_data.get("name",None),
+                    category=config_data.get("category",None),
+                    tags=config_data.get("tags",None),
+                    version=config_data.get("version",None),
+                    update_info=config_data.get("update_info",None)
+                )
+                # update_data = {
+                #     "update_info": config_data.get("update_info",None),
+                #     "version": config_data.get("version",None),
+                #     "category": config_data.get("category",None),
+                #     "status": "done",
+                # }
+        store_service.update_store(conn, store_id, update_data)
     await push_sse("done",reasion)
 
 async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = None, timeout=60):
-    async def push_clone_sse(status: str, reason: str = None):
+    async def push_clone_sse(status: str, reason: str = None, method:str="clone"):
         if not sse_service or not store_id:
             return
         data = {
@@ -138,7 +156,7 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
             "payload": {
                 "category": "store",
                 "id": store_id,
-                "method": "clone",
+                "method": method,
                 "args": {
                     "status": status,
                     "id": store_id,
@@ -223,7 +241,7 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
 
 
 async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
-    async def pull_sse(status: str, reason: str = None):
+    async def pull_sse(status: str, reason: str = None, method: str = "pull"):
         if not sse_service or not store_id:
             return
         data = {
@@ -231,7 +249,7 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
             "payload": {
                 "category": "store",
                 "id": store_id,
-                "method": "pull",
+                "method":method,
                 "args": {
                     "status": status,
                     "id": store_id,

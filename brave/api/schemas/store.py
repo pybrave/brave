@@ -22,3 +22,17 @@ class StoreQuery(BaseModel):
     status: Optional[str]=None
     path_name: Optional[str]=None
     category: Optional[str]=None
+
+class PageStoreQuery(BaseModel):
+    page_number: Optional[int]=1
+    page_size: Optional[int]=10
+    keywords: Optional[str]=None
+    category: Optional[str]=None
+    url: Optional[str]=None
+    name: Optional[str]=None
+    status: Optional[str]=None
+    store_id: Optional[str]=None
+
+
+
+  

@@ -13,9 +13,10 @@ from brave.api.config.db import get_engine
 from brave.api.core.evenet_bus import EventBus
 from brave.api.core.event import GitExecutorEvent
 from brave.api.core.routers_name import RoutersName
-from brave.api.schemas.store import CreateStore, StoreQuery
+from brave.api.schemas.store import CreateStore, PageStoreQuery, StoreQuery
 from  brave.api.service import store_service 
 
+from brave.api.utils import git_utils
 from brave.app_container import AppContainer
 
 store_api = APIRouter()
@@ -25,26 +26,10 @@ store_api = APIRouter()
 @inject
 async def delete_store(store_id:str):
     with get_engine().begin() as conn:
-        find_store = store_service.find_store_by_id(conn,store_id)
-        if not find_store:
-            raise HTTPException(status_code=404, detail=f"Store with id {store_id} not found")
-        store_path = find_store.get("path")
-        if store_path and os.path.exists(store_path):
-            shutil.rmtree(store_path)
-
         store_service.delete_store(conn,store_id)
     return {"message":"success"}
 
-def get_path_name_from_url(url:str):
-    url_lists = url.split("/")
-    if len(url_lists) < 2:
-        raise HTTPException(status_code=400, detail=f"Invalid git url: {url}")
-    
-    filename = url_lists[-1]
-    # target_path is owner/repo
-    url_path = url_lists[-2:]
-    path_name = f"{url_path[0]}/{filename.replace('.git','')}"
-    return path_name,filename
+
 
 @store_api.post("/clone-store",tags=['pipeline'])
 @inject
@@ -55,8 +40,8 @@ async def clone_store(createStore: CreateStore,
         if find_store:
             return {
                 "store_id": find_store.get("store_id"),
+                "already_exists": True,
                 "message": "success",
-                
             }
 
 
@@ -71,12 +56,14 @@ async def clone_store(createStore: CreateStore,
         # # target_path is owner/repo
         # url_path = url_lists[-2:]
         # path_name = f"{url_path[0]}/{filename.replace('.git','')}"
-        path_name, filename = get_path_name_from_url(url)
+        path_name, filename = git_utils.get_path_name_from_url(url)
         target_path = f"{store_path}/{path_name}"
         # 创建父目录
         if not os.path.exists(os.path.dirname(target_path)):
             os.makedirs(os.path.dirname(target_path))
-        
+
+        publish_urls = git_utils.build_publish_urls(path_name)
+
         # target_path = f"{store_path}/{filename.replace('.git','')}"
 
         # createStore.path = target_path
@@ -87,12 +74,14 @@ async def clone_store(createStore: CreateStore,
         store_data = {
             "url": createStore.url,
             "path": target_path,
-            "name": filename,
             "status": "running",
             "path_name": path_name,
-            "log": f"git clone {createStore.url} {target_path}",
-            "category": createStore.category,
+            "publish_urls": publish_urls,
+            "name":path_name
+            # "log": f"git clone {createStore.url} {target_path}",
+            # "category": createStore.category,
         }
+       
         store_id = store_service.create_store(conn, store_data)
 
     asyncio.create_task(evenet_bus.dispatch(RoutersName.GIT_EXECUTER_ROUTER, GitExecutorEvent.ON_GIT_CLONE, {
@@ -102,7 +91,7 @@ async def clone_store(createStore: CreateStore,
     }))
 
     return {
-       "store_id":store_id,
+        "store_id":store_id,
         "message": "success",
     }
 
@@ -204,6 +193,12 @@ def list_tree_stores():
 
         return list(category_tree.values())
 
+@store_api.post("/page-stores", tags=['pipeline'])
+async def page_stores(query:PageStoreQuery):
+    with get_engine().begin() as conn:
+        stores = store_service.page_store(conn, query)
+   
+    return stores
 
 
 @store_api.post("/git-stop/{store_id}", tags=['pipeline'])
@@ -275,7 +270,7 @@ async def find_store_by_id(store_id: str):
 async def save_store(createStore: CreateStore):
     store_id = createStore.store_id
     url = createStore.url
-    path_name, filename = get_path_name_from_url(createStore.url)
+    path_name, filename = git_utils.get_path_name_from_url(createStore.url)
 
     publish_urls = []
     # is_ssh= True
