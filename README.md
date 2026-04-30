@@ -16,16 +16,11 @@
 
 
 
-BRAVE is a visual bioinformatics workflow platform, similar to Galaxy, that enables intuitive configuration and visualized execution of both upstream and downstream data analyses.
-
-It provides an interactive interface that allows users to quickly develop upstream Nextflow analysis pipelines and downstream visualization scripts using containerized applications such as RStudio, VS Code, and Jupyter.
-
-Once a Nextflow pipeline or visualization script is developed, it can be published to a GitHub repository as a BRAVE “store” app, allowing other analysts to download and use it. Each app maintains isolation, reproducibility, and scalability, leveraging containerized execution to ensure consistent and reliable analyses.
-
+BRAVE stands for Bioinformatics Reactive Analysis and Visualization Engine. It represents a seamless integration of scientific research and software engineering. BRAVE empowers bioinformatics engineers to develop, publish, and maintain robust upstream and downstream analysis workflows. For researchers, it offers an "App Store" experience: complex tools can be installed and kept up-to-date with a single click. By abstracting away the technical complexities of pipeline management, BRAVE allows scientists to dedicate their full attention to interpreting data and driving biological discoveries.
 
 
 <p align="center">
-  <img src="https://pybrave.github.io/brave-doc/assets/images/software_metaphlan-749e353b90a17c2a88106c3d04ce8177.gif" alt="brave" style="width: 500px;">
+  <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/brave_install.gif" alt="brave" style="width: 500px;">
 </p>
 
 
@@ -52,12 +47,8 @@ curl -s https://raw.giteeusercontent.com/pybrave/brave/raw/master/install.sh  | 
 ```
 
 
-## Install Componnet
-```
-cd $HOME/brave-install/store
-git clone https://github.com/pybrave/quick-start.git
-# UI: Workflow -> Intsall Components
-```
+
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/brave_workflow.png" alt="brave" >
 </p>
