@@ -98,6 +98,8 @@ def page_store(conn, query: PageStoreQuery):
         conditions.append(t_store.c.category == query.category)
     if query.store_id:
         conditions.append(t_store.c.store_id == query.store_id)
+    if query.app_id:
+        conditions.append(t_store.c.app_id == query.app_id)
     if query.keywords:
         keyword_condition = (t_store.c.name.ilike(f"%{query.keywords}%")) | (t_store.c.url.ilike(f"%{query.keywords}%"))
         conditions.append(keyword_condition)
@@ -166,7 +168,7 @@ def  update_store_db(store_id,update_data:dict):
     with get_engine().begin() as conn:
         update_store(conn, store_id, update_data)
 
-def build_store_data(app_id,name,img,category,tags,version,update_info):
+def build_store_data(app_id,name,img,category,tags,version,update_info,status="done"):
     store_data = {
         # **createStore.dict(exclude_none=True),
         "name":name,
@@ -175,7 +177,7 @@ def build_store_data(app_id,name,img,category,tags,version,update_info):
         "tags": tags,
         "version": version,
         "update_info": update_info,
-        "status":"done",
+        "status": status,
         "app_id": app_id
     }
     return store_data

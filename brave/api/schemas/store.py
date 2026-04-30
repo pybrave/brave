@@ -32,6 +32,7 @@ class PageStoreQuery(BaseModel):
     name: Optional[str]=None
     status: Optional[str]=None
     store_id: Optional[str]=None
+    app_id: Optional[str]=None
 
 
 

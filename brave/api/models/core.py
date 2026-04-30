@@ -514,6 +514,7 @@ t_store = Table(
     Column("publish_urls", JSON),
     # Column("progress", Integer),
     Column("log", Text().with_variant(LONGTEXT(), "mysql")),
+    
     #使用时间戳作为版本控制
     Column("version", String(255)),
     Column("update_info", Text().with_variant(LONGTEXT(), "mysql")),

@@ -114,7 +114,7 @@ def build_git_log(stdout: bytes = b"", stderr: bytes = b"", error: str = None):
 #     with get_engine().begin() as conn:
 #         store_service.delete_store_db(conn, store_id)
 
-async def update_store(store_id: str, target_path: str, push_sse,reasion,origin):
+async def update_store(store_id: str, target_path: str, push_sse,reasion,origin,status="done"):
     # update_store_record(store_id=store_id, status="done", log=git_log)
     with get_engine().begin() as conn:
         config_file = f"{target_path}/metadata.json"
@@ -124,12 +124,12 @@ async def update_store(store_id: str, target_path: str, push_sse,reasion,origin)
                 if "app_id" not in config_data:
                     raise Exception(f"app_id is required in metadata.json for store {store_id}")
                 app_id = config_data["app_id"]
-                if reasion =="clone_finished":
-                    find_store = store_service.find_store_by_app_id(conn, app_id)
-                    if find_store:
-                        # store_service.delete_store(conn, find_store["store_id"])
-                        await push_sse("error",reasion,"already_exists")
-                        raise Exception(f"Store with app_id {app_id} already exists for store_id {find_store['store_id']}")
+                # if reasion =="clone_finished":
+                #     find_store = store_service.find_store_by_app_id(conn, app_id)
+                #     if find_store:
+                #         # store_service.delete_store(conn, find_store["store_id"])
+                #         await push_sse("error",reasion,"already_exists")
+                #         raise Exception(f"Store with app_id {app_id} already exists for store_id {find_store['store_id']}")
                     
                 update_data = store_service.build_store_data(
                     app_id=app_id,
@@ -138,7 +138,8 @@ async def update_store(store_id: str, target_path: str, push_sse,reasion,origin)
                     category=config_data.get("category",None),
                     tags=config_data.get("tags",None),
                     version=config_data.get("version",None),
-                    update_info=config_data.get("update_info",None)
+                    update_info=config_data.get("update_info",None),
+                    status=status
                    
                 )
                 # update_data = {
@@ -147,7 +148,7 @@ async def update_store(store_id: str, target_path: str, push_sse,reasion,origin)
                 #     "category": config_data.get("category",None),
                 #     "status": "done",
                 # }
-        store_service.update_store(conn, store_id, {**update_data,"origin":origin})
+        store_service.update_store(conn, store_id, {**update_data,"origin":origin,"log":reasion})
     await push_sse("done",reasion)
 
 async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = None, timeout=60):
@@ -163,6 +164,7 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
                 "args": {
                     "status": status,
                     "id": store_id,
+                    "app_id": app_id,
                 },
             },
         }
@@ -172,18 +174,41 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
 
     lock_data = read_lock(lock_file) or {}
     store_id = lock_data.get("store_id")
+    
+    git_log= ""
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         lock_data = read_lock(lock_file) or lock_data
         store_id = lock_data.get("store_id")
         git_log = build_git_log(stdout, stderr)
+        url = lock_data.get("url")
+        origin = "github" if "github" in url.lower() else "gitee" if "gitee" in url.lower() else "other"
+
+        method =None
         if proc.returncode == 0:
             target_path = lock_data.get("target_path")
-            url = lock_data.get("url")
+
+            config_file = f"{target_path}/metadata.json"
+            if os.path.exists(config_file):
+                with open(config_file, "r") as f:
+                    config_data = json.load(f)
+                if "app_id" not in config_data:
+                    raise Exception(f"app_id is required in metadata.json for store {store_id}")
+                app_id = config_data["app_id"]
+
+                with get_engine().begin() as conn:
+                    find_store = store_service.find_store_by_app_id(conn, app_id)
+                    if find_store:
+                        method = "already_exists"
+                        # store_service.delete_store(conn, find_store["store_id"])
+                        git_log = f"Store with app_id {app_id} already exists for store_id {find_store['store_id']}"
+                        raise Exception(f"Store with app_id {app_id} already exists for store_id {find_store['store_id']}")
+        
+
+            
             if target_path and url and os.path.isdir(target_path):
                 write_repo_config(target_path, url)
             if store_id:
-                origin = "github" if "github" in url.lower() else "gitee" if "gitee" in url.lower() else "other"
                 await update_store(store_id, target_path, push_clone_sse,"clone_finished",origin)
                 # update_store_record(store_id=store_id, status="done", log=git_log)
                 # config_file = f"{target_path}/metadata.json"
@@ -201,7 +226,8 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
 
         elif store_id:
             await push_clone_sse("failed", "clone_nonzero_exit")
-            store_service.delete_store_db(store_id)
+            # store_service.delete_store_db(store_id)
+            await update_store(store_id, target_path, push_clone_sse,git_log,origin,"failed")
 
         result = {
             "code": proc.returncode,
@@ -218,7 +244,8 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
         await proc.communicate()
         if store_id:
             await push_clone_sse("failed", "timeout")
-            store_service.delete_store_db(store_id)
+            # store_service.delete_store_db(store_id)
+            await update_store(store_id, target_path, push_clone_sse,git_log,origin,"failed")
         result = {
             "error": "timeout",
             "pid": proc.pid,
@@ -232,12 +259,17 @@ async def monitor_clone_process(proc, lock_file, sse_service: RealtimeService = 
             raise
         if store_id:
             # await push_clone_sse("failed", "cancelled")
-            store_service.delete_store_db(store_id)
+            # store_service.delete_store_db(store_id)
+            await update_store(store_id, target_path, push_clone_sse,git_log,origin,"failed")
         raise
     except Exception:
-        if store_id:
-            # await push_clone_sse("failed", "exception")
+        # await push_clone_sse("failed", "exception")
+        # store_service.delete_store_db(store_id)
+        if method and  method =="already_exists":
             store_service.delete_store_db(store_id)
+            await  push_clone_sse("error",git_log,"already_exists")
+        else:
+            await update_store(store_id, target_path, push_clone_sse,git_log,origin,"failed")
         raise
     finally:
         DOWNLOAD_TASKS.pop(lock_file, None)
@@ -266,16 +298,21 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
     lock_data = read_lock(lock_file) or {}
     store_id = lock_data.get("store_id")
     target_path = lock_data.get("target_path")
+    # 
+    url = lock_data.get("url")
+    origin = "github" if "github" in url.lower() else "gitee" if "gitee" in url.lower() else "other"
+    git_log = ""
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         git_log = build_git_log(stdout, stderr)
-        if proc.returncode == 0:
-            if store_id:
-                # update_store_record(store_id=store_id, status="done", log=git_log)
-                store_service.update_store_status_db(store_id,"done")
-        elif store_id:
-            # store_service.delete_store_db(store_id)
-            store_service.update_store_status_db(store_id,"failed")
+        if proc.returncode != 0:
+            raise Exception(f"Git pull failed with exit code {proc.returncode}:\n{git_log}")
+        #     if store_id:
+        #         # update_store_record(store_id=store_id, status="done", log=git_log)
+        #         store_service.update_store_status_db(store_id,"done")
+        # elif store_id:
+        #     # store_service.delete_store_db(store_id)
+        #     store_service.update_store_status_db(store_id,"failed")
         result = {
             "code": proc.returncode,
             "pid": proc.pid,
@@ -283,11 +320,9 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
             "stderr": stderr.decode(errors="ignore"),
         }
         print(f"pull task finished: {result}")
-        url = lock_data.get("url")
-        origin = "github" if "github" in url.lower() else "gitee" if "gitee" in url.lower() else "other"
 
         await update_store(store_id, target_path, pull_sse,"pull_finished",origin)
-
+        #  git branch --set-upstream-to=gitee/master  master
         # await pull_sse("done", "pull_finished")
         return result
     except asyncio.TimeoutError:
@@ -295,27 +330,30 @@ async def monitor_pull_process(sse_service, proc, lock_file, timeout=60):
         await proc.communicate()
         if store_id:
             # store_service.delete_store_db(store_id)
-            store_service.update_store_status_db(store_id,"failed")
-        result = {
-            "error": "timeout",
-            "pid": proc.pid,
-        }
-        # await pull_sse("failed", "timeout")
-        print(f"pull task timeout: {result}")
-        return result
+            # store_service.update_store_status_db(store_id,"failed")
+            await update_store(store_id, target_path, pull_sse,git_log,origin,"failed")
+        # result = {
+        #     "error": "timeout",
+        #     "pid": proc.pid,
+        # }
+        # # await pull_sse("failed", "timeout")
+        # print(f"pull task timeout: {result}")
+        # return result
     except asyncio.CancelledError:
         latest_lock_data = read_lock(lock_file) or {}
         if latest_lock_data.get("status") == "stopped":
             raise
         if store_id:
             # store_service.delete_store_db(store_id)
-            store_service.update_store_status_db(store_id,"failed")
+            # store_service.update_store_status_db(store_id,"failed")
+            await update_store(store_id, target_path, pull_sse,git_log,origin,"failed")
         # await pull_sse("failed", "cancelled")
         raise
     except Exception:
         
         if store_id:
-            store_service.update_store_status_db(store_id,"failed")
+            # store_service.update_store_status_db(store_id,"failed")
+            await update_store(store_id, target_path, pull_sse,git_log,origin,"failed")
             # store_service.delete_store_db(store_id)
         # await pull_sse("failed", "exception")
         raise
@@ -424,6 +462,7 @@ def setup_handlers(
 
         except Exception as e:
             store_service.delete_store_db(store_id)
+            
             release_lock(lock_file)
             raise HTTPException(status_code=500, detail=f"Git pull failed: {str(e)}")
 
