@@ -1331,6 +1331,8 @@ def get_components_by_relation_id_v2(conn,relation_id):
             t_store.c.url.label("store_url"),
             t_store.c.version.label("store_version"),
             t_store.c.update_info.label("store_update_info"),
+            t_store.c.store_id.label("store_id"),
+            t_store.c.status.label("store_status"),
             # t_pipeline_components.c.script_type,
             # t_pipeline_components.c.content,
             # t_pipeline_components.c.description.label("component_description"),
@@ -1656,6 +1658,7 @@ def find_tools_publish(conn, relation_id):
         t_store.c.status.label("store_status"),
         t_store.c.publish_urls.label("publish_urls"),
         t_store.c.path.label("path"),
+        t_store.c.store_id.label("store_id"),
     )
     stmt = stmt.select_from(
         t_pipeline_components_relation.outerjoin(

@@ -209,7 +209,7 @@ async def git_stop(store_id: str, evenet_bus:EventBus = Depends(Provide[AppConta
         if not find_store:
             raise HTTPException(status_code=404, detail=f"Store with id {store_id} not found")
         
-        if find_store.get("status") not in ["running","pulling"]:
+        if find_store.get("status") in ["done"]:
             raise HTTPException(status_code=400, detail=f"Store with id {store_id} is not in a valid state for stop operation")
 
         asyncio.create_task(evenet_bus.dispatch(RoutersName.GIT_EXECUTER_ROUTER, GitExecutorEvent.ON_GIT_STOP, {

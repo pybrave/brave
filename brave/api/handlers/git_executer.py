@@ -124,11 +124,13 @@ async def update_store(store_id: str, target_path: str, push_sse,reasion):
                 if "app_id" not in config_data:
                     raise Exception(f"app_id is required in metadata.json for store {store_id}")
                 app_id = config_data["app_id"]
-                find_store = store_service.find_store_by_app_id(conn, app_id)
-                if find_store:
-                    # store_service.delete_store(conn, find_store["store_id"])
-                    await push_sse("error",reasion,"already_exists")
-                    raise Exception(f"Store with app_id {app_id} already exists for store_id {find_store['store_id']}")
+                if reasion =="clone_finished":
+                    find_store = store_service.find_store_by_app_id(conn, app_id)
+                    if find_store:
+                        # store_service.delete_store(conn, find_store["store_id"])
+                        await push_sse("error",reasion,"already_exists")
+                        raise Exception(f"Store with app_id {app_id} already exists for store_id {find_store['store_id']}")
+                    
                 update_data = store_service.build_store_data(
                     app_id=app_id,
                     img=config_data.get("img",None),
@@ -431,17 +433,32 @@ def setup_handlers(
     @router.on_event(GitExecutorEvent.ON_GIT_STOP)
     async def on_git_stop(payload:dict):
         print(f"🚀 [on_git_stop] ")
+        store_id = payload.get("store_id")
+        data = {
+                "action": "component.invoke",
+                "payload": {
+                    "category": "store",
+                    "id": store_id,
+                    "method": "stop",
+                    "args": {
+                        "status": "done",
+                        "id": store_id,
+                    },
+                },
+            }
+        
         target_path = payload.get("target_path")
         lock_file = f"{target_path}.lock"
         lock_data = read_lock(lock_file)
         if not lock_data:
             store_service.update_store_status_db(payload.get("store_id"), "done")
+            await sse_service.push_message({"group": "default", "data": json.dumps(data)})
             raise HTTPException(status_code=404, detail=f"Lock file not found for {target_path}")
 
         store_id = lock_data.get("store_id")
-        operation = lock_data.get("operation") or "clone"
+        # operation = lock_data.get("operation") or "clone"
         pid = lock_data.get("pid")
-        process_status = "pid_missing"
+        # process_status = "pid_missing"
 
         update_lock(
             lock_file,
@@ -460,19 +477,7 @@ def setup_handlers(
 
         if store_id:
             store_service.update_store_status_db(store_id, "done")
-            data = {
-                "action": "component.invoke",
-                "payload": {
-                    "category": "store",
-                    "id": store_id,
-                    "method": "stop",
-                    "args": {
-                        "status": "done",
-                        "id": store_id,
-                        "process_status": process_status,
-                    },
-                },
-            }
+            
             await sse_service.push_message({"group": "default", "data": json.dumps(data)})
 
         release_lock(lock_file)

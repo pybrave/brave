@@ -345,7 +345,7 @@ t_pipeline_components_relation = Table(
     Column("input_component_ids",  JSON),
     Column("output_component_ids",  JSON),
     Column("order_index", Integer),
-    Column("store_id", String(255)),
+    # Column("store_id", String(255)),
     Column("version", String(255)),
     Column("update_info", Text().with_variant(LONGTEXT(), "mysql")),
     # Column("namespace", String(255)),
