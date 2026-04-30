@@ -164,6 +164,11 @@ async def list_components_by_type(relationStore:RelationStore):
         raise ValueError("address must be 'local' or 'github'")
     return components
 
+
+def check_store_tools_exists(tools):
+    url_list = [ item["url"] for item in tools]
+    store_service.find_list_in_urls(url_list)
+   
 # git@github.com:pybrave/store-repo.git
 @component_store_api.post("/get-remote-store")
 async def get_remote_store(storeRequest:GetStoreRequest):
@@ -173,10 +178,11 @@ async def get_remote_store(storeRequest:GetStoreRequest):
     branch = storeRequest.branch
     token = storeRequest.token
     is_cache = storeRequest.is_cache
+    origin = storeRequest.origin
     
     settings = get_settings()
     store_dir = settings.STORE_DIR
-    remote_cache = f"{store_dir}/remote/{owner}_{repo}.json"
+    remote_cache = f"{store_dir}/remote/{origin}_{owner}_{repo}.json"
     if os.path.exists(remote_cache) and  is_cache:
         with open(remote_cache, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -194,6 +200,8 @@ async def get_remote_store(storeRequest:GetStoreRequest):
     elif storeRequest.origin =="gitee":
         data = get_gitee_file_content(owner, repo, file_path, branch, token=token)
         data = json.loads(data)
+        
+
             # Cache the data for future use
         os.makedirs(os.path.dirname(remote_cache), exist_ok=True)
         with open(remote_cache, 'w', encoding='utf-8') as f:

@@ -503,6 +503,7 @@ t_store = Table(
     Column("store_id", String(255)),
     Column("app_id", String(255)),
     Column("name", String(255)),
+    Column("origin", String(255)),
     Column("url", String(255)),
     Column("status", String(255)),
     Column("path", String(255)),

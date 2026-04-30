@@ -204,7 +204,18 @@ def create_or_update_store(url,app_id,name,img,category,tags,version,update_info
         "path": store_path,
         "path_name": path_name,
         "publish_urls": publish_urls,
+        "origin":"local",
         **store_data_
        
     }
     return store_data
+
+
+def find_list_in_urls(conn, urls):
+    stmt = select(
+        t_store
+    )
+   
+    stmt = stmt.where(t_store.c.url.in_(urls))
+    find_store = conn.execute(stmt).mappings().all()
+    return find_store

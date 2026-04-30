@@ -1333,6 +1333,7 @@ def get_components_by_relation_id_v2(conn,relation_id):
             t_store.c.update_info.label("store_update_info"),
             t_store.c.store_id.label("store_id"),
             t_store.c.status.label("store_status"),
+            t_store.c.origin.label("store_origin")
             # t_pipeline_components.c.script_type,
             # t_pipeline_components.c.content,
             # t_pipeline_components.c.description.label("component_description"),
