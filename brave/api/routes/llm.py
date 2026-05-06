@@ -32,10 +32,7 @@ api_key = os.getenv("API_KEY","")
 #         api_key=api_key,
 #         base_url="https://api.deepseek.com",
 #     )
-client = openai.OpenAI(
-        api_key=api_key,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )
+
 # message:nextContent,
 # biz_id: biz_id,
 # biz_type: biz_type,
@@ -77,6 +74,10 @@ EXAMPLE JSON OUTPUT:
 @llm_api.post("/chat")
 async def chat(req: ChatRequest):
     try:
+        client = openai.OpenAI(
+            api_key=api_key,
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        )
         response = client.chat.completions.create(
             model="deepseek-chat",
             tools=tools,
@@ -104,6 +105,10 @@ async def chat_stream( req: ChatRequest):
 
     async def stream():
         try:
+            client = openai.OpenAI(
+                api_key=api_key,
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            )
             # 使用新版 SDK 的 stream=True
             with client.chat.completions.stream(
                 model="deepseek-chat",
@@ -232,6 +237,10 @@ async def chat_stream2(req: ChatRequest):
 
         assistant_message = ""  # 最终累积模型输出
         try:
+            client = openai.OpenAI(
+                api_key=api_key,
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            )
             # 使用新版 SDK 的 stream=True
             with client.chat.completions.stream(
                 model="deepseek-chat",
