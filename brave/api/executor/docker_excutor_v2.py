@@ -103,7 +103,16 @@ class DockerExecutorV2(JobExecutor):
             if not find_container:
                 raise RuntimeError(f"Container {job.container_id} not found")
             used_namespace = namespace_service.get_used_namespace(conn)
-    
+
+
+        try:
+            self.client.images.get(find_container.image)  # 确保镜像存在，否则会在运行时失败
+        except ImageNotFound:
+            # raise RuntimeError(f"Image {find_container.image} not found for container {job.container_id}")
+            print(f"Image {find_container.image} not found for container {job.container_id}, pulling image...")
+            # self.pull_image(find_container.container_id,find_container.image)
+            self.pull_image_sync(find_container.container_id,find_container.image)
+
         # "DISABLE_AUTH":true,
         # "USERID":"$USERID",
         # "GROUPID":"$GROUPID",
@@ -470,22 +479,41 @@ class DockerExecutorV2(JobExecutor):
             return None
     
     def pull_image_with_log(self,container_id,image_name: str):
-        client = docker.APIClient(base_url="unix://var/run/docker.sock")
-        stream = client.pull(image_name.strip(), stream=True, decode=True)
+        # 高层 client.images.pull 通常返回 Image，不适合流式日志。
+        stream = self.client.api.pull(image_name.strip(), stream=True, decode=True)
         log_file = f"{self.setting.BASE_DIR}/log"
         if not  os.path.exists(log_file):    
             os.makedirs(log_file) 
         print(f"pull {image_name} log :{log_file}/{container_id}.log")
         with open(f"{log_file}/{container_id}.log", "w", encoding="utf-8") as f:
-            for log in stream:
-                log_str = json.dumps(log, ensure_ascii=False)
-                # print(log_str)  # 继续打印到控制台
-                f.write(log_str + "\n")  # 写入文件
+            if isinstance(stream, dict):
+                f.write(json.dumps(stream, ensure_ascii=False) + "\n")
+            else:
+                for log in stream:
+                    log_str = json.dumps(log, ensure_ascii=False)
+                    # print(log_str)  # 继续打印到控制台
+                    f.write(log_str + "\n")  # 写入文件
 
         # for log in stream:
             
         #     print(json.dumps(log, indent=2, ensure_ascii=False))
 
+    def pull_image_sync(self,container_id,image_name):
+        self.pull_image_with_log(container_id,image_name)
+        image = self.get_image(image_name)
+        if image:
+            print(f"pull {image_name} complete!")
+            with get_engine().begin() as conn: 
+                container_service.update_container(conn,
+                                                    container_id,
+                                                    {"image_id":image.id,"image_status":"exist"})
+        run_id = AnalysisId(run_id=f"retry-{container_id}")
+        # asyncio.create_task()
+        asyncio.run(self.event_bus.dispatch(
+            RoutersName.ANALYSIS_EXECUTER_ROUTER,
+            AnalysisExecutorEvent.ON_CONTAINER_PULLED,
+            run_id
+        ))
     async def pull_image(self,container_id,image_name):
         print(f"pull {image_name}")
         # a = self.client.images.pull(image_name)

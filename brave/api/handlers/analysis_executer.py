@@ -298,9 +298,28 @@ def setup_handlers(
 
     @router.on_event(AnalysisExecutorEvent.ON_CONTAINER_PULLED)
     async def on_container_pulled(payload:AnalysisExecuterModal):
-        await sse_service.push_message({"group": "default", "data": json.dumps({
-            "analysis_id": payload.analysis_id,
-            "run_id": payload.run_id,
-            "event": "container_pulled",
-            "run_type":payload.run_type
-        })})
+        # await sse_service.push_message({"group": "default", "data": json.dumps({
+        #     "analysis_id": payload.analysis_id,
+        #     "run_id": payload.run_id,
+        #     "event": "container_pulled",
+        #     "run_type":payload.run_type
+        # })})
+        data = {
+            "action": "component.invoke",
+            "payload": {
+                "category": "container",
+                "id":  payload.analysis_id,
+                "method": "containerPulled",
+                "args": {
+                    "status": "done",
+                     "id": payload.analysis_id
+                }
+            }
+        }
+        # {
+        #     "analysis_id": payload.analysis_id,
+        #     "event": "analysis_failed",
+        #      "run_id": payload.run_id,
+        #     "run_type":payload.run_type
+        #     }
+        await sse_service.push_message({"group": "default", "data": json.dumps(data)})
