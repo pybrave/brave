@@ -46,8 +46,15 @@ On China mainland, you can use the following command to install BRAVE using the 
 curl -s https://raw.giteeusercontent.com/pybrave/brave/raw/master/install.sh  | bash -s -- --aliyun
 ```
 
+## Development installation
 
-
+```
+uv venv
+source .venv/bin/activate
+uv pip install . 
+brave  --mysql-url root:123456@localhost:53306/brave
+```
+> Python version 3.14.4
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/brave_workflow.png" alt="brave" >
