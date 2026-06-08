@@ -63,10 +63,11 @@ async def find_by_id(container_id):
 async def save_container_controller(saveContainer:SaveContainer, job_executor:JobExecutor = Depends(Provide[AppContainer.job_executor_selector]) ):
     image = ""
     save_container_dict  = saveContainer.model_dump()
-    try:
-        json.loads(saveContainer.volumes)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"volumes字段必须是json字符串，格式如：{{\"/host/path\":\"/container/path\"}}")
+    if saveContainer.volumes:
+        try:
+            json.loads(saveContainer.volumes)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"volumes字段必须是json字符串，格式如：{{\"/host/path\":\"/container/path\"}}")
     with get_engine().begin() as conn:
         if saveContainer.container_id:
             find_container= container_service.find_container_by_id(conn,saveContainer.container_id)

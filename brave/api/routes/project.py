@@ -71,7 +71,7 @@ async def list_dir_v2(
     else:
         real_path = f"{settings.DATA_DIR}/{project_id}"
 
-    if path:
+    if path and path !="" and path!="/":
         real_path = f"{real_path}/{path}"
     full_path = Path(  real_path).resolve()
     if not full_path.exists() or not full_path.is_dir() :
@@ -99,6 +99,7 @@ async def list_dir_v2(
 
     return {
         "items": paged_items,
+        "dir":real_path,
         "total": total,
         "page": page,
         "limit": limit,
