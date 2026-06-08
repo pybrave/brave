@@ -1,5 +1,6 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from importlib import resources
 import os
 from typing import Dict
 import docker
@@ -127,6 +128,9 @@ class DockerExecutorV2(JobExecutor):
         package_dir = str(settings.PACKAGE_DIR)
         analysis_dir = str(settings.ANALYSIS_DIR)
         script_dir = os.path.dirname(job.script_path)
+
+        rprofile_path = resources.files("brave.templete").joinpath(".Rprofile")
+
         # connom_script_dir = os.path.dirname(script_dir)
         envionment = {}
         if find_container["envionment"]:
@@ -144,6 +148,7 @@ class DockerExecutorV2(JobExecutor):
             envionment = envionment.replace("$DOCKER_GROUPID", str(sock_gid))
             envionment = envionment.replace("$R_PACKAGE_DIR", r_package_dir)
             envionment = envionment.replace("$PYTHON_PACKAGE_DIR", f"{package_dir}/python")
+            envionment = envionment.replace("$R_PROFILE", str(rprofile_path))
 
             envionment = envionment.replace("$SCRIPT_DIR", script_dir)
             envionment = envionment.replace("$OUTPUT_DIR", job.workspace_dir) # TODO
@@ -162,6 +167,9 @@ class DockerExecutorV2(JobExecutor):
         #     self.to_remove.append(job.job_id)
         #     raise e  # 其他错误不应吞掉
 
+        if used_namespace and used_namespace.envionment:
+            namespace_env = json.loads(used_namespace.envionment)
+            envionment.update(namespace_env)
 
 
         command = f"-c  \"bash ./run.sh  2>&1 | tee {job.log_path}; exit ${{PIPESTATUS[0]}}\""
@@ -208,7 +216,16 @@ class DockerExecutorV2(JobExecutor):
             for k,v in volumes_dict.items():
                 if os.path.exists(k):
                     volumes.update({ k: v})
+        
 
+        if find_container["volumes"]:
+            volumes_str = find_container["volumes"]
+            volumes_str = volumes_str.replace("$R_PROFILE", str(rprofile_path))
+
+            volumes_dict = json.loads(volumes_str)
+            for k,v in volumes_dict.items():
+                if os.path.exists(k):
+                    volumes.update({ k: v})
         if job.run_id.startswith("node-") or job.run_id.startswith("nserver-"):
             #  job.workspace_dir:{
             #             "bind": job.workspace_dir,

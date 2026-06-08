@@ -1,0 +1,1 @@
+import{j as t}from"./index-C6GJdTQl.js";import i from"./code-Dfsmvf0O.js";const e=({component:r})=>t.jsx(t.Fragment,{children:t.jsx(i,{component_id:r==null?void 0:r.component_id})});export{e as default};

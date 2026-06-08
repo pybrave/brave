@@ -1,0 +1,1 @@
+import{j as e,D as n}from"./index-C6GJdTQl.js";import i from"./code-Dfsmvf0O.js";const m=({visible:t,onClose:r,params:o,callback:d})=>t?e.jsx(e.Fragment,{children:e.jsx(n,{title:"View File",open:t,onClose:r,width:"50%",children:e.jsx(i,{component_id:o.component_id})})}):null;export{m as default};

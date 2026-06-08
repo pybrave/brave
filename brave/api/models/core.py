@@ -385,6 +385,7 @@ t_namespace = Table(
     Column("name", String(255)),
     Column("volumes", Text().with_variant(LONGTEXT(), "mysql")),
     Column("resources", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("envionment", Text().with_variant(LONGTEXT(), "mysql")),
     Column("queue_size", Integer, default=10),
     Column("is_use",  Boolean, default=False),
 )
@@ -467,6 +468,7 @@ t_container = Table(
     Column("version", String(255)),
     # Column("namespace", String(255)),
     Column("envionment", String(255)),
+    Column("volumes",String(255)),
     Column("command", String(255)),
     Column("port", String(255)),
     Column("labels", Text().with_variant(LONGTEXT(), "mysql")),

@@ -1,0 +1,1 @@
+import{j as r}from"./index-C6GJdTQl.js";import o from"./component-structure-JKQct33t.js";import"./index-CKTgCJvi.js";import"./RedoOutlined-lJ3y5JtZ.js";import"./RedoOutlined-NAONw5hp.js";const d=({component:t,callback:p,openModal:e,panel:i,component_type:m})=>r.jsx(o,{component_id:t==null?void 0:t.component_id});export{d as default};

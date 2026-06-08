@@ -20,6 +20,13 @@ async def save_namespace_controller(saveNamespace:SaveNamespace):
             json.loads(saveNamespace.volumes)
         except Exception as e:
             raise RuntimeError(f"The volumes field is not in legal JSON format: {e}")
+    
+    if saveNamespace.envionment:
+        try:
+            json.loads(saveNamespace.envionment)
+        except Exception as e:
+            raise RuntimeError(f"The envionment field is not in legal JSON format: {e}")
+
     with get_engine().begin() as conn:
         if saveNamespace.namespace_id:
             find_namespace = namespace_service.find_namespace(conn,saveNamespace.namespace_id)

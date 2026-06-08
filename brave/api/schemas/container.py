@@ -14,6 +14,7 @@ class SaveContainer(BaseModel):
     command: Optional[str]=None
     port: Optional[str]=None
     labels: Optional[str]=None
+    volumes: Optional[str]=None
     change_uid:Optional[bool]=True
     container_key:Optional[str]=None
     img: Optional[str]=None

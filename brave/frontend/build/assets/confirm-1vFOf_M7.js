@@ -1,0 +1,1 @@
+import{j as n}from"./index-C6GJdTQl.js";function o({onOk:i,onCancel:r}){return n.jsxs("div",{children:[n.jsx("h3",{children:"确认操作？"}),n.jsx("button",{onClick:()=>i(!0),children:"确定"}),n.jsx("button",{onClick:r,children:"取消"})]})}export{o as default};
