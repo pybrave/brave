@@ -468,7 +468,7 @@ t_container = Table(
     Column("version", String(255)),
     # Column("namespace", String(255)),
     Column("envionment", String(255)),
-    Column("volumes",String(255)),
+    Column("volumes",Text().with_variant(LONGTEXT(), "mysql")),
     Column("command", String(255)),
     Column("port", String(255)),
     Column("labels", Text().with_variant(LONGTEXT(), "mysql")),

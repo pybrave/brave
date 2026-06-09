@@ -233,7 +233,7 @@ async def visualization_results_path(path):
         merged_images.append(merged_item)
     # images = []
     tables = []
-    for ext in ("*.csv","*.md", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list","*.diff"):
+    for ext in ("*.csv","*.md", "*.tsv","*.txt", "*.xlsx","*.info","*.vis","*.feature.list","*.diff","*.log"):
         tables.extend(glob.glob(os.path.join(path, ext)))
     tables = [format_table_output(table,10) for table in tables]
     tables = sorted(tables, key=lambda x: x.get("order", 0), reverse=True)
