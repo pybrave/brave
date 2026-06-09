@@ -581,7 +581,12 @@ def create_analysis_node_runtime(conn, analysis_node,script_type, analysis_param
             params = json.load(f)
         with open(script_path,"r") as f:
             script_content = f.read()
-        rendered_script = _render_shell_template(script_content, params)
+        rendered_script = ""
+        try:
+            rendered_script += _render_shell_template(script_content, params)
+        except HTTPException as exc:
+            print(f"Error rendering shell template for analysis node {analysis_node['analysis_node_id']}: {exc.detail}")
+            rendered_script += f"\n\n# Error rendering shell template: {exc.detail}"
 
         rendered_script += f"\n\n#{script_path}"
         with open(command_path,"w") as f:
