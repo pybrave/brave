@@ -37,6 +37,7 @@ from brave.api.service.result_parse import script_analysis
 from brave.api.service.result_parse import nextflow_analysis
 from brave.api.service.result_parse.nextflow_analysis    import NextflowAnalysis
 from brave.api.service.result_parse.result_parse import ResultParse
+import brave.api.service.analysis_runtime_engine_service as analysis_runtime_engine_service
 from brave.api.utils import file_utils
 from brave.api.utils.get_db_utils import get_ids
 from brave.api.config.config import get_settings
@@ -1473,3 +1474,11 @@ async def run_analysis_node(
 
     return {"msg":"success"}
 
+
+@analysis_api.post("/complete-node/{analysis_node_id}")
+async def complete_node_(analysis_node_id):
+    with get_engine().begin() as conn:
+        find_analysis_node = analysis_node_service.find_by_analysis_node_id(conn,analysis_node_id)
+        analsyis_id = find_analysis_node["analysis_id"]
+        analysis_runtime_engine_service.complete_node(conn,analsyis_id,find_analysis_node["node_id"] )
+    return {"msg":"success"}
