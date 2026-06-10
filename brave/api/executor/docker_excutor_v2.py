@@ -129,7 +129,7 @@ class DockerExecutorV2(JobExecutor):
         analysis_dir = str(settings.ANALYSIS_DIR)
         script_dir = os.path.dirname(job.script_path)
 
-        rprofile_path = resources.files("brave.templete").joinpath(".Rprofile")
+        rprofile_path = resources.files("brave.templete").joinpath("Rprofile")
 
         # connom_script_dir = os.path.dirname(script_dir)
         envionment = {}
