@@ -217,11 +217,11 @@ class DockerExecutorV2(JobExecutor):
                 if os.path.exists(k):
                     volumes.update({ k: v})
         
-
+        print('rprofile_path: '+str(rprofile_path))
         if find_container["volumes"]:
             volumes_str = find_container["volumes"]
             volumes_str = volumes_str.replace("$R_PROFILE", str(rprofile_path))
-
+            print(volumes_str)
             volumes_dict = json.loads(volumes_str)
             for k,v in volumes_dict.items():
                 if os.path.exists(k):
