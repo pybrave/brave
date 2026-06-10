@@ -21,7 +21,7 @@ def _as_dict(value: Any) -> Dict[str, Any]:
 
 def _node_key(node: Dict[str, Any]) -> str:
 	"""返回 DAG 节点唯一键（优先 id，回退 name）。"""
-	return str(node.get("id") or node.get("name") or "")
+	return str(node.get("node_id") or node.get("name") or "")
 
 
 def _node_name(node: Dict[str, Any]) -> str:

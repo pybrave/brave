@@ -1483,13 +1483,28 @@ def get_script_item(script):
     else:
         node["inputs"] = {}
         node["outputs"] = {}
-    node["script_id"] = script["component_id"]
+    script_id =     script["component_id"]
+    node["script_id"] = script_id
+    # node["node_id"] = f"{script_id}_1"
+    if "node_id" not in script:
+        node["node_id"] = f"{script_id}_1"
+    else:
+        node["node_id"]=script["node_id"]
     return node
 
-def script_to_node(conn, component_id):
+def script_to_node(conn, component_id,relation_id):
     find_component = find_component_by_id(conn, component_id)
     if not find_component:
         raise HTTPException(status_code=404, detail=f"Component {component_id} not found")
+    find_component = dict(find_component)
+    find_relation = find_by_relation_id(conn,relation_id)
+    dag_definition = find_relation["dag_definition"]
+    if dag_definition and "nodes" in dag_definition:
+        nodes = dag_definition["nodes"]
+        curr_script_id = find_component["component_id"]
+        script_ids = [item["script_id"] for item in nodes if item["script_id"]==curr_script_id]
+        suffix = len(script_ids)+1
+        find_component["node_id"] = f"{curr_script_id}_{suffix}"
     return get_script_item(find_component)
 
 
@@ -1560,11 +1575,19 @@ def get_workflow(conn, tool_id):
 
     return dag_definition
 
-def build_input_script_form_json(io_schema,formJsonWarp):
+def build_input_script_form_json(io_schema,formJsonWarp,input_names=None):
     # io_schema = json.loads(script["io_schema"])
     # if script_id in nodes_map:
     #     node = nodes_map[script_id]
     #     io_schema = {**io_schema, **node}
+
+    def filter_inputs(items):
+        if input_names is None:
+            return items
+        return [
+            item for item in items
+            if isinstance(item, dict) and item.get("name") in input_names
+        ]
 
     if "scatter" in io_schema:
         scatter = io_schema.get("scatter")
@@ -1573,10 +1596,10 @@ def build_input_script_form_json(io_schema,formJsonWarp):
                 formJsonWarp.extend(io_schema["workflow"])  
         else:
             if "inputs" in io_schema:
-                formJsonWarp.extend(io_schema["inputs"])  
+                formJsonWarp.extend(filter_inputs(io_schema["inputs"]))  
     else:
         if "inputs" in io_schema:
-            formJsonWarp.extend(io_schema["inputs"])  
+            formJsonWarp.extend(filter_inputs(io_schema["inputs"]))  
 
 
 
@@ -1592,32 +1615,63 @@ def get_from_json_by_relation_id(conn, relation_id):
             nodes_map = { node["script_id"]: node for node in nodes if "script_id" in node }
             input_script_ids = set()
             edges = dag_definition.get("edges") or []
-            target_node_ids = {
-                edge.get("target")
-                for edge in edges
-                if isinstance(edge, dict) and edge.get("target")
-            }
+
+            # Build incoming handle set by node id: {target_node_id: {targetHandle1, ...}}
+            node_incoming_handles = {}
+            for edge in edges:
+                if not isinstance(edge, dict):
+                    continue
+                target_node_id = edge.get("target")
+                target_handle = edge.get("targetHandle")
+                if not target_node_id or not target_handle:
+                    continue
+                if target_node_id not in node_incoming_handles:
+                    node_incoming_handles[target_node_id] = set()
+                node_incoming_handles[target_node_id].add(target_handle)
+
+            # Group node ids by script_id, because one script can appear in multiple workflow nodes.
+            node_ids_by_script_id = {}
             for node in nodes:
                 if not isinstance(node, dict):
                     continue
-                # node_id = node.get("id")
                 script_id = node.get("script_id")
-                if script_id is None:
+                node_id = node.get("node_id")
+                if script_id is None or node_id is None:
                     continue
-                if script_id is None or script_id not in target_node_ids:
-                    input_script_ids.add(script_id)
+                if script_id not in node_ids_by_script_id:
+                    node_ids_by_script_id[script_id] = []
+                node_ids_by_script_id[script_id].append(node_id)
+                # node_ids_by_script_id[script_id].append(script_id)
+
             script_ids = [ node["script_id"] for node in nodes if "script_id" in node and node["script_id"] is not None]
             if script_ids:
                 scripts = find_by_component_ids(conn, script_ids)
                 for script in scripts:
                     script = dict(script)
                     script_id = script.get("component_id")
-                    io_schema = json.loads(script["io_schema"])
+                    io_schema = json.loads(script["io_schema"]) if script.get("io_schema") else {}
+
+                    input_names = {
+                        item.get("name")
+                        for item in io_schema.get("inputs", [])
+                        if isinstance(item, dict) and item.get("name")
+                    }
+                    node_ids = node_ids_by_script_id.get(script_id, [])
+                    missing_input_names = set()
+                    for node_id in node_ids:
+                        incoming_handles = node_incoming_handles.get(node_id, set())
+                        missing_input_names.update(
+                            input_name for input_name in input_names
+                            if input_name not in incoming_handles
+                        )
+                    if missing_input_names:
+                        input_script_ids.add(script_id)
+
                     if script_id in input_script_ids and script["io_schema"]:
                         if script_id in nodes_map:
                             node = nodes_map[script_id]
                             io_schema = {**io_schema, **node}
-                        build_input_script_form_json(io_schema, formJsonWarp)
+                        build_input_script_form_json(io_schema, formJsonWarp, missing_input_names)
 
                         # if "scatter" in io_schema:
                         #     scatter = io_schema.get("scatter")
