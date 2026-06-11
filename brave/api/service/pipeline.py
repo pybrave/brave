@@ -1696,7 +1696,8 @@ def get_from_json_by_relation_id(conn, relation_id):
                         #     "scpipt_name": script["component_name"],
                         #     "content": content,
                         # })
-                        formJsonWarp.extend(content["formJson"])
+                        if "formJson" in content:
+                            formJsonWarp.extend(content["formJson"])
     return formJsonWarp
 
 
