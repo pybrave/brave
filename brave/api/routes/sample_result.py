@@ -40,6 +40,7 @@ from fastapi import Depends
 from dependency_injector.wiring import inject, Provide
 from brave.app_container import AppContainer
 from collections import defaultdict
+from pandas.api.types import is_numeric_dtype, is_datetime64_any_dtype
 sample_result = APIRouter()
 # key = Fernet.generate_key()
 # f = Fernet(key)
@@ -806,3 +807,51 @@ async def create_analysis_result(create_analysis_result: CreateAnalysisResult):
         stmt = insert(analysis_result).values(**create_analysis_result_dict)
         conn.execute(stmt)
     return {"message":"success"}
+
+@sample_result.get("/analysis-result/graphic-walker/{analysis_result_id}",tags=['analysis_result'])
+async def get_graphic_walker_data(analysis_result_id: str):
+    with get_engine().begin() as conn:
+        analysis_result = analysis_result_service.find_by_analysis_result_id(conn,analysis_result_id)
+    if not analysis_result:
+        raise HTTPException(status_code=404, detail=f"分析结果{analysis_result_id}不存在!")
+
+    file_path = analysis_result["content"]
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"文件{file_path}不存在!")
+
+    if not str(file_path).lower().endswith(".tsv"):
+        raise HTTPException(status_code=400, detail=f"文件{file_path}不是TSV格式!")
+
+    try:
+        df = pd.read_csv(file_path, sep="\t")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"读取TSV失败: {str(e)}")
+
+    data = json.loads(df.to_json(orient="records", date_format="iso"))
+
+    fields = []
+    for col in df.columns:
+        series = df[col]
+        if is_datetime64_any_dtype(series):
+            semantic_type = "temporal"
+            analytic_type = "dimension"
+        elif is_numeric_dtype(series):
+            semantic_type = "quantitative"
+            analytic_type = "measure"
+        else:
+            semantic_type = "nominal"
+            analytic_type = "dimension"
+
+        fields.append(
+            {
+                "fid": str(col),
+                "name": str(col),
+                "semanticType": semantic_type,
+                "analyticType": analytic_type,
+            }
+        )
+
+    return {
+        "data": data,
+        "fields": fields,
+    }
