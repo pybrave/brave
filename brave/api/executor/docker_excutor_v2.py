@@ -129,7 +129,7 @@ class DockerExecutorV2(JobExecutor):
         analysis_dir = str(settings.ANALYSIS_DIR)
         script_dir = os.path.dirname(job.script_path)
 
-        rprofile_path = resources.files("brave.templete").joinpath("Rprofile")
+        # rprofile_path = resources.files("brave.templete").joinpath("Rprofile")
 
         # connom_script_dir = os.path.dirname(script_dir)
         envionment = {}
@@ -148,7 +148,7 @@ class DockerExecutorV2(JobExecutor):
             envionment = envionment.replace("$DOCKER_GROUPID", str(sock_gid))
             envionment = envionment.replace("$R_PACKAGE_DIR", r_package_dir)
             envionment = envionment.replace("$PYTHON_PACKAGE_DIR", f"{package_dir}/python")
-            envionment = envionment.replace("$R_PROFILE", str(rprofile_path))
+            # envionment = envionment.replace("$R_PROFILE", str(rprofile_path))
 
             envionment = envionment.replace("$SCRIPT_DIR", script_dir)
             envionment = envionment.replace("$OUTPUT_DIR", job.workspace_dir) # TODO
@@ -217,7 +217,16 @@ class DockerExecutorV2(JobExecutor):
                 if os.path.exists(k):
                     volumes.update({ k: v})
         
-        print('rprofile_path: '+str(rprofile_path))
+        # print('rprofile_path: '+str(rprofile_path))
+        rprofile_path = f"{package_dir}/Rprofile"
+        if not os.path.exists(rprofile_path):
+            # use templete Rprofile
+            rprofile_path = resources.files("brave.templete").joinpath("Rprofile")
+            with open(rprofile_path, "r") as f:
+                content = f.read()
+            with open(f"{package_dir}/Rprofile", "w") as f:
+                f.write(content)
+
         if find_container["volumes"]:
             volumes_str = find_container["volumes"]
             volumes_str = volumes_str.replace("$R_PROFILE", str(rprofile_path))
