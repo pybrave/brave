@@ -16,8 +16,10 @@
 
 
 
-BRAVE stands for Bioinformatics Reactive Analysis and Visualization Engine. It represents a seamless integration of scientific research and software engineering. BRAVE empowers bioinformatics engineers to develop, publish, and maintain robust upstream and downstream analysis workflows. For researchers, it offers an "App Store" experience: complex tools can be installed and kept up-to-date with a single click. By abstracting away the technical complexities of pipeline management, BRAVE allows scientists to dedicate their full attention to interpreting data and driving biological discoveries.
+BRAVE stands for Bioinformatics Reactive Analysis and Visualization Engine. It represents a seamless integration of scientific research and software engineering. BRAVE empowers bioinformatics engineer...
 
+
+> **Notice**: This project is no longer maintained. It has been reimplemented in Go and is now maintained at [@gobravedev/gobrave](https://github.com/gobravedev/gobrave).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/pybrave/brave/refs/heads/master/images/brave_install.gif" alt="brave" style="width: 500px;">
